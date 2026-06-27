@@ -1,0 +1,16 @@
+# Full-res images (715MB) — too large for GitHub
+ahrchives/
+
+# Self-contained shareable HTML (~23MB each, images embedded)
+ahrchives-mosaic-share.html
+share-upload/
+
+# Diagnostic / download scripts (not needed for the visualizer)
+diag.mjs
+diag2.mjs
+download_ahrchives.mjs
+download_ahrchives.py
+download_opensea.mjs
+
+# macOS
+.DS_Store

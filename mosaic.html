@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>AH!rchives — mosaic</title>
+<style>
+  :root { --fg:#eef1f7; --dim:#8b93a7; --acc:#7cc7ff; }
+  * { box-sizing: border-box; }
+  html,body { margin:0; height:100%; background:#05060a; overflow:hidden;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; color:var(--fg); }
+  #stage { position:fixed; inset:0; display:block; }
+  #panel { position:fixed; top:14px; left:14px; z-index:10; width:236px;
+    background:rgba(14,17,26,.62); backdrop-filter:blur(14px) saturate(1.2);
+    border:1px solid rgba(255,255,255,.09); border-radius:14px; padding:14px 14px 12px;
+    box-shadow:0 12px 40px rgba(0,0,0,.5); user-select:none; transition:transform .25s ease, opacity .25s; }
+  #panel.hidden { transform:translateX(-260px); opacity:0; }
+  #panel h1 { font-size:13px; letter-spacing:.14em; margin:0 0 2px; font-weight:600; }
+  #panel .sub { font-size:10px; color:var(--dim); margin:0 0 10px; letter-spacing:.06em; }
+  .row { margin:9px 0; }
+  .row.mos { display:none; }
+  .row label { display:flex; justify-content:space-between; font-size:10.5px; color:var(--dim);
+    letter-spacing:.04em; margin-bottom:5px; text-transform:uppercase; }
+  .row label b { color:var(--fg); font-weight:600; }
+  input[type=range]{ -webkit-appearance:none; width:100%; height:3px; border-radius:3px;
+    background:rgba(255,255,255,.16); outline:none; }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:13px; height:13px; border-radius:50%;
+    background:var(--acc); cursor:pointer; box-shadow:0 0 10px rgba(124,199,255,.7); }
+  input[type=range]::-moz-range-thumb{ width:13px; height:13px; border:0; border-radius:50%;
+    background:var(--acc); cursor:pointer; box-shadow:0 0 10px rgba(124,199,255,.7); }
+  .btns { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+  button { flex:1 1 auto; font:inherit; font-size:10.5px; letter-spacing:.04em; color:var(--fg);
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:9px;
+    padding:7px 6px; cursor:pointer; transition:background .15s, border-color .15s; }
+  button:hover{ background:rgba(124,199,255,.16); border-color:rgba(124,199,255,.45); }
+  button.on{ background:rgba(124,199,255,.22); border-color:rgba(124,199,255,.6); color:#dff0ff; }
+  #hint { position:fixed; bottom:12px; left:0; right:0; text-align:center; font-size:10.5px;
+    color:rgba(255,255,255,.32); letter-spacing:.08em; z-index:5; pointer-events:none; }
+  #stat { position:fixed; top:14px; right:16px; z-index:10; text-align:right; font-size:10.5px;
+    color:var(--dim); letter-spacing:.06em; line-height:1.6; }
+  #stat b{ color:var(--fg); }
+  #loadbar { position:fixed; left:0; top:0; height:2px; background:linear-gradient(90deg,#7cc7ff,#b388ff);
+    width:0%; z-index:20; transition:width .2s ease; box-shadow:0 0 10px rgba(124,199,255,.8); }
+  #toggleBtn { position:fixed; top:14px; left:14px; z-index:11; display:none; width:34px;height:34px;
+    border-radius:10px; background:rgba(14,17,26,.62); border:1px solid rgba(255,255,255,.12);
+    color:var(--fg); cursor:pointer; font-size:15px; }
+  #focusName { position:fixed; left:50%; bottom:42px; transform:translateX(-50%); z-index:6;
+    font-size:12px; letter-spacing:.12em; color:#dff0ff; opacity:0; transition:opacity .3s;
+    text-shadow:0 0 18px rgba(124,199,255,.6); }
+  #boot { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:8;
+    color:var(--dim); font-size:12px; letter-spacing:.14em; pointer-events:none; transition:opacity .4s; }
+  #backdrop{ position:fixed; inset:0; background:rgba(2,3,8,.5); z-index:30; opacity:0; pointer-events:none; transition:opacity .2s; }
+  #backdrop.show{ opacity:1; pointer-events:auto; }
+  #card{ position:fixed; z-index:31; width:300px; left:50%; top:50%; transform:translate(-50%,-46%) scale(.96);
+    background:rgba(18,21,31,.94); backdrop-filter:blur(18px) saturate(1.2); border:1px solid rgba(255,255,255,.12);
+    border-radius:16px; padding:16px; box-shadow:0 24px 70px rgba(0,0,0,.6); opacity:0; pointer-events:none;
+    transition:opacity .2s, transform .2s; }
+  #card.show{ opacity:1; pointer-events:auto; transform:translate(-50%,-50%) scale(1); }
+  #cardImg{ width:100%; aspect-ratio:1; object-fit:cover; border-radius:11px; display:block; background:#0a0c14; }
+  #cardName{ font-size:15px; font-weight:600; letter-spacing:.04em; margin:13px 2px 0; }
+  #cardTraits{ display:flex; flex-wrap:wrap; gap:6px; margin:11px 0 0; }
+  .chip{ font-size:10px; letter-spacing:.03em; color:#cfe0f5; background:rgba(124,199,255,.13);
+    border:1px solid rgba(124,199,255,.28); border-radius:7px; padding:4px 8px; }
+  .chip b{ color:#fff; font-weight:600; }
+  #cardDesc{ font-size:10.5px; line-height:1.5; color:var(--dim); margin:11px 2px 0; max-height:74px; overflow:auto; }
+  #cardBuy{ display:block; text-align:center; margin-top:14px; text-decoration:none; font-size:12px; font-weight:600;
+    letter-spacing:.05em; color:#04122a; background:linear-gradient(90deg,#7cc7ff,#9ad0ff); padding:11px; border-radius:11px; }
+  #cardBuy:hover{ filter:brightness(1.07); }
+  #cardClose{ position:absolute; top:9px; right:9px; width:26px; height:26px; border-radius:8px; z-index:1;
+    background:rgba(0,0,0,.4); border:1px solid rgba(255,255,255,.15); color:#fff; font-size:15px; cursor:pointer; line-height:1; }
+</style>
+</head>
+<body>
+<div id="loadbar"></div>
+<canvas id="stage"></canvas>
+<button id="toggleBtn" title="Show controls">⚙</button>
+<div id="panel">
+  <h1>AH!RCHIVES</h1>
+  <p class="sub">999 · webgl</p>
+  <div class="btns" style="margin-top:0">
+    <button id="mUni" class="on">✦ universe</button>
+    <button id="mMos">▦ mosaic</button>
+  </div>
+  <div class="row uni"><label>Heads <b id="vCount">—</b></label><input id="count" type="range" min="40" max="999" value="999"></div>
+  <div class="row uni"><label>Vert sway <b id="vSwirl">0.00</b></label><input id="swirl" type="range" min="0" max="150" value="0"></div>
+  <div class="row uni"><label>Depth pulse <b id="vDepth">0.50</b></label><input id="depth" type="range" min="0" max="150" value="50"></div>
+  <div class="row uni"><label>Speed <b id="vDrift">0.35</b></label><input id="drift" type="range" min="0" max="150" value="35"></div>
+  <div class="row uni"><label>Head size <b id="vSize">1.00</b></label><input id="size" type="range" min="40" max="200" value="100"></div>
+  <div class="row mos"><label>Switch speed <b id="vMspeed">0.50</b></label><input id="mspeed" type="range" min="0" max="150" value="50"></div>
+  <div class="row mos"><label>Active % <b id="vActive">60</b></label><input id="active" type="range" min="0" max="100" value="60"></div>
+  <div class="row mos"><label>Cell size <b id="vCell">90</b></label><input id="cell" type="range" min="44" max="180" value="90"></div>
+  <div class="btns">
+    <button id="bShape">◻ rounded</button>
+    <button id="bPause">⏸ pause</button>
+  </div>
+  <div class="btns">
+    <button id="bShuffle">⤮ shuffle</button>
+    <button id="bGlow" class="on">✦ glow</button>
+    <button id="bFlip">⤢ both</button>
+  </div>
+</div>
+<div id="stat"><div>loaded <b id="sLoaded">0</b>/<span id="sTotal">999</span></div><div><b id="sFps">0</b> fps</div></div>
+<div id="focusName"></div>
+<div id="backdrop"></div>
+<div id="card">
+  <button id="cardClose" title="Close">×</button>
+  <img id="cardImg" alt="">
+  <div id="cardName"></div>
+  <div id="cardTraits"></div>
+  <div id="cardDesc"></div>
+  <a id="cardBuy" target="_blank" rel="noopener">Buy on OpenSea ↗</a>
+</div>
+<div id="boot">loading 999 heads…</div>
+<div id="hint">click a head to pull it forward · drag a slider · ⚙ hides panel</div>
+
+<script src="thumbs/list.js" onerror="window.__noList=true"></script>
+<script src="thumbs/meta.js" onerror="window.__noMeta=true"></script>
+<script>
+(() => {
+  const cv = document.getElementById('stage');
+  const gl = cv.getContext('webgl', { alpha:false, antialias:false, premultipliedAlpha:true, powerPreference:'high-performance', desynchronized:true });
+  window.__diag = { gl: !!gl, ready:false, sprites:0, err:null };
+  if(!gl){ document.getElementById('boot').textContent='WebGL unavailable in this browser'; return; }
+
+  let W,H,DPR=Math.min(window.devicePixelRatio||1, 2);
+  function resize(){ W=innerWidth||1280; H=innerHeight||800; cv.width=Math.floor(W*DPR); cv.height=Math.floor(H*DPR);
+    cv.style.width=W+'px'; cv.style.height=H+'px'; gl.viewport(0,0,cv.width,cv.height); }
+  addEventListener('resize', resize); resize();
+
+  const IDS = (window.THUMB_IDS && window.THUMB_IDS.length) ? window.THUMB_IDS : Array.from({length:999},(_,i)=>i+1);
+  document.getElementById('sTotal').textContent = IDS.length;
+
+  // ---- params from UI ----
+  const P = { count:IDS.length, swirl:0.30, depth:0.50, drift:0.35, size:1.0, shape:'round', paused:false, glow:true,
+              mode:'universe', mspeed:0.50, cell:90, activePct:60, flip:'both' };
+  const bind = (id, key, f) => {
+    const el=document.getElementById(id), out=document.getElementById('v'+id[0].toUpperCase()+id.slice(1));
+    const upd=()=>{ const v=+el.value; P[key]= f? f(v): v; if(out) out.textContent=(typeof P[key]==='number'?(Number.isInteger(P[key])?P[key]:P[key].toFixed(2)):P[key]); };
+    el.addEventListener('input',upd); upd();
+  };
+  bind('count','count', v=>Math.round(v));
+  bind('swirl','swirl', v=>v/100);
+  bind('depth','depth', v=>v/100);
+  bind('drift','drift', v=>v/100);
+  bind('size','size',  v=>v/100);
+  bind('mspeed','mspeed', v=>v/100);
+  bind('cell','cell', v=>Math.round(v));
+  bind('active','activePct', v=>Math.round(v));
+  document.getElementById('vCount').textContent = P.count;
+
+  // ---- shaders ----
+  function sh(type,src){ const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+    if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){ window.__diag.err='shader: '+gl.getShaderInfoLog(s); throw new Error(window.__diag.err);} return s; }
+  const prog=gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, `
+    attribute vec2 a_pos; attribute vec2 a_uv; attribute float a_alpha;
+    uniform vec2 u_res; varying vec2 v_uv; varying float v_alpha;
+    void main(){ vec2 c=(a_pos/u_res)*2.0-1.0; gl_Position=vec4(c.x,-c.y,0.0,1.0); v_uv=a_uv; v_alpha=a_alpha; }`));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, `
+    precision mediump float; varying vec2 v_uv; varying float v_alpha; uniform sampler2D u_tex;
+    void main(){ gl_FragColor = texture2D(u_tex, v_uv) * v_alpha; }`));
+  gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog,gl.LINK_STATUS)){ window.__diag.err='link: '+gl.getProgramInfoLog(prog); document.getElementById('boot').textContent='shader link failed'; return; }
+  gl.useProgram(prog);
+  const aPos=gl.getAttribLocation(prog,'a_pos'), aUv=gl.getAttribLocation(prog,'a_uv'), aAlpha=gl.getAttribLocation(prog,'a_alpha');
+  const uRes=gl.getUniformLocation(prog,'u_res'), uTex=gl.getUniformLocation(prog,'u_tex');
+  gl.uniform1i(uTex,0);
+  gl.enable(gl.BLEND);
+  gl.clearColor(0.02,0.024,0.04,1);
+
+  // ---- atlas geometry ----
+  const TILE=256, COLS=32;            // 32*256 = 8192 ; holds up to 1024 heads
+  const ROWS=Math.max(1, Math.ceil(IDS.length/COLS));
+  const AW=COLS*TILE, AH=ROWS*TILE;
+  const atlas=document.createElement('canvas'); atlas.width=AW; atlas.height=AH;
+  const ax=atlas.getContext('2d');
+  const atlasTex=gl.createTexture();
+  // glow texture
+  const glowC=document.createElement('canvas'); glowC.width=glowC.height=128;
+  { const g=glowC.getContext('2d'); const rg=g.createRadialGradient(64,64,0,64,64,64);
+    rg.addColorStop(0,'rgba(200,225,255,1)'); rg.addColorStop(0.45,'rgba(150,200,255,0.30)'); rg.addColorStop(1,'rgba(150,200,255,0)');
+    g.fillStyle=rg; g.fillRect(0,0,128,128); }
+  const glowTex=gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D,glowTex); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,true);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,glowC);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+
+  function maskPath(c, ox, oy, s, shape){
+    c.beginPath();
+    if(shape==='circle'){ c.arc(ox+s/2,oy+s/2,s/2-1,0,Math.PI*2); }
+    else if(shape==='square'){ c.rect(ox,oy,s,s); }
+    else { const r=s*0.16,e=s-1; c.moveTo(ox+r,oy+1); c.arcTo(ox+e,oy+1,ox+e,oy+e,r); c.arcTo(ox+e,oy+e,ox+1,oy+e,r); c.arcTo(ox+1,oy+e,ox+1,oy+1,r); c.arcTo(ox+1,oy+1,ox+e,oy+1,r); c.closePath(); }
+  }
+  function drawTile(img, k, shape){
+    const col=k%COLS, row=(k/COLS)|0, ox=col*TILE, oy=row*TILE;
+    ax.clearRect(ox,oy,TILE,TILE);
+    const ar=(img.width||1)/(img.height||1); let dw=TILE,dh=TILE,dx=ox,dy=oy;
+    if(ar>1){ dh=TILE; dw=TILE*ar; dx=ox-(dw-TILE)/2; } else { dw=TILE; dh=TILE/ar; dy=oy-(dh-TILE)/2; }
+    ax.save(); maskPath(ax,ox,oy,TILE,shape); ax.clip(); ax.drawImage(img,dx,dy,dw,dh); ax.restore();
+    if(shape!=='square'){ ax.save(); maskPath(ax,ox,oy,TILE,shape); ax.lineWidth=4; ax.strokeStyle='rgba(255,255,255,0.12)'; ax.stroke(); ax.restore(); }
+  }
+  function uploadAtlas(){
+    gl.bindTexture(gl.TEXTURE_2D,atlasTex); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,true);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,atlas);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  }
+
+  // ---- sprites (atlas tiles) ----
+  const rnd=(a,b)=>a+Math.random()*(b-a);
+  const sprites=[]; let order=[]; let loaded=0; let ready=false;
+  const INS=0.5/AW; // half-texel inset
+  function addSprite(id,img){
+    const k=sprites.length, col=k%COLS, row=(k/COLS)|0;
+    const u0=col*TILE/AW+INS, v0=row*TILE/AH+INS, u1=(col+1)*TILE/AW-INS, v1=(row+1)*TILE/AH-INS;
+    sprites.push({ id,img, u0,v0,u1,v1,
+      base:rnd(0.55,1.35), r:Math.sqrt(Math.random()), a:rnd(0,Math.PI*2), dir:Math.random()<0.5?-1:1,
+      zPh:rnd(0,Math.PI*2), zSp:rnd(0.25,0.55), spin:rnd(-0.25,0.25), spSp:rnd(-0.4,0.4),
+      sx:rnd(0,1), sy:rnd(0,1), focus:0, _bx:0,_by:0,_bs:0,_z:0,_fk:0 });
+    order.push(k); loaded++;
+  }
+  const loadbar=document.getElementById('loadbar'), sLoaded=document.getElementById('sLoaded'), boot=document.getElementById('boot');
+  let li=0, settled=0, finished=false;
+  function onSettled(){ settled++; sLoaded.textContent=loaded; loadbar.style.width=(100*settled/IDS.length)+'%';
+    if(settled>=IDS.length) finish(); else pump(); }
+  function pump(){
+    while(li<IDS.length && (li-settled)<32){
+      const id=IDS[li++]; const im=new Image();
+      im.onload=()=>{ addSprite(id,im); onSettled(); };
+      im.onerror=onSettled;
+      im.src=(window.THUMB_DATA&&window.THUMB_DATA[id])?window.THUMB_DATA[id]:'thumbs/'+id+'.jpg';
+    }
+  }
+  function finish(){
+    if(finished) return; finished=true;
+    boot.textContent='building atlas…';
+    setTimeout(()=>{
+      for(let k=0;k<sprites.length;k++) drawTile(sprites[k].img,k,P.shape);
+      uploadAtlas();
+      ready=true; window.__diag.ready=true; window.__diag.sprites=sprites.length;
+      boot.style.opacity=0; loadbar.style.opacity=0;
+      document.getElementById('count').max=sprites.length;
+      if(P.mode==='mosaic') buildGrid();
+    },30);
+  }
+  function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } }
+  pump();
+
+  // ---- buffers ----
+  const MAX=4096;
+  const mainArr=new Float32Array(MAX*6*5), glowArr=new Float32Array(MAX*6*5);
+  const vbo=gl.createBuffer();
+  function setAttribs(){ gl.bindBuffer(gl.ARRAY_BUFFER,vbo);
+    gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos,2,gl.FLOAT,false,20,0);
+    gl.enableVertexAttribArray(aUv);  gl.vertexAttribPointer(aUv,2,gl.FLOAT,false,20,8);
+    gl.enableVertexAttribArray(aAlpha); gl.vertexAttribPointer(aAlpha,1,gl.FLOAT,false,20,16); }
+  function quad(arr,o, cx,cy,hs,co,si, u0,v0,u1,v1, al){
+    const x0=-hs,y0=-hs,x1=hs,y1=hs;
+    const TLx=cx+x0*co-y0*si, TLy=cy+x0*si+y0*co;
+    const TRx=cx+x1*co-y0*si, TRy=cy+x1*si+y0*co;
+    const BLx=cx+x0*co-y1*si, BLy=cy+x0*si+y1*co;
+    const BRx=cx+x1*co-y1*si, BRy=cy+x1*si+y1*co;
+    let i=o;
+    arr[i++]=TLx;arr[i++]=TLy;arr[i++]=u0;arr[i++]=v0;arr[i++]=al;
+    arr[i++]=TRx;arr[i++]=TRy;arr[i++]=u1;arr[i++]=v0;arr[i++]=al;
+    arr[i++]=BLx;arr[i++]=BLy;arr[i++]=u0;arr[i++]=v1;arr[i++]=al;
+    arr[i++]=BLx;arr[i++]=BLy;arr[i++]=u0;arr[i++]=v1;arr[i++]=al;
+    arr[i++]=TRx;arr[i++]=TRy;arr[i++]=u1;arr[i++]=v0;arr[i++]=al;
+    arr[i++]=BRx;arr[i++]=BRy;arr[i++]=u1;arr[i++]=v1;arr[i++]=al;
+    return i;
+  }
+  function quadWH(arr,o, cx,cy,hw,hh, u0,v0,u1,v1, al){
+    const x0=cx-hw,x1=cx+hw,y0=cy-hh,y1=cy+hh; let i=o;
+    arr[i++]=x0;arr[i++]=y0;arr[i++]=u0;arr[i++]=v0;arr[i++]=al;
+    arr[i++]=x1;arr[i++]=y0;arr[i++]=u1;arr[i++]=v0;arr[i++]=al;
+    arr[i++]=x0;arr[i++]=y1;arr[i++]=u0;arr[i++]=v1;arr[i++]=al;
+    arr[i++]=x0;arr[i++]=y1;arr[i++]=u0;arr[i++]=v1;arr[i++]=al;
+    arr[i++]=x1;arr[i++]=y0;arr[i++]=u1;arr[i++]=v0;arr[i++]=al;
+    arr[i++]=x1;arr[i++]=y1;arr[i++]=u1;arr[i++]=v1;arr[i++]=al;
+    return i;
+  }
+
+  // ---- mosaic grid state ----
+  let cells=[], gCols=0, gRows=0, gCell=0, gW=0, gH=0;
+  function rndInterval(){ const avg=6/(0.25+P.mspeed*3); return avg*(0.4+Math.random()*1.4); }
+  function buildGrid(){
+    gCell=P.cell; gW=W; gH=H;
+    gCols=Math.max(1,Math.ceil(W/gCell)); gRows=Math.max(1,Math.ceil(H/gCell));
+    const total=Math.min(gCols*gRows, MAX); cells=[];
+    for(let i=0;i<total;i++){ const col=i%gCols, row=(i/gCols)|0;
+      cells.push({ cx:(col+0.5)*gCell, cy:(row+0.5)*gCell, r:Math.random(),
+        item: sprites.length? (Math.random()*sprites.length)|0 : 0,
+        flip:0, flipping:false, swapped:false, axis:Math.random()<0.5?0:1, next:T+rndInterval()*Math.random() }); }
+  }
+
+  // ---- interaction ----
+  const focusName=document.getElementById('focusName'); let focusTimer=0;
+  cv.addEventListener('pointerdown', e=>{
+    const mx=e.clientX,my=e.clientY;
+    if(P.mode==='mosaic'){                       // click a tile → open its card
+      if(gCell>0){ const col=Math.floor(mx/gCell), row=Math.floor(my/gCell), ci=row*gCols+col;
+        const c=cells[ci]; if(c){ const s=sprites[c.item]; if(s) showCard(s.id); } }
+      return;
+    }
+    let best=null,bz=-1;                          // universe: hit-test the topmost head
+    for(const s of sprites){ if(!s._bs) continue; const h=s._bs/2;
+      if(mx>=s._bx-h&&mx<=s._bx+h&&my>=s._by-h&&my<=s._by+h&&s._z>bz){ best=s; bz=s._z; } }
+    if(best){ best.focus=performance.now(); showCard(best.id); }
+  });
+
+  // ---- info / buy card ----
+  const CONTRACT='0xa179a765c52ced91647c082f02d7e737d7781cae';
+  const card=document.getElementById('card'), backdrop=document.getElementById('backdrop'),
+        cardImg=document.getElementById('cardImg'), cardName=document.getElementById('cardName'),
+        cardTraits=document.getElementById('cardTraits'), cardDesc=document.getElementById('cardDesc'),
+        cardBuy=document.getElementById('cardBuy');
+  function thumbSrc(id){ return (window.THUMB_DATA&&window.THUMB_DATA[id])?window.THUMB_DATA[id]:'thumbs/'+id+'.jpg'; }
+  function showCard(id){
+    const m=(window.THUMB_META&&window.THUMB_META[id])||null;
+    cardImg.src=thumbSrc(id);
+    cardName.textContent=(m&&m.n)||('AH!rchives #'+id);
+    cardBuy.href=(m&&m.u)||('https://opensea.io/assets/ethereum/'+CONTRACT+'/'+id);
+    cardTraits.innerHTML='';
+    if(m&&m.t&&m.t.length){ for(const tr of m.t){ const c=document.createElement('span'); c.className='chip'; c.innerHTML=tr[0]+' · <b>'+tr[1]+'</b>'; cardTraits.appendChild(c); } }
+    else { const c=document.createElement('span'); c.className='chip'; c.textContent='#'+id; cardTraits.appendChild(c); }
+    cardDesc.textContent=(m&&m.d)||''; cardDesc.style.display=(m&&m.d)?'block':'none';
+    card.classList.add('show'); backdrop.classList.add('show');
+  }
+  function hideCard(){ card.classList.remove('show'); backdrop.classList.remove('show'); }
+  document.getElementById('cardClose').onclick=hideCard;
+  backdrop.onclick=hideCard;
+  addEventListener('keydown', e=>{ if(e.key==='Escape') hideCard(); });
+
+  // ---- buttons / modes ----
+  const bShape=document.getElementById('bShape'), bPause=document.getElementById('bPause'),
+        bShuffle=document.getElementById('bShuffle'), bGlow=document.getElementById('bGlow'),
+        bFlip=document.getElementById('bFlip'),
+        mUni=document.getElementById('mUni'), mMos=document.getElementById('mMos'),
+        hint=document.getElementById('hint');
+  const flipLabel={h:'⇆ horizontal', v:'⇅ vertical', both:'⤢ both', null:'⊘ no flip'};
+  const flipOrder=['both','h','v','null'];
+  function setFlip(m){ P.flip=m; bFlip.textContent=flipLabel[m]; }
+  bFlip.onclick=()=>{ setFlip(flipOrder[(flipOrder.indexOf(P.flip)+1)%flipOrder.length]); };
+  const shapeLabel={round:'◻ rounded',circle:'● circle',square:'▦ square'};
+  function rebuildAtlas(){ if(!ready) return; for(let k=0;k<sprites.length;k++) drawTile(sprites[k].img,k,P.shape); uploadAtlas(); }
+  function setShape(sh){ P.shape=sh; bShape.textContent=shapeLabel[sh]; rebuildAtlas(); }
+  bShape.onclick=()=>{ setShape(P.shape==='round'?'circle':P.shape==='circle'?'square':'round'); };
+  bPause.onclick=()=>{ P.paused=!P.paused; bPause.classList.toggle('on',P.paused); bPause.textContent=P.paused?'▶ play':'⏸ pause'; };
+  bShuffle.onclick=()=>{
+    if(P.mode==='mosaic'){ for(const c of cells){ c.flipping=true; c.flip=0; c.swapped=false; c.axis=Math.random()<0.5?0:1; } }
+    else { for(const s of sprites){ s.r=Math.sqrt(Math.random()); s.a=rnd(0,Math.PI*2); s.zPh=rnd(0,Math.PI*2); s.base=rnd(0.55,1.35);} shuffle(order); }
+  };
+  bGlow.onclick=()=>{ P.glow=!P.glow; bGlow.classList.toggle('on',P.glow); };
+  function applyMode(){
+    const uni=P.mode==='universe';
+    document.querySelectorAll('.row.uni').forEach(e=>e.style.display=uni?'block':'none');
+    document.querySelectorAll('.row.mos').forEach(e=>e.style.display=uni?'none':'block');
+    mUni.classList.toggle('on',uni); mMos.classList.toggle('on',!uni);
+    bGlow.style.display=uni?'':'none'; bFlip.style.display=uni?'none':''; bShuffle.textContent=uni?'⤮ shuffle':'⤮ reshuffle';
+    hint.textContent = uni ? 'click a head → its card + buy link · drag a slider · ⚙ hides panel'
+                           : 'click a tile → its card + buy link · Switch speed = pace · ⚙ hides panel';
+  }
+  mUni.onclick=()=>{ if(P.mode==='universe') return; P.mode='universe'; if(P.shape==='square') setShape('round'); applyMode(); };
+  mMos.onclick=()=>{ if(P.mode==='mosaic') return; P.mode='mosaic'; if(P.shape!=='square') setShape('square'); buildGrid(); applyMode(); };
+  applyMode();
+
+  const panel=document.getElementById('panel'), toggleBtn=document.getElementById('toggleBtn');
+  document.querySelector('#panel h1').addEventListener('dblclick',hidePanel);
+  toggleBtn.onclick=showPanel;
+  function hidePanel(){ panel.classList.add('hidden'); toggleBtn.style.display='block'; }
+  function showPanel(){ panel.classList.remove('hidden'); toggleBtn.style.display='none'; }
+  addEventListener('keydown',e=>{ if(e.key==='h') panel.classList.contains('hidden')?showPanel():hidePanel();
+    if(e.key===' '){ e.preventDefault(); bPause.click(); } });
+
+  // ---- animation ----
+  let T=0,last=performance.now(),fa=0,ft=0; const sFps=document.getElementById('sFps');
+  function frame(now){
+    let dt=(now-last)/1000; last=now; if(dt>0.05) dt=0.05;
+    if(!P.paused) T+=dt;
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    if(ready){
+      gl.uniform2f(uRes,W,H); gl.activeTexture(gl.TEXTURE0);
+
+      if(P.mode==='mosaic'){
+        if(gCell!==P.cell || gW!==W || gH!==H) buildGrid();
+        const cell=gCell, flipDur=0.42;
+        let mo=0;
+        const frac=P.activePct/100;
+        for(const c of cells){
+          if(!P.paused){
+            if(!c.flipping && T>=c.next){
+              if(c.r<frac){ c.flipping=true; c.flip=0; c.swapped=false; c.axis=Math.random()<0.5?0:1; }
+              else { c.next=T+rndInterval(); }
+            }
+            if(c.flipping){ c.flip += dt/flipDur;
+              if(c.flip>=0.5 && !c.swapped){ c.item=(Math.random()*sprites.length)|0; c.swapped=true; }
+              if(c.flip>=1){ c.flipping=false; c.flip=0; c.next=T+rndInterval(); } }
+          }
+          const s=sprites[c.item]; if(!s) continue;
+          let sx=1, sy=1, dim=1;
+          if(c.flipping){ const f=Math.abs(Math.cos(c.flip*Math.PI));
+            if(P.flip==='null'){ dim=0.32+0.68*f; }                       // swap with a fade, no rotation
+            else { const axis = P.flip==='h'?0 : P.flip==='v'?1 : c.axis;  // horizontal / vertical / random
+              if(axis===0) sx=f; else sy=f; dim=0.45+0.55*f; } }
+          mo=quadWH(mainArr,mo, c.cx,c.cy, cell*0.5*sx, cell*0.5*sy, s.u0,s.v0,s.u1,s.v1, dim);
+          if(mo>=mainArr.length-30) break;
+        }
+        gl.bindTexture(gl.TEXTURE_2D,atlasTex); gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+        gl.bindBuffer(gl.ARRAY_BUFFER,vbo); gl.bufferData(gl.ARRAY_BUFFER,mainArr.subarray(0,mo),gl.DYNAMIC_DRAW); setAttribs();
+        gl.drawArrays(gl.TRIANGLES,0,mo/5);
+
+      } else {
+        const unit=Math.min(W,H)*0.20*P.size;
+        const spanX=W+unit*2;                  // horizontal wrap span
+        const hbase=P.drift*W*0.13;            // horizontal scroll speed (px/s)
+        const sway=P.swirl*unit*0.5;           // optional gentle vertical sway
+        const N=Math.min(P.count,sprites.length);
+        document.getElementById('vCount').textContent=N;
+        const active=order.slice(0,N);
+        for(const idx of active){ const s=sprites[idx];
+          let z=0.5+0.5*Math.sin(s.zPh + T*s.zSp*(0.6+P.depth*1.6));
+          if(s.focus){ const k=Math.max(0,1-(now-s.focus)/3400); z=z*(1-k)+(0.95+0.05*Math.sin(now/200))*k; s._fk=k; } else s._fk=0;
+          s._z=z;
+          const pf=0.45+0.7*s.base;             // parallax: larger heads scroll faster
+          let x=s.sx*spanX - T*hbase*pf;        // continuous leftward drift
+          x=((x%spanX)+spanX)%spanX - unit;     // wrap horizontally
+          const y=unit*0.5 + s.sy*(H-unit) + Math.sin(T*s.spSp*0.8 + s.zPh)*sway;
+          s._bx=x; s._by=y; s._bs=(0.12+0.92*z)*s.base*unit*(1+0.35*s._fk);
+        }
+        active.sort((i,j)=>sprites[i]._z-sprites[j]._z);
+
+        let mo=0, glo=0;
+        for(const idx of active){ const s=sprites[idx]; const size=s._bs; if(size<2) continue;
+          const al=Math.min(1,0.07+0.95*s._z+0.4*s._fk);
+          const hs=size/2;   // axis-aligned upright squares (no rotation)
+          mo=quad(mainArr,mo, s._bx,s._by,hs,1,0, s.u0,s.v0,s.u1,s.v1, al);
+          if(P.glow && (s._z>0.78||s._fk>0)){ const gi=Math.min(1,(s._z-0.78)*3.2+s._fk); const ghs=size*0.85;
+            glo=quad(glowArr,glo, s._bx,s._by,ghs,1,0, 0,0,1,1, al*0.6*gi); }
+        }
+        gl.bindTexture(gl.TEXTURE_2D,atlasTex);
+        gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+        gl.bindBuffer(gl.ARRAY_BUFFER,vbo); gl.bufferData(gl.ARRAY_BUFFER,mainArr.subarray(0,mo),gl.DYNAMIC_DRAW); setAttribs();
+        gl.drawArrays(gl.TRIANGLES,0,mo/5);
+        if(P.glow && glo>0){ gl.bindTexture(gl.TEXTURE_2D,glowTex); gl.blendFunc(gl.ONE,gl.ONE);
+          gl.bufferData(gl.ARRAY_BUFFER,glowArr.subarray(0,glo),gl.DYNAMIC_DRAW); setAttribs();
+          gl.drawArrays(gl.TRIANGLES,0,glo/5); }
+      }
+    }
+    fa++; ft+=dt; if(ft>=0.5){ sFps.textContent=Math.round(fa/ft); fa=0; ft=0; }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
