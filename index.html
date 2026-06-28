@@ -56,23 +56,28 @@
     color:var(--dim); font-size:12px; letter-spacing:.14em; pointer-events:none; transition:opacity .4s; }
   #backdrop{ position:fixed; inset:0; background:rgba(2,3,8,.5); z-index:30; opacity:0; pointer-events:none; transition:opacity .2s; }
   #backdrop.show{ opacity:1; pointer-events:auto; }
-  #card{ position:fixed; z-index:31; width:300px; left:50%; top:50%; transform:translate(-50%,-46%) scale(.96);
+  #card{ position:fixed; z-index:31; width:360px; left:50%; top:50%; transform:translate(-50%,-46%) scale(.96);
     background:rgba(18,21,31,.94); backdrop-filter:blur(18px) saturate(1.2); border:1px solid rgba(255,255,255,.12);
-    border-radius:16px; padding:16px; box-shadow:0 24px 70px rgba(0,0,0,.6); opacity:0; pointer-events:none;
+    border-radius:19px; padding:19px; box-shadow:0 24px 70px rgba(0,0,0,.6); opacity:0; pointer-events:none;
     transition:opacity .2s, transform .2s; }
   #card.show{ opacity:1; pointer-events:auto; transform:translate(-50%,-50%) scale(1); }
-  #cardImg{ width:100%; aspect-ratio:1; object-fit:cover; border-radius:11px; display:block; background:#0a0c14; }
-  #cardName{ font-size:15px; font-weight:600; letter-spacing:.04em; margin:13px 2px 0; }
-  #cardTraits{ display:flex; flex-wrap:wrap; gap:6px; margin:11px 0 0; }
-  .chip{ font-size:10px; letter-spacing:.03em; color:#cfe0f5; background:rgba(124,199,255,.13);
-    border:1px solid rgba(124,199,255,.28); border-radius:7px; padding:4px 8px; }
+  #cardImg{ width:100%; aspect-ratio:1; object-fit:cover; border-radius:13px; display:block; background:#0a0c14; }
+  #cardName{ font-size:18px; font-weight:600; letter-spacing:.04em; margin:15px 2px 0; }
+  #cardTraits{ display:flex; flex-wrap:wrap; gap:7px; margin:13px 0 0; }
+  .chip{ font-size:12px; letter-spacing:.03em; color:#cfe0f5; background:rgba(124,199,255,.13);
+    border:1px solid rgba(124,199,255,.28); border-radius:8px; padding:5px 10px; }
   .chip b{ color:#fff; font-weight:600; }
-  #cardDesc{ font-size:10.5px; line-height:1.5; color:var(--dim); margin:11px 2px 0; max-height:74px; overflow:auto; }
-  #cardBuy{ display:block; text-align:center; margin-top:14px; text-decoration:none; font-size:12px; font-weight:600;
-    letter-spacing:.05em; color:#04122a; background:linear-gradient(90deg,#7cc7ff,#9ad0ff); padding:11px; border-radius:11px; }
+  #cardDesc{ font-size:12.5px; line-height:1.5; color:var(--dim); margin:13px 2px 0; max-height:89px; overflow:auto; }
+  #cardBuy{ display:block; text-align:center; margin-top:17px; text-decoration:none; font-size:14px; font-weight:600;
+    letter-spacing:.05em; color:#04122a; background:linear-gradient(90deg,#7cc7ff,#9ad0ff); padding:13px; border-radius:13px; }
   #cardBuy:hover{ filter:brightness(1.07); }
-  #cardClose{ position:absolute; top:9px; right:9px; width:26px; height:26px; border-radius:8px; z-index:1;
-    background:rgba(0,0,0,.4); border:1px solid rgba(255,255,255,.15); color:#fff; font-size:15px; cursor:pointer; line-height:1; }
+  #cardClose{ position:absolute; top:11px; right:11px; width:31px; height:31px; border-radius:9px; z-index:1;
+    background:rgba(0,0,0,.4); border:1px solid rgba(255,255,255,.15); color:#fff; font-size:18px; cursor:pointer; line-height:1; }
+  #cardFav{ position:absolute; top:11px; right:48px; width:31px; height:31px; border-radius:9px; z-index:1;
+    background:rgba(0,0,0,.4); border:1px solid rgba(255,255,255,.15); color:#ffd36b; font-size:17px; cursor:pointer; line-height:1;
+    transition:background .15s, transform .12s; }
+  #cardFav:hover{ background:rgba(255,196,124,.22); }
+  #cardFav.on{ background:rgba(255,196,124,.28); border-color:rgba(255,196,124,.7); transform:scale(1.08); }
 </style>
 </head>
 <body>
@@ -84,6 +89,7 @@
   <div class="btns">
     <button id="mMos" class="on">▦ mosaic</button>
     <button id="mUni">✦ universe</button>
+    <button id="mTime">◷ time</button>
   </div>
   <div class="sliders">
     <div class="row uni"><label>Heads <b id="vCount">—</b></label><input id="count" type="range" min="40" max="999" value="999"></div>
@@ -108,6 +114,7 @@
     <button id="t1" title="900 items">T1</button>
     <button id="t2" title="77 items">T2</button>
     <button id="t3" title="22 items">T3</button>
+    <button id="tFav" title="Favourites">★</button>
   </div>
 </div>
 <div id="stat"><div>loaded <b id="sLoaded">0</b>/<span id="sTotal">999</span></div><div><b id="sFps">0</b> fps</div></div>
@@ -115,6 +122,7 @@
 <div id="backdrop"></div>
 <div id="card">
   <button id="cardClose" title="Close">×</button>
+  <button id="cardFav" title="Add to favourites">☆</button>
   <img id="cardImg" alt="">
   <div id="cardName"></div>
   <div id="cardTraits"></div>
@@ -143,7 +151,7 @@
 
   // ---- params from UI ----
   const P = { count:IDS.length, swirl:0.30, depth:0.50, drift:0.35, size:1.0, shape:'square', paused:true, glow:true,
-              mode:'mosaic', mspeed:0.50, cell:90, activePct:60, flip:'both', tiers:new Set() };
+              mode:'mosaic', mspeed:0.50, cell:90, activePct:60, flip:'both', tiers:new Set(), favOnly:false };
   const bind = (id, key, f) => {
     const el=document.getElementById(id), out=document.getElementById('v'+id[0].toUpperCase()+id.slice(1));
     const upd=()=>{ const v=+el.value; P[key]= f? f(v): v; if(out) out.textContent=(typeof P[key]==='number'?(Number.isInteger(P[key])?P[key]:P[key].toFixed(2)):P[key]); };
@@ -226,8 +234,13 @@
   // ---- tier filter ----
   const META = window.THUMB_META||{};
   function tierOf(id){ const m=META[id]; if(!m||!m.t) return null; const t=m.t.find(x=>x[0]==='Tier'); return t?t[1]:null; }
-  let pool=[];   // sprite indices passing the active tier filter (empty filter = all)
+  // ---- favourites (persisted) ----
+  let favs = new Set();
+  try{ const raw=localStorage.getItem('ahFavs'); if(raw) favs=new Set(JSON.parse(raw)); }catch(e){}
+  function saveFavs(){ try{ localStorage.setItem('ahFavs', JSON.stringify([...favs])); }catch(e){} }
+  let pool=[];   // sprite indices passing the active filter (no filter = all)
   function rebuildPool(){
+    if(P.favOnly){ pool = sprites.map((_,i)=>i).filter(i => favs.has(sprites[i].id)); return; }   // may be empty
     pool = sprites.map((_,i)=>i).filter(i => P.tiers.size===0 || P.tiers.has(tierOf(sprites[i].id)));
     if(!pool.length) pool = sprites.map((_,i)=>i);
   }
@@ -322,8 +335,8 @@
   function buildGrid(){
     gW=W; gH=H;
     const AH=Math.max(1,H-MOSAIC_BAR);                 // drawable height above the soundbar
-    const filtered = P.tiers.size>0 && pool.length>0;
-    let total;
+    const filtered = (P.tiers.size>0 || P.favOnly) && pool.length>0;
+    let total, usedRows;
     if(filtered){
       // auto-size so every pooled item shows exactly once and fills the screen.
       // search columns near the square-ish guess; favor few empty cells + near-square tiles.
@@ -335,34 +348,78 @@
         const score=waste + adev*4;
         if(!best || score<best.score){ best={cols,rows,score}; }
       }
-      gCols=best.cols; gRows=best.rows;
-      gCell=Math.sqrt(W*AH/N); total=N;              // one cell per unique item
+      gCols=best.cols; gRows=best.rows; total=N;        // one cell per unique item
     } else {
-      gCell=P.cell;
-      gCols=Math.max(1,Math.round(W/gCell));
-      gRows=Math.max(1,Math.round(AH/gCell));
+      gCols=Math.max(1,Math.round(W/P.cell));
+      gRows=Math.max(1,Math.round(AH/P.cell));
       total=Math.min(gCols*gRows, MAX);
     }
-    gCellW=W/gCols; gCellH=AH/gRows;                  // stretch to fill exactly — whole tiles, no clipping
+    usedRows=Math.ceil(total/gCols);
+    // SQUARE tiles — never stretched. Pick the largest square that fits, then center the block.
+    const cell=Math.min(W/gCols, AH/usedRows);
+    gCell=cell; gCellW=cell; gCellH=cell;
+    const x0=(W - gCols*cell)/2, y0=(AH - usedRows*cell)/2;   // center horizontally + vertically
     const fullRows=Math.floor(total/gCols), lastCount=total-fullRows*gCols;
     const bag=pool.slice(); shuffle(bag); let bi=0;
     shown=new Map(); cells=[];
     for(let i=0;i<total;i++){
       const row=(i/gCols)|0, col=i%gCols;
       const centered = (row===fullRows && lastCount>0);            // center a partial last row
-      const xoff = centered ? (gCols-lastCount)*0.5*gCellW : 0;
+      const xoff = centered ? (gCols-lastCount)*0.5*cell : 0;
       if(bi>=bag.length){ shuffle(bag); bi=0; }                    // only repeats if cells > pool (manual mode)
-      const c={ cx:(col+0.5)*gCellW+xoff, cy:(row+0.5)*gCellH, r:Math.random(),
+      const c={ cx:x0+(col+0.5)*cell+xoff, cy:y0+(row+0.5)*cell, r:Math.random(),
         item:undefined, flip:0, flipping:false, swapped:false, axis:Math.random()<0.5?0:1, next:T+rndInterval()*Math.random() };
       setCellItem(c, bag[bi++]); cells.push(c);
     }
+  }
+
+  // ---- time mode: the grid flicks NFTs to spell the real clock ----
+  const FONT5={
+    '0':["111","101","101","101","111"], '1':["010","010","010","010","010"],
+    '2':["111","001","111","100","111"], '3':["111","001","111","001","111"],
+    '4':["101","101","111","001","001"], '5':["111","100","111","001","111"],
+    '6':["111","100","111","101","111"], '7':["111","001","010","010","010"],
+    '8':["111","101","111","101","111"], '9':["111","101","111","001","111"],
+    ':':["0","1","0","1","0"] };
+  const glyphW = ch => ch===':'?1:3;
+  function timeLayoutWidth(str){ let w=0; for(const ch of str) w+=glyphW(ch)+1; return w-1; }
+  function timeString(){ const d=new Date(), p=n=>String(n).padStart(2,'0');
+    return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()); }
+  let tColStart=0, tRowStart=0, fontCols=0, litSet=new Set(), lastTimeStr='', timeDirty=true;
+  function buildLit(str){
+    const lit=new Set(); let x=tColStart;
+    for(const ch of str){ const g=FONT5[ch]||FONT5['0'], w=glyphW(ch);
+      for(let r=0;r<5;r++){ const def=g[r]; for(let px=0;px<w;px++){ if(def[px]==='1'){
+        const gr=tRowStart+r, gc=x+px; if(gr>=0&&gr<gRows&&gc>=0&&gc<gCols) lit.add(gr*gCols+gc); } } }
+      x+=w+1; }
+    return lit;
+  }
+  function buildTimeGrid(){
+    gW=W; gH=H; const AH=Math.max(1,H-MOSAIC_BAR);
+    fontCols=timeLayoutWidth('00:00:00');
+    const t=Math.min(W*0.80/fontCols, AH*0.46/5);           // tile size so the clock is large + centered
+    gCols=Math.max(fontCols+2, Math.round(W/t));
+    gRows=Math.max(7, Math.round(AH/t));
+    const cell=Math.min(W/gCols, AH/gRows);                 // square tiles, never stretched
+    gCell=cell; gCellW=cell; gCellH=cell;
+    const x0=(W-gCols*cell)/2, y0=(AH-gRows*cell)/2;
+    tColStart=Math.floor((gCols-fontCols)/2); tRowStart=Math.floor((gRows-5)/2);
+    const src=pool.length?pool:sprites.map((_,i)=>i), bag=src.slice(); shuffle(bag); let bi=0;
+    shown=new Map(); cells=[];
+    for(let i=0;i<gCols*gRows;i++){ const row=(i/gCols)|0, col=i%gCols;
+      if(bi>=bag.length){ shuffle(bag); bi=0; }
+      const c={ cx:x0+(col+0.5)*cell, cy:y0+(row+0.5)*cell, r:Math.random(),
+        item:undefined, flip:0, flipping:false, swapped:false, axis:0, next:T+Math.random()*2.5 };
+      setCellItem(c, bag[bi++]); cells.push(c);
+    }
+    lastTimeStr=timeString(); litSet=buildLit(lastTimeStr);
   }
 
   // ---- interaction ----
   const focusName=document.getElementById('focusName'); let focusTimer=0;
   cv.addEventListener('pointerdown', e=>{
     const mx=e.clientX,my=e.clientY;
-    if(P.mode==='mosaic'){                       // click a tile → open its card
+    if(P.mode==='mosaic' || P.mode==='time'){    // click a tile → open its card
       const hw=gCellW/2, hh=gCellH/2;
       for(const c of cells){ if(mx>=c.cx-hw&&mx<=c.cx+hw&&my>=c.cy-hh&&my<=c.cy+hh){
         const s=sprites[c.item]; if(s) showCard(s.id); break; } }
@@ -379,9 +436,14 @@
   const card=document.getElementById('card'), backdrop=document.getElementById('backdrop'),
         cardImg=document.getElementById('cardImg'), cardName=document.getElementById('cardName'),
         cardTraits=document.getElementById('cardTraits'), cardDesc=document.getElementById('cardDesc'),
-        cardBuy=document.getElementById('cardBuy');
+        cardBuy=document.getElementById('cardBuy'), cardFav=document.getElementById('cardFav');
   function thumbSrc(id){ return (window.THUMB_DATA&&window.THUMB_DATA[id])?window.THUMB_DATA[id]:'thumbs/'+id+'.jpg'; }
+  let cardId=null;
+  function syncFavBtn(){ const on=cardId!=null&&favs.has(cardId);
+    cardFav.classList.toggle('on',on); cardFav.textContent=on?'★':'☆';
+    cardFav.title=on?'Remove from favourites':'Add to favourites'; }
   function showCard(id){
+    cardId=id;
     const m=(window.THUMB_META&&window.THUMB_META[id])||null;
     cardImg.src=thumbSrc(id);
     cardName.textContent=(m&&m.n)||('AH!rchives #'+id);
@@ -390,8 +452,15 @@
     if(m&&m.t&&m.t.length){ for(const tr of m.t){ const c=document.createElement('span'); c.className='chip'; c.innerHTML=tr[0]+' · <b>'+tr[1]+'</b>'; cardTraits.appendChild(c); } }
     else { const c=document.createElement('span'); c.className='chip'; c.textContent='#'+id; cardTraits.appendChild(c); }
     cardDesc.textContent=(m&&m.d)||''; cardDesc.style.display=(m&&m.d)?'block':'none';
+    syncFavBtn();
     card.classList.add('show'); backdrop.classList.add('show');
   }
+  cardFav.onclick=()=>{ if(cardId==null) return;
+    if(favs.has(cardId)) favs.delete(cardId); else favs.add(cardId);
+    saveFavs(); syncFavBtn();
+    if(typeof refreshFavBtn==='function') refreshFavBtn();
+    if(P.favOnly){ rebuildPool(); if(P.mode!=='universe') buildGrid(); }   // live-update the favourites view
+  };
   function hideCard(){ card.classList.remove('show'); backdrop.classList.remove('show'); }
   document.getElementById('cardClose').onclick=hideCard;
   backdrop.onclick=hideCard;
@@ -413,39 +482,56 @@
   bShape.onclick=()=>{ setShape(P.shape==='round'?'circle':P.shape==='circle'?'square':'round'); };
   bPause.onclick=()=>{ P.paused=!P.paused; bPause.classList.toggle('on',P.paused); bPause.textContent=P.paused?'▶':'⏸'; };
   bShuffle.onclick=()=>{
-    if(P.mode==='mosaic'){ for(const c of cells){ c.flipping=true; c.flip=0; c.swapped=false; c.axis=Math.random()<0.5?0:1; } }
+    if(P.mode!=='universe'){ for(const c of cells){ c.flipping=true; c.flip=0; c.swapped=false; c.axis=Math.random()<0.5?0:1; } }
     else { for(const s of sprites){ s.r=Math.sqrt(Math.random()); s.a=rnd(0,Math.PI*2); s.zPh=rnd(0,Math.PI*2); s.base=rnd(0.55,1.35);} shuffle(order); }
   };
   bGlow.onclick=()=>{ P.glow=!P.glow; bGlow.classList.toggle('on',P.glow); };
+  const mTime=document.getElementById('mTime');
   function applyMode(){
-    const uni=P.mode==='universe';
+    const uni=P.mode==='universe', tim=P.mode==='time';
     document.querySelectorAll('.row.uni').forEach(e=>e.style.display=uni?'flex':'none');
-    document.querySelectorAll('.row.mos').forEach(e=>e.style.display=uni?'none':'flex');
-    mUni.classList.toggle('on',uni); mMos.classList.toggle('on',!uni);
-    bGlow.style.display=uni?'':'none'; bFlip.style.display=uni?'none':''; bShuffle.textContent='⤮';
-    hint.textContent = uni ? 'click a head → its card + buy link · drag a slider · ⚙ hides panel'
-                           : 'click a tile → its card + buy link · Switch speed = pace · ⚙ hides panel';
+    document.querySelectorAll('.row.mos').forEach(e=>e.style.display=(P.mode==='mosaic')?'flex':'none');
+    mUni.classList.toggle('on',uni); mMos.classList.toggle('on',P.mode==='mosaic'); mTime.classList.toggle('on',tim);
+    bGlow.style.display=uni?'':'none'; bFlip.style.display=(P.mode==='mosaic')?'':'none'; bShuffle.textContent='⤮';
+    hint.textContent='';
   }
-  mUni.onclick=()=>{ if(P.mode==='universe') return; P.mode='universe'; if(P.shape==='square') setShape('round'); applyMode(); };
-  mMos.onclick=()=>{ if(P.mode==='mosaic') return; P.mode='mosaic'; if(P.shape!=='square') setShape('square'); buildGrid(); applyMode(); };
+  function setMode(m){
+    if(P.mode===m) return; P.mode=m;
+    if(m==='universe'){ if(P.shape==='square') setShape('round'); }
+    else { if(P.shape!=='square') setShape('square'); }
+    if(m==='mosaic') buildGrid();
+    if(m==='time'){ timeDirty=true; if(P.paused){ P.paused=false; bPause.classList.remove('on'); bPause.textContent='⏸'; } }
+    applyMode();
+  }
+  mUni.onclick=()=>setMode('universe');
+  mMos.onclick=()=>setMode('mosaic');
+  mTime.onclick=()=>setMode('time');
   applyMode();
 
-  // ---- tier filter buttons ----
-  const tA=document.getElementById('tA'), tierBtns={'1':document.getElementById('t1'),
-        '2':document.getElementById('t2'), '3':document.getElementById('t3')};
-  function syncTierBtns(){ tA.classList.toggle('on',P.tiers.size===0);
-    for(const k in tierBtns) tierBtns[k].classList.toggle('on',P.tiers.has(k)); }
-  function applyTierFilter(){
+  // ---- tier + favourites filter buttons ----
+  const tA=document.getElementById('tA'), tFav=document.getElementById('tFav'),
+        tierBtns={'1':document.getElementById('t1'),'2':document.getElementById('t2'),'3':document.getElementById('t3')};
+  function refreshFavBtn(){ tFav.classList.toggle('on',P.favOnly);
+    tFav.textContent = '★ '+favs.size; }
+  function syncTierBtns(){ tA.classList.toggle('on',P.tiers.size===0 && !P.favOnly);
+    for(const k in tierBtns) tierBtns[k].classList.toggle('on',!P.favOnly && P.tiers.has(k));
+    refreshFavBtn(); }
+  function applyFilter(){
     rebuildPool();
     order = pool.slice(); shuffle(order);
     if(P.mode==='mosaic'){
       buildGrid();                                   // resize + assign each item once
       if(!P.paused){ for(const c of cells){ c.flipping=true; c.flip=0; c.swapped=true; c.axis=Math.random()<0.5?0:1; } }
-    }
+    } else if(P.mode==='time'){ timeDirty=true; }
+    // empty favourites → show a friendly hint over the dark canvas
+    if(P.favOnly && pool.length===0){ boot.textContent='no favourites yet — open any item and tap ☆'; boot.style.opacity=1; }
+    else { boot.style.opacity=0; }
     syncTierBtns();
   }
-  tA.onclick=()=>{ if(P.tiers.size===0) return; P.tiers.clear(); applyTierFilter(); };
-  for(const k in tierBtns){ tierBtns[k].onclick=()=>{ P.tiers.has(k)?P.tiers.delete(k):P.tiers.add(k); applyTierFilter(); }; }
+  tA.onclick=()=>{ if(P.tiers.size===0 && !P.favOnly) return; P.tiers.clear(); P.favOnly=false; applyFilter(); };
+  for(const k in tierBtns){ tierBtns[k].onclick=()=>{ P.favOnly=false; P.tiers.has(k)?P.tiers.delete(k):P.tiers.add(k); applyFilter(); }; }
+  tFav.onclick=()=>{ P.favOnly=!P.favOnly; if(P.favOnly) P.tiers.clear(); applyFilter(); };
+  refreshFavBtn();
 
   const panel=document.getElementById('panel'), toggleBtn=document.getElementById('toggleBtn');
   document.querySelector('#panel h1').addEventListener('dblclick',hidePanel);
@@ -465,7 +551,7 @@
       gl.uniform2f(uRes,W,H); gl.activeTexture(gl.TEXTURE0);
 
       if(P.mode==='mosaic'){
-        if(gW!==W || gH!==H || (P.tiers.size===0 && gCell!==P.cell)) buildGrid();
+        if(gW!==W || gH!==H || (!P.favOnly && P.tiers.size===0 && gCell!==P.cell)) buildGrid();
         const flipDur=0.42;
         let mo=0;
         const frac=P.activePct/100;
@@ -491,6 +577,36 @@
             else { const axis = P.flip==='h'?0 : P.flip==='v'?1 : c.axis;  // horizontal / vertical / random
               if(axis===0) sx=f; else sy=f; dim=0.45+0.55*f; } }
           mo=quadWH(mainArr,mo, c.cx,c.cy, gCellW*0.5*sx, gCellH*0.5*sy, s.u0,s.v0,s.u1,s.v1, dim);
+          if(mo>=mainArr.length-30) break;
+        }
+        gl.bindTexture(gl.TEXTURE_2D,atlasTex); gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+        gl.bindBuffer(gl.ARRAY_BUFFER,vbo); gl.bufferData(gl.ARRAY_BUFFER,mainArr.subarray(0,mo),gl.DYNAMIC_DRAW); setAttribs();
+        gl.drawArrays(gl.TRIANGLES,0,mo/5);
+
+      } else if(P.mode==='time'){
+        if(gW!==W || gH!==H || timeDirty){ buildTimeGrid(); timeDirty=false; }
+        const ts=timeString();
+        if(ts!==lastTimeStr){                                  // a digit changed → flick the cells that flipped state
+          const nl=buildLit(ts);
+          for(let i=0;i<cells.length;i++){ if(litSet.has(i)!==nl.has(i)){ const c=cells[i]; c.flipping=true; c.flip=0; c.swapped=false; } }
+          litSet=nl; lastTimeStr=ts;
+        }
+        const flipDur=0.32; let mo=0;
+        for(let i=0;i<cells.length;i++){ const c=cells[i];
+          if(!P.paused){
+            if(!c.flipping && T>=c.next){ c.flipping=true; c.flip=0; c.swapped=false; c.next=T+1.0+Math.random()*3.0; }
+            if(c.flipping){ c.flip += dt/flipDur;
+              if(c.flip>=0.5 && !c.swapped){
+                const it=pickOffscreen(); if(it!=null){ setCellItem(c,it); }
+                else { const d=cells[(Math.random()*cells.length)|0]; if(d&&d!==c){ const tmp=c.item; c.item=d.item; d.item=tmp; } }
+                c.swapped=true; }
+              if(c.flip>=1){ c.flipping=false; c.flip=0; } }
+          }
+          const s=sprites[c.item]; if(!s) continue;
+          const lit=litSet.has(i);
+          let f=1; if(c.flipping) f=Math.abs(Math.cos(c.flip*Math.PI));
+          const al=(lit?1.0:0.06)*(0.45+0.55*f);              // lit = bright clock; rest = dim flickering field
+          mo=quadWH(mainArr,mo, c.cx,c.cy, gCellW*0.5, gCellH*0.5, s.u0,s.v0,s.u1,s.v1, al);
           if(mo>=mainArr.length-30) break;
         }
         gl.bindTexture(gl.TEXTURE_2D,atlasTex); gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
