@@ -231,7 +231,18 @@
     pool = sprites.map((_,i)=>i).filter(i => P.tiers.size===0 || P.tiers.has(tierOf(sprites[i].id)));
     if(!pool.length) pool = sprites.map((_,i)=>i);
   }
-  function randItem(){ return pool.length ? pool[(Math.random()*pool.length)|0] : 0; }
+  // track which items are currently on screen so tiles never duplicate
+  let shown = new Map();
+  function setCellItem(c, it){
+    if(c.item!=null && c.item!==undefined){ const n=(shown.get(c.item)||0)-1; if(n<=0) shown.delete(c.item); else shown.set(c.item,n); }
+    c.item=it; shown.set(it,(shown.get(it)||0)+1);
+  }
+  function pickOffscreen(){            // a pool item not currently displayed, or null if all are shown
+    if(shown.size>=pool.length) return null;
+    for(let t=0;t<24;t++){ const it=pool[(Math.random()*pool.length)|0]; if(!shown.get(it)) return it; }
+    for(const it of pool){ if(!shown.get(it)) return it; }
+    return null;
+  }
   const INS=0.5/AW; // half-texel inset
   function addSprite(id,img){
     const k=sprites.length, col=k%COLS, row=(k/COLS)|0;
@@ -309,15 +320,42 @@
   const MOSAIC_BAR=40;   // px reserved at the bottom for the soundbar so no tile hides behind it
   function rndInterval(){ const avg=6/(0.25+P.mspeed*3); return avg*(0.4+Math.random()*1.4); }
   function buildGrid(){
-    gCell=P.cell; gW=W; gH=H;
+    gW=W; gH=H;
     const AH=Math.max(1,H-MOSAIC_BAR);                 // drawable height above the soundbar
-    gCols=Math.max(1,Math.round(W/gCell)); gRows=Math.max(1,Math.round(AH/gCell));
-    gCellW=W/gCols; gCellH=AH/gRows;                   // stretch to fill exactly — whole tiles, no clipping
-    const total=Math.min(gCols*gRows, MAX); cells=[];
-    for(let i=0;i<total;i++){ const col=i%gCols, row=(i/gCols)|0;
-      cells.push({ cx:(col+0.5)*gCellW, cy:(row+0.5)*gCellH, r:Math.random(),
-        item: randItem(),
-        flip:0, flipping:false, swapped:false, axis:Math.random()<0.5?0:1, next:T+rndInterval()*Math.random() }); }
+    const filtered = P.tiers.size>0 && pool.length>0;
+    let total;
+    if(filtered){
+      // auto-size so every pooled item shows exactly once and fills the screen.
+      // search columns near the square-ish guess; favor few empty cells + near-square tiles.
+      const N=pool.length, ratio=W/AH, guess=Math.sqrt(N*ratio);
+      let best=null;
+      for(let cols=Math.max(1,Math.floor(guess)-2); cols<=Math.min(N,Math.ceil(guess)+2); cols++){
+        const rows=Math.ceil(N/cols), waste=cols*rows-N;
+        const adev=Math.abs(Math.log((W/cols)/(AH/rows)));   // 0 = perfectly square tiles
+        const score=waste + adev*4;
+        if(!best || score<best.score){ best={cols,rows,score}; }
+      }
+      gCols=best.cols; gRows=best.rows;
+      gCell=Math.sqrt(W*AH/N); total=N;              // one cell per unique item
+    } else {
+      gCell=P.cell;
+      gCols=Math.max(1,Math.round(W/gCell));
+      gRows=Math.max(1,Math.round(AH/gCell));
+      total=Math.min(gCols*gRows, MAX);
+    }
+    gCellW=W/gCols; gCellH=AH/gRows;                  // stretch to fill exactly — whole tiles, no clipping
+    const fullRows=Math.floor(total/gCols), lastCount=total-fullRows*gCols;
+    const bag=pool.slice(); shuffle(bag); let bi=0;
+    shown=new Map(); cells=[];
+    for(let i=0;i<total;i++){
+      const row=(i/gCols)|0, col=i%gCols;
+      const centered = (row===fullRows && lastCount>0);            // center a partial last row
+      const xoff = centered ? (gCols-lastCount)*0.5*gCellW : 0;
+      if(bi>=bag.length){ shuffle(bag); bi=0; }                    // only repeats if cells > pool (manual mode)
+      const c={ cx:(col+0.5)*gCellW+xoff, cy:(row+0.5)*gCellH, r:Math.random(),
+        item:undefined, flip:0, flipping:false, swapped:false, axis:Math.random()<0.5?0:1, next:T+rndInterval()*Math.random() };
+      setCellItem(c, bag[bi++]); cells.push(c);
+    }
   }
 
   // ---- interaction ----
@@ -325,8 +363,9 @@
   cv.addEventListener('pointerdown', e=>{
     const mx=e.clientX,my=e.clientY;
     if(P.mode==='mosaic'){                       // click a tile → open its card
-      if(gCellW>0){ const col=Math.floor(mx/gCellW), row=Math.floor(my/gCellH), ci=row*gCols+col;
-        const c=cells[ci]; if(c){ const s=sprites[c.item]; if(s) showCard(s.id); } }
+      const hw=gCellW/2, hh=gCellH/2;
+      for(const c of cells){ if(mx>=c.cx-hw&&mx<=c.cx+hw&&my>=c.cy-hh&&my<=c.cy+hh){
+        const s=sprites[c.item]; if(s) showCard(s.id); break; } }
       return;
     }
     let best=null,bz=-1;                          // universe: hit-test the topmost head
@@ -399,8 +438,10 @@
   function applyTierFilter(){
     rebuildPool();
     order = pool.slice(); shuffle(order);
-    if(P.mode==='mosaic'){ for(const c of cells){ c.item=randItem();
-      if(P.paused){ c.flipping=false; c.flip=0; } else { c.flipping=true; c.flip=0; c.swapped=true; c.axis=Math.random()<0.5?0:1; } } }
+    if(P.mode==='mosaic'){
+      buildGrid();                                   // resize + assign each item once
+      if(!P.paused){ for(const c of cells){ c.flipping=true; c.flip=0; c.swapped=true; c.axis=Math.random()<0.5?0:1; } }
+    }
     syncTierBtns();
   }
   tA.onclick=()=>{ if(P.tiers.size===0) return; P.tiers.clear(); applyTierFilter(); };
@@ -424,7 +465,7 @@
       gl.uniform2f(uRes,W,H); gl.activeTexture(gl.TEXTURE0);
 
       if(P.mode==='mosaic'){
-        if(gCell!==P.cell || gW!==W || gH!==H) buildGrid();
+        if(gW!==W || gH!==H || (P.tiers.size===0 && gCell!==P.cell)) buildGrid();
         const flipDur=0.42;
         let mo=0;
         const frac=P.activePct/100;
@@ -435,7 +476,12 @@
               else { c.next=T+rndInterval(); }
             }
             if(c.flipping){ c.flip += dt/flipDur;
-              if(c.flip>=0.5 && !c.swapped){ c.item=randItem(); c.swapped=true; }
+              if(c.flip>=0.5 && !c.swapped){
+                const it=pickOffscreen();                       // bring in an item not already on screen
+                if(it!=null){ setCellItem(c,it); }
+                else { const d=cells[(Math.random()*cells.length)|0];   // full set shown → exchange, stay unique
+                  if(d&&d!==c){ const tmp=c.item; c.item=d.item; d.item=tmp; } }
+                c.swapped=true; }
               if(c.flip>=1){ c.flipping=false; c.flip=0; c.next=T+rndInterval(); } }
           }
           const s=sprites[c.item]; if(!s) continue;
