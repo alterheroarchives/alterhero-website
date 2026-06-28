@@ -100,6 +100,7 @@
     <div class="row mos"><label>Speed <b id="vMspeed">0.50</b></label><input id="mspeed" type="range" min="0" max="150" value="50"></div>
     <div class="row mos"><label>Active <b id="vActive">60</b></label><input id="active" type="range" min="0" max="100" value="60"></div>
     <div class="row mos"><label>Cell <b id="vCell">90</b></label><input id="cell" type="range" min="44" max="180" value="90"></div>
+    <div class="row tim"><label>Flick <b id="vFlick">45</b></label><input id="flick" type="range" min="0" max="100" value="45"></div>
   </div>
   <div class="btns">
     <button id="bShape">◻</button>
@@ -151,7 +152,7 @@
 
   // ---- params from UI ----
   const P = { count:IDS.length, swirl:0.30, depth:0.50, drift:0.35, size:1.0, shape:'square', paused:true, glow:true,
-              mode:'mosaic', mspeed:0.50, cell:90, activePct:60, flip:'both', tiers:new Set(), favOnly:false };
+              mode:'mosaic', mspeed:0.50, cell:90, activePct:60, flip:'both', tiers:new Set(), favOnly:false, flickPct:45 };
   const bind = (id, key, f) => {
     const el=document.getElementById(id), out=document.getElementById('v'+id[0].toUpperCase()+id.slice(1));
     const upd=()=>{ const v=+el.value; P[key]= f? f(v): v; if(out) out.textContent=(typeof P[key]==='number'?(Number.isInteger(P[key])?P[key]:P[key].toFixed(2)):P[key]); };
@@ -165,6 +166,7 @@
   bind('mspeed','mspeed', v=>v/100);
   bind('cell','cell', v=>Math.round(v));
   bind('active','activePct', v=>Math.round(v));
+  bind('flick','flickPct', v=>Math.round(v));
   document.getElementById('vCount').textContent = P.count;
 
   // ---- shaders ----
@@ -512,6 +514,7 @@
     const uni=P.mode==='universe', tim=P.mode==='time';
     document.querySelectorAll('.row.uni').forEach(e=>e.style.display=uni?'flex':'none');
     document.querySelectorAll('.row.mos').forEach(e=>e.style.display=(P.mode==='mosaic')?'flex':'none');
+    document.querySelectorAll('.row.tim').forEach(e=>e.style.display=tim?'flex':'none');
     mUni.classList.toggle('on',uni); mMos.classList.toggle('on',P.mode==='mosaic'); mTime.classList.toggle('on',tim);
     bGlow.style.display=uni?'':'none'; bFlip.style.display='none'; bShuffle.textContent='⤮';
     hint.textContent='';
@@ -608,18 +611,21 @@
           for(let i=0;i<cells.length;i++){ if(litSet.has(i)!==nl.has(i)){ const c=cells[i]; c.flipping=true; c.flip=0; c.swapped=false; } }
           litSet=nl; lastTimeStr=ts;
         }
-        const flipDur=0.32; let mo=0;
+        const flipDur=0.32, flickFrac=P.flickPct/100; let mo=0;
         for(let i=0;i<cells.length;i++){ const c=cells[i];
           const lit=litSet.has(i);
-          if(!P.paused){
-            if(!c.flipping && T>=c.next){ c.flipping=true; c.flip=0; c.swapped=false; c.next=T+1.0+Math.random()*3.0; }
+          if(!P.paused && lit){                               // ONLY the AH! letters move; the field stays static
+            if(!c.flipping && T>=c.next){
+              if(Math.random()<flickFrac){ c.flipping=true; c.flip=0; c.swapped=false; }
+              c.next=T+0.6+Math.random()*2.6;
+            }
             if(c.flipping){ c.flip += dt/flipDur;
-              if(c.flip>=0.5 && !c.swapped){ setCellItem(c, lit?darkItem():brightItem()); c.swapped=true; }  // keep digits black, field bright
+              if(c.flip>=0.5 && !c.swapped){ setCellItem(c, darkItem()); c.swapped=true; }   // swap to another black item
               if(c.flip>=1){ c.flipping=false; c.flip=0; } }
           }
           const s=sprites[c.item]; if(!s) continue;
           let f=1; if(c.flipping) f=Math.abs(Math.cos(c.flip*Math.PI));
-          const al=0.92*(0.5+0.5*f);                          // whole field lit; the time is drawn with black items
+          const al = lit ? 1.0*(0.5+0.5*f) : 0.92;            // letters pulse as they flick; field is steady
           mo=quadWH(mainArr,mo, c.cx,c.cy, gCellW*0.5, gCellH*0.5, s.u0,s.v0,s.u1,s.v1, al);
           if(mo>=mainArr.length-30) break;
         }
