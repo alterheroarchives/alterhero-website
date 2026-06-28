@@ -108,7 +108,6 @@
     <button id="bShape">◻</button>
     <button id="bPause">⏸</button>
     <button id="bShuffle">⤮</button>
-    <button id="bGlow" class="on">✦</button>
     <button id="bFlip">⤢</button>
   </div>
   <div class="sep"></div>
@@ -132,7 +131,7 @@
   <div id="cardDesc"></div>
   <a id="cardBuy" target="_blank" rel="noopener">Buy on OpenSea ↗</a>
 </div>
-<div id="boot">loading 999 heads…</div>
+<div id="boot">loading 999 ah!rchives…</div>
 <div id="hint">click a head to pull it forward · drag a slider · ⚙ hides panel</div>
 
 <script src="thumbs/list.js" onerror="window.__noList=true"></script>
@@ -153,7 +152,7 @@
   document.getElementById('sTotal').textContent = IDS.length;
 
   // ---- params from UI ----
-  const P = { count:IDS.length, swirl:0.30, depth:0.50, drift:0.35, size:1.0, shape:'square', paused:false, glow:true,
+  const P = { count:IDS.length, swirl:0.30, depth:0.50, drift:0.35, size:1.0, shape:'square', paused:false,
               mode:'time', mspeed:0.50, cell:90, activePct:60, flip:'both', tiers:new Set(), favOnly:false, rainPct:50,
               photoTarget:null, clusterTrait:'Realm' };
   const bind = (id, key, f) => {
@@ -199,16 +198,6 @@
   const atlas=document.createElement('canvas'); atlas.width=AW; atlas.height=AH;
   const ax=atlas.getContext('2d');
   const atlasTex=gl.createTexture();
-  // glow texture
-  const glowC=document.createElement('canvas'); glowC.width=glowC.height=128;
-  { const g=glowC.getContext('2d'); const rg=g.createRadialGradient(64,64,0,64,64,64);
-    rg.addColorStop(0,'rgba(200,225,255,1)'); rg.addColorStop(0.45,'rgba(150,200,255,0.30)'); rg.addColorStop(1,'rgba(150,200,255,0)');
-    g.fillStyle=rg; g.fillRect(0,0,128,128); }
-  const glowTex=gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D,glowTex); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,true);
-  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,glowC);
-  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
 
   function maskPath(c, ox, oy, s, shape){
     c.beginPath();
@@ -296,7 +285,7 @@
   }
   function finish(){
     if(finished) return; finished=true;
-    boot.textContent='building atlas…';
+    // keep the "loading 999 ah!rchives…" message through atlas build
     setTimeout(()=>{
       for(let k=0;k<sprites.length;k++) drawTile(sprites[k].img,k,P.shape);
       uploadAtlas();
@@ -316,7 +305,7 @@
 
   // ---- buffers ----
   const MAX=4096;
-  const mainArr=new Float32Array(MAX*6*5), glowArr=new Float32Array(MAX*6*5);
+  const mainArr=new Float32Array(MAX*6*5);
   const vbo=gl.createBuffer();
   function setAttribs(){ gl.bindBuffer(gl.ARRAY_BUFFER,vbo);
     gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos,2,gl.FLOAT,false,20,0);
@@ -549,7 +538,7 @@
 
   // ---- buttons / modes ----
   const bShape=document.getElementById('bShape'), bPause=document.getElementById('bPause'),
-        bShuffle=document.getElementById('bShuffle'), bGlow=document.getElementById('bGlow'),
+        bShuffle=document.getElementById('bShuffle'),
         bFlip=document.getElementById('bFlip'),
         mUni=document.getElementById('mUni'), mMos=document.getElementById('mMos'),
         hint=document.getElementById('hint');
@@ -569,7 +558,6 @@
     else if(P.mode==='cluster'){ P.clusterTrait=CLUSTER_TRAITS[(CLUSTER_TRAITS.indexOf(P.clusterTrait)+1)%CLUSTER_TRAITS.length]; buildClusters(); hint.textContent='grouped by: '+P.clusterTrait; }
     else { for(const s of sprites){ s.r=Math.sqrt(Math.random()); s.a=rnd(0,Math.PI*2); s.zPh=rnd(0,Math.PI*2); s.base=rnd(0.55,1.35);} shuffle(order); }
   };
-  bGlow.onclick=()=>{ P.glow=!P.glow; bGlow.classList.toggle('on',P.glow); };
   const mTime=document.getElementById('mTime'), mPhoto=document.getElementById('mPhoto'), mCluster=document.getElementById('mCluster');
   function applyMode(){
     const uni=P.mode==='universe', tim=P.mode==='time', pho=P.mode==='photo', clu=P.mode==='cluster', mos=P.mode==='mosaic';
@@ -579,7 +567,7 @@
     document.querySelectorAll('.row.cellrow').forEach(e=>e.style.display=(mos||pho)?'flex':'none');
     mUni.classList.toggle('on',uni); mMos.classList.toggle('on',mos); mTime.classList.toggle('on',tim);
     mPhoto.classList.toggle('on',pho); mCluster.classList.toggle('on',clu);
-    bGlow.style.display=uni?'':'none'; bFlip.style.display='none'; bShuffle.textContent='⤮';
+    bFlip.style.display='none'; bShuffle.textContent='⤮';
     hint.textContent = clu ? ('grouped by: '+P.clusterTrait) : (pho ? 'click a tile → rebuild the mosaic from it' : '');
   }
   function setMode(m){
@@ -732,21 +720,16 @@
         }
         active.sort((i,j)=>sprites[i]._z-sprites[j]._z);
 
-        let mo=0, glo=0;
+        let mo=0;
         for(const idx of active){ const s=sprites[idx]; const size=s._bs; if(size<2) continue;
           const al=Math.min(1,0.07+0.95*s._z+0.4*s._fk);
           const hs=size/2;   // axis-aligned upright squares (no rotation)
           mo=quad(mainArr,mo, s._bx,s._by,hs,1,0, s.u0,s.v0,s.u1,s.v1, al);
-          if(P.glow && (s._z>0.78||s._fk>0)){ const gi=Math.min(1,(s._z-0.78)*3.2+s._fk); const ghs=size*0.85;
-            glo=quad(glowArr,glo, s._bx,s._by,ghs,1,0, 0,0,1,1, al*0.6*gi); }
         }
         gl.bindTexture(gl.TEXTURE_2D,atlasTex);
         gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
         gl.bindBuffer(gl.ARRAY_BUFFER,vbo); gl.bufferData(gl.ARRAY_BUFFER,mainArr.subarray(0,mo),gl.DYNAMIC_DRAW); setAttribs();
         gl.drawArrays(gl.TRIANGLES,0,mo/5);
-        if(P.glow && glo>0){ gl.bindTexture(gl.TEXTURE_2D,glowTex); gl.blendFunc(gl.ONE,gl.ONE);
-          gl.bufferData(gl.ARRAY_BUFFER,glowArr.subarray(0,glo),gl.DYNAMIC_DRAW); setAttribs();
-          gl.drawArrays(gl.TRIANGLES,0,glo/5); }
       }
     }
     fa++; ft+=dt; if(ft>=0.5){ sFps.textContent=Math.round(fa/ft); fa=0; ft=0; }
