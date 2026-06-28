@@ -257,10 +257,19 @@
     return null;
   }
   const INS=0.5/AW; // half-texel inset
+  // average-luminance probe — used by time mode to pick the darkest ("black") items
+  const lumCv=document.createElement('canvas'); lumCv.width=lumCv.height=4;
+  const lumCtx=lumCv.getContext('2d',{willReadFrequently:true});
+  function avgLum(img){ try{ lumCtx.clearRect(0,0,4,4); lumCtx.drawImage(img,0,0,4,4);
+    const d=lumCtx.getImageData(0,0,4,4).data; let s=0; for(let i=0;i<d.length;i+=4) s+=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+    return s/(d.length/4)/255; }catch(e){ return 0.5; } }
+  let darkOrder=[];   // sprite indices sorted darkest→lightest (built after load)
+  function darkItem(){ const n=darkOrder.length; if(!n) return 0; const span=Math.min(120,n); return darkOrder[(Math.random()*span)|0]; }            // a "black" item for the digits
+  function brightItem(){ const n=darkOrder.length; if(!n) return 0; const span=Math.min(420,n); return darkOrder[n-1-((Math.random()*span)|0)]; }   // a light item for the field
   function addSprite(id,img){
     const k=sprites.length, col=k%COLS, row=(k/COLS)|0;
     const u0=col*TILE/AW+INS, v0=row*TILE/AH+INS, u1=(col+1)*TILE/AW-INS, v1=(row+1)*TILE/AH-INS;
-    sprites.push({ id,img, u0,v0,u1,v1,
+    sprites.push({ id,img, u0,v0,u1,v1, lum:avgLum(img),
       base:rnd(0.55,1.35), r:Math.sqrt(Math.random()), a:rnd(0,Math.PI*2), dir:Math.random()<0.5?-1:1,
       zPh:rnd(0,Math.PI*2), zSp:rnd(0.25,0.55), spin:rnd(-0.25,0.25), spSp:rnd(-0.4,0.4),
       sx:rnd(0,1), sy:rnd(0,1), focus:0, _bx:0,_by:0,_bs:0,_z:0,_fk:0 });
@@ -287,6 +296,7 @@
       ready=true; window.__diag.ready=true; window.__diag.sprites=sprites.length;
       boot.style.opacity=0; loadbar.style.opacity=0;
       document.getElementById('count').max=sprites.length;
+      darkOrder=sprites.map((_,i)=>i).sort((a,b)=>sprites[a].lum-sprites[b].lum);
       rebuildPool();
       if(P.mode==='mosaic') buildGrid();
     },30);
@@ -329,7 +339,7 @@
   }
 
   // ---- mosaic grid state ----
-  let cells=[], gCols=0, gRows=0, gCell=0, gCellW=0, gCellH=0, gW=0, gH=0;
+  let cells=[], gCols=0, gRows=0, gCell=0, gCellW=0, gCellH=0, gW=0, gH=0, gCellParam=0;
   const MOSAIC_BAR=40;   // px reserved at the bottom for the soundbar so no tile hides behind it
   function rndInterval(){ const avg=6/(0.25+P.mspeed*3); return avg*(0.4+Math.random()*1.4); }
   function buildGrid(){
@@ -355,6 +365,7 @@
       total=Math.min(gCols*gRows, MAX);
     }
     usedRows=Math.ceil(total/gCols);
+    gCellParam=P.cell;                                 // remember slider value used (for rebuild detection)
     // SQUARE tiles — never stretched. Pick the largest square that fits, then center the block.
     const cell=Math.min(W/gCols, AH/usedRows);
     gCell=cell; gCellW=cell; gCellH=cell;
@@ -404,15 +415,14 @@
     gCell=cell; gCellW=cell; gCellH=cell;
     const x0=(W-gCols*cell)/2, y0=(AH-gRows*cell)/2;
     tColStart=Math.floor((gCols-fontCols)/2); tRowStart=Math.floor((gRows-5)/2);
-    const src=pool.length?pool:sprites.map((_,i)=>i), bag=src.slice(); shuffle(bag); let bi=0;
+    lastTimeStr=timeString(); litSet=buildLit(lastTimeStr);
     shown=new Map(); cells=[];
     for(let i=0;i<gCols*gRows;i++){ const row=(i/gCols)|0, col=i%gCols;
-      if(bi>=bag.length){ shuffle(bag); bi=0; }
       const c={ cx:x0+(col+0.5)*cell, cy:y0+(row+0.5)*cell, r:Math.random(),
         item:undefined, flip:0, flipping:false, swapped:false, axis:0, next:T+Math.random()*2.5 };
-      setCellItem(c, bag[bi++]); cells.push(c);
+      setCellItem(c, litSet.has(i)?darkItem():brightItem());   // digits = black items, field = light items
+      cells.push(c);
     }
-    lastTimeStr=timeString(); litSet=buildLit(lastTimeStr);
   }
 
   // ---- interaction ----
@@ -551,7 +561,7 @@
       gl.uniform2f(uRes,W,H); gl.activeTexture(gl.TEXTURE0);
 
       if(P.mode==='mosaic'){
-        if(gW!==W || gH!==H || (!P.favOnly && P.tiers.size===0 && gCell!==P.cell)) buildGrid();
+        if(gW!==W || gH!==H || (!P.favOnly && P.tiers.size===0 && gCellParam!==P.cell)) buildGrid();
         const flipDur=0.42;
         let mo=0;
         const frac=P.activePct/100;
@@ -593,19 +603,16 @@
         }
         const flipDur=0.32; let mo=0;
         for(let i=0;i<cells.length;i++){ const c=cells[i];
+          const lit=litSet.has(i);
           if(!P.paused){
             if(!c.flipping && T>=c.next){ c.flipping=true; c.flip=0; c.swapped=false; c.next=T+1.0+Math.random()*3.0; }
             if(c.flipping){ c.flip += dt/flipDur;
-              if(c.flip>=0.5 && !c.swapped){
-                const it=pickOffscreen(); if(it!=null){ setCellItem(c,it); }
-                else { const d=cells[(Math.random()*cells.length)|0]; if(d&&d!==c){ const tmp=c.item; c.item=d.item; d.item=tmp; } }
-                c.swapped=true; }
+              if(c.flip>=0.5 && !c.swapped){ setCellItem(c, lit?darkItem():brightItem()); c.swapped=true; }  // keep digits black, field bright
               if(c.flip>=1){ c.flipping=false; c.flip=0; } }
           }
           const s=sprites[c.item]; if(!s) continue;
-          const lit=litSet.has(i);
           let f=1; if(c.flipping) f=Math.abs(Math.cos(c.flip*Math.PI));
-          const al=(lit?1.0:0.06)*(0.45+0.55*f);              // lit = bright clock; rest = dim flickering field
+          const al=0.92*(0.5+0.5*f);                          // whole field lit; the time is drawn with black items
           mo=quadWH(mainArr,mo, c.cx,c.cy, gCellW*0.5, gCellH*0.5, s.u0,s.v0,s.u1,s.v1, al);
           if(mo>=mainArr.length-30) break;
         }
