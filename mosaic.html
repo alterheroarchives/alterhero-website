@@ -113,6 +113,7 @@
     <button id="bShape">◻</button>
     <button id="bPause">⏸</button>
     <button id="bShuffle">⤮</button>
+    <button id="bGalaxy" title="Full galaxy view">◎</button>
     <button id="bFlip">⤢</button>
   </div>
   <div class="sep"></div>
@@ -165,6 +166,7 @@
   // ---- galaxy fly-through camera (cluster mode): pilot forward through depth-layered trait nebulae ----
   const CGAP=6.0;                                  // world-units between cluster centres along the corridor
   let camZ=0, camX=0, camY=0, camTX=0, camTY=0, camBack=0, camBackT=0, clusterL=CGAP, clusterReady=false;
+  let overview=false, ovBlend=0, ovAngle=0;        // ◎ full-galaxy view: freeze flight, orbit the whole elliptical cloud
   const clusterVis=new Int32Array(IDS.length+8);   // reused visible-index scratch for the fly-through
   const bind = (id, key, f) => {
     const el=document.getElementById(id), out=document.getElementById('v'+id[0].toUpperCase()+id.slice(1));
@@ -577,7 +579,7 @@
 
   // ---- buttons / modes ----
   const bShape=document.getElementById('bShape'), bPause=document.getElementById('bPause'),
-        bShuffle=document.getElementById('bShuffle'),
+        bShuffle=document.getElementById('bShuffle'), bGalaxy=document.getElementById('bGalaxy'),
         bFlip=document.getElementById('bFlip'),
         mUni=document.getElementById('mUni'), mMos=document.getElementById('mMos'),
         hint=document.getElementById('hint');
@@ -589,6 +591,8 @@
   function rebuildAtlas(){ if(!ready) return; for(let k=0;k<sprites.length;k++) drawTile(sprites[k].img,k,P.shape); uploadAtlas(); }
   function setShape(sh){ P.shape=sh; bShape.textContent=shapeLabel[sh]; rebuildAtlas(); }
   bShape.onclick=()=>{ setShape(P.shape==='round'?'circle':P.shape==='circle'?'square':'round'); };
+  bGalaxy.onclick=()=>{ overview=!overview; bGalaxy.classList.toggle('on',overview); if(overview) camBackT=0;   // ◎ stop & view the whole galaxy
+    hint.textContent = overview ? 'full galaxy view · ◎ to fly again · ⤮ regroup' : 'flying through: '+P.clusterTrait+' · move to steer · scroll to zoom out · ◎ full galaxy'; };
   bPause.onclick=()=>{ P.paused=!P.paused; bPause.classList.toggle('on',P.paused); bPause.textContent=P.paused?'▶':'⏸'; };
   bShuffle.onclick=()=>{
     if(P.mode==='mosaic'){ for(const c of cells) startFade(c); }
@@ -607,8 +611,8 @@
     document.querySelectorAll('.row.clu').forEach(e=>e.style.display=clu?'flex':'none');
     mUni.classList.toggle('on',uni); mMos.classList.toggle('on',mos); mTime.classList.toggle('on',tim);
     mPhoto.classList.toggle('on',pho); mCluster.classList.toggle('on',clu);
-    bFlip.style.display='none'; bShuffle.textContent='⤮';
-    hint.textContent = clu ? ('flying through: '+P.clusterTrait+' · move to steer · scroll to zoom out · ⤮ regroup') : (pho ? 'click a tile → rebuild the mosaic from it' : '');
+    bFlip.style.display='none'; bShuffle.textContent='⤮'; bGalaxy.style.display=clu?'':'none';
+    hint.textContent = clu ? (overview ? 'full galaxy view · ◎ to fly again · ⤮ regroup' : 'flying through: '+P.clusterTrait+' · move to steer · scroll to zoom out · ◎ full galaxy') : (pho ? 'click a tile → rebuild the mosaic from it' : '');
   }
   function setMode(m){
     if(P.mode===m) return; P.mode=m;
@@ -617,7 +621,7 @@
     if(m==='mosaic') buildGrid();
     else if(m==='time') timeDirty=true;
     else if(m==='photo') buildPhotoGrid(pickPhotoTarget());
-    else if(m==='cluster'){ camZ=0; camX=camY=camTX=camTY=0; camBack=camBackT=0; buildClusters(); }
+    else if(m==='cluster'){ camZ=0; camX=camY=camTX=camTY=0; camBack=camBackT=0; overview=false; ovBlend=0; ovAngle=0; bGalaxy.classList.remove('on'); buildClusters(); }
     if(m!=='mosaic' && P.paused){ P.paused=false; bPause.classList.remove('on'); bPause.textContent='⏸'; }   // animated modes auto-play
     applyMode();
   }
@@ -730,28 +734,30 @@
         if(!clusterReady) buildClusters();
         const L=clusterL, F=Math.min(W,H)*0.92;
         const flySpeed=0.6+P.fly*5;                                  // world-units / sec
-        if(!P.paused) camZ += flySpeed*dt;
+        ovBlend += ((overview?1:0)-ovBlend)*Math.min(1,dt*2.0);      // ease the alpha lift for the full-galaxy view
+        if(!P.paused && !overview) camZ += flySpeed*dt;              // ◎ freezes the spaceship; off → resume the flight
         camX += (camTX-camX)*Math.min(1,dt*2.5);                     // ease steering toward the cursor bank
         camY += (camTY-camY)*Math.min(1,dt*2.5);
-        camBack += (camBackT-camBack)*Math.min(1,dt*4);              // ease zoom-out toward the overview
-        // curved-spine look-at camera: position + heading ride the bend, so you turn into the curve
-        const kw=2*Math.PI/L, CA=L*0.06;
+        const camBackGoal = overview ? Math.max(camBackT, L*0.5) : camBackT;   // ◎ pulls back to frame the whole galaxy
+        camBack += (camBackGoal-camBack)*Math.min(1,dt*3);           // smooth zoom-out / zoom-in
+        const kw=2*Math.PI/L, CA=L*0.06, bl=ovBlend;
+        // curved-spine look-at: pitches down & rises as it pulls back, revealing the whole galaxy
         const baseX=CA*Math.sin(kw*camZ)+camX, baseY=CA*0.5*Math.sin(2*kw*camZ+1.7)+camY;
-        let fx=CA*kw*Math.cos(kw*camZ), fy=CA*kw*Math.cos(2*kw*camZ+1.7), fz=1;     // tangent = view direction
+        let fx=CA*kw*Math.cos(kw*camZ), fy=CA*kw*Math.cos(2*kw*camZ+1.7), fz=1;
         let fl=Math.hypot(fx,fy,fz)||1; fx/=fl; fy/=fl; fz/=fl;
-        const pf=Math.min(1,camBack/(L*0.5));                                        // zoom fraction → pitch the view down for the overview
-        fy-=pf*1.3; fl=Math.hypot(fx,fy,fz)||1; fx/=fl; fy/=fl; fz/=fl;              // tilt down as you pull back
+        const pf=Math.min(1,camBack/(L*0.5)); fy-=pf*1.3; fl=Math.hypot(fx,fy,fz)||1; fx/=fl; fy/=fl; fz/=fl;
         let rx=fz, rz=-fx; const rl=Math.hypot(rx,rz)||1; rx/=rl; rz/=rl;            // right = up × forward
         const ux=fy*rz, uy=fz*rx-fx*rz, uz=-fy*rx;                                   // up = forward × right
-        const camPx=baseX-fx*camBack, camPy=baseY-fy*camBack, camPz=camZ-fz*camBack; // dolly back along the pitched view → rises & looks down on the galaxy
+        const camPx=baseX-fx*camBack, camPy=baseY-fy*camBack, camPz=camZ-fz*camBack;
         const FADE_NEAR=1.3, FADE_FAR=Math.min(CGAP, L*0.45);
         const vis=clusterVis; let vn=0;
         for(let i=0;i<sprites.length;i++){ const s=sprites[i];
           let d=(s.wz-camZ)%L; if(d<0) d+=L; if(d<0.05) d=0.05;       // cyclic path-distance ahead → endless loop
           const aN=d<FADE_NEAR?d/FADE_NEAR:1;                         // fade out the head you pass (hides the wrap)
           const aF=(L-d)<FADE_FAR?(L-d)/FADE_FAR:1;                   // fade in from the far distance
-          const al=aN*aF; if(al<0.012){ s._bs=0; continue; }
-          const rxp=s.wx-camPx, ryp=s.wy-camPy, rzp=(camZ+d)-camPz;   // head rendered ahead by d along the path
+          const al=(aN*aF)*(1-bl) + 0.92*bl;                         // fly fades → full-lit in the galaxy view
+          if(al<0.012){ s._bs=0; continue; }
+          const rxp=s.wx-camPx, ryp=s.wy-camPy, rzp=(camZ+d)-camPz;   // head sits ahead by d along the path
           const cz=rxp*fx+ryp*fy+rzp*fz;                              // camera-space depth
           if(cz<0.08){ s._bs=0; continue; }
           const cx=rxp*rx+rzp*rz, cy=rxp*ux+ryp*uy+rzp*uz;
