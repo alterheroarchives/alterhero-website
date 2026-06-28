@@ -426,6 +426,15 @@
     }
   }
 
+  // begin a dissolve: the cell's current image fades out to reveal a different one behind it
+  function startFade(c){
+    c.prevItem=c.item;
+    const it=pickOffscreen();
+    if(it!=null){ setCellItem(c,it); }
+    else { const d=cells[(Math.random()*cells.length)|0]; if(d&&d!==c){ const tmp=c.item; c.item=d.item; d.item=tmp; } }
+    c.flipping=true; c.flip=0;
+  }
+
   // ---- interaction ----
   const focusName=document.getElementById('focusName'); let focusTimer=0;
   cv.addEventListener('pointerdown', e=>{
@@ -493,7 +502,8 @@
   bShape.onclick=()=>{ setShape(P.shape==='round'?'circle':P.shape==='circle'?'square':'round'); };
   bPause.onclick=()=>{ P.paused=!P.paused; bPause.classList.toggle('on',P.paused); bPause.textContent=P.paused?'▶':'⏸'; };
   bShuffle.onclick=()=>{
-    if(P.mode!=='universe'){ for(const c of cells){ c.flipping=true; c.flip=0; c.swapped=false; c.axis=Math.random()<0.5?0:1; } }
+    if(P.mode==='mosaic'){ for(const c of cells) startFade(c); }
+    else if(P.mode==='time'){ for(const c of cells){ c.flipping=true; c.flip=0; c.swapped=false; } }
     else { for(const s of sprites){ s.r=Math.sqrt(Math.random()); s.a=rnd(0,Math.PI*2); s.zPh=rnd(0,Math.PI*2); s.base=rnd(0.55,1.35);} shuffle(order); }
   };
   bGlow.onclick=()=>{ P.glow=!P.glow; bGlow.classList.toggle('on',P.glow); };
@@ -503,7 +513,7 @@
     document.querySelectorAll('.row.uni').forEach(e=>e.style.display=uni?'flex':'none');
     document.querySelectorAll('.row.mos').forEach(e=>e.style.display=(P.mode==='mosaic')?'flex':'none');
     mUni.classList.toggle('on',uni); mMos.classList.toggle('on',P.mode==='mosaic'); mTime.classList.toggle('on',tim);
-    bGlow.style.display=uni?'':'none'; bFlip.style.display=(P.mode==='mosaic')?'':'none'; bShuffle.textContent='⤮';
+    bGlow.style.display=uni?'':'none'; bFlip.style.display='none'; bShuffle.textContent='⤮';
     hint.textContent='';
   }
   function setMode(m){
@@ -532,7 +542,7 @@
     order = pool.slice(); shuffle(order);
     if(P.mode==='mosaic'){
       buildGrid();                                   // resize + assign each item once
-      if(!P.paused){ for(const c of cells){ c.flipping=true; c.flip=0; c.swapped=true; c.axis=Math.random()<0.5?0:1; } }
+      if(!P.paused){ for(const c of cells){ c.prevItem=null; c.flipping=true; c.flip=0; } }   // fade the new set in
     } else if(P.mode==='time'){ timeDirty=true; }
     // empty favourites → show a friendly hint over the dark canvas
     if(P.favOnly && pool.length===0){ boot.textContent='no favourites yet — open any item and tap ☆'; boot.style.opacity=1; }
@@ -563,31 +573,27 @@
 
       if(P.mode==='mosaic'){
         if(gW!==W || gH!==H || (!P.favOnly && P.tiers.size===0 && gCellParam!==P.cell)) buildGrid();
-        const flipDur=0.42;
+        const fadeDur=0.75;
         let mo=0;
         const frac=P.activePct/100;
         for(const c of cells){
           if(!P.paused){
             if(!c.flipping && T>=c.next){
-              if(c.r<frac){ c.flipping=true; c.flip=0; c.swapped=false; c.axis=Math.random()<0.5?0:1; }
+              if(c.r<frac){ startFade(c); }
               else { c.next=T+rndInterval(); }
             }
-            if(c.flipping){ c.flip += dt/flipDur;
-              if(c.flip>=0.5 && !c.swapped){
-                const it=pickOffscreen();                       // bring in an item not already on screen
-                if(it!=null){ setCellItem(c,it); }
-                else { const d=cells[(Math.random()*cells.length)|0];   // full set shown → exchange, stay unique
-                  if(d&&d!==c){ const tmp=c.item; c.item=d.item; d.item=tmp; } }
-                c.swapped=true; }
-              if(c.flip>=1){ c.flipping=false; c.flip=0; c.next=T+rndInterval(); } }
+            if(c.flipping){ c.flip += dt/fadeDur;
+              if(c.flip>=1){ c.flipping=false; c.flip=0; c.prevItem=null; c.next=T+rndInterval(); } }
           }
-          const s=sprites[c.item]; if(!s) continue;
-          let sx=1, sy=1, dim=1;
-          if(c.flipping){ const f=Math.abs(Math.cos(c.flip*Math.PI));
-            if(P.flip==='null'){ dim=0.32+0.68*f; }                       // swap with a fade, no rotation
-            else { const axis = P.flip==='h'?0 : P.flip==='v'?1 : c.axis;  // horizontal / vertical / random
-              if(axis===0) sx=f; else sy=f; dim=0.45+0.55*f; } }
-          mo=quadWH(mainArr,mo, c.cx,c.cy, gCellW*0.5*sx, gCellH*0.5*sy, s.u0,s.v0,s.u1,s.v1, dim);
+          const hw=gCellW*0.5, hh=gCellH*0.5;
+          if(c.flipping){
+            const p=c.flip<0?0:c.flip>1?1:c.flip, e=p*p*(3-2*p);          // smoothstep dissolve
+            if(c.prevItem!=null){                                        // reveal the image behind, fade the front out
+              const sn=sprites[c.item], sp=sprites[c.prevItem];
+              if(sn) mo=quadWH(mainArr,mo, c.cx,c.cy, hw,hh, sn.u0,sn.v0,sn.u1,sn.v1, 1);
+              if(sp) mo=quadWH(mainArr,mo, c.cx,c.cy, hw,hh, sp.u0,sp.v0,sp.u1,sp.v1, 1-e);
+            } else { const s=sprites[c.item]; if(s) mo=quadWH(mainArr,mo, c.cx,c.cy, hw,hh, s.u0,s.v0,s.u1,s.v1, e); }
+          } else { const s=sprites[c.item]; if(s) mo=quadWH(mainArr,mo, c.cx,c.cy, hw,hh, s.u0,s.v0,s.u1,s.v1, 1); }
           if(mo>=mainArr.length-30) break;
         }
         gl.bindTexture(gl.TEXTURE_2D,atlasTex); gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
