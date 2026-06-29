@@ -165,8 +165,9 @@
               photoTarget:null, clusterTrait:'Realm', fly:0.40 };
   // ---- galaxy fly-through camera (cluster mode): pilot forward through depth-layered trait nebulae ----
   const CGAP=6.0;                                  // world-units between cluster centres along the corridor
-  let camZ=0, camX=0, camY=0, camTX=0, camTY=0, camBack=0, camBackT=0, clusterL=CGAP, clusterReady=false;
-  let overview=false, ovBlend=0, ovAngle=0;        // ◎ full-galaxy view: freeze flight, orbit the whole elliptical cloud
+  let camAngle=0, camX=0, camY=0, camTX=0, camTY=0, clusterL=CGAP, clusterReady=false;
+  let ringR=1, ringRx=1, ringRz=1, ringSin=0.52, ringCos=0.85;       // the galaxy is a tilted 3D ellipse (closed loop)
+  let ovTarget=0, ovBlend=0, ovA=0;                // zoom 0=cockpit → 1=full elliptical-galaxy view (◎ / scroll); ovA = turntable angle
   const clusterVis=new Int32Array(IDS.length+8);   // reused visible-index scratch for the fly-through
   const bind = (id, key, f) => {
     const el=document.getElementById(id), out=document.getElementById('v'+id[0].toUpperCase()+id.slice(1));
@@ -493,21 +494,21 @@
     gW=W; gH=H;
     const key=P.clusterTrait, groups=new Map();
     for(let k=0;k<sprites.length;k++){ const v=traitVal(sprites[k].id,key); (groups.get(v)||groups.set(v,[]).get(v)).push(k); }
-    const keys=[...groups.keys()], G=keys.length, GA=2.399963;       // golden angle → spiral clusters around the corridor
+    const keys=[...groups.keys()], G=keys.length;
     clusterL = Math.max(CGAP, G*CGAP);
-    const kw=2*Math.PI/clusterL, CA=clusterL*0.06;                    // curved spine: one gentle bend over the whole loop
+    // the galaxy is one big closed ellipse (clusters spaced around the loop), tilted in 3D
+    ringR = (clusterL/(2*Math.PI))*0.95;
+    ringRx = ringR*1.18; ringRz = ringR*0.9;                         // mildly elliptical
+    const tilt=0.55; ringSin=Math.sin(tilt); ringCos=Math.cos(tilt); // tip the disc so it reads as 3D
     keys.forEach((v,gi)=>{
       const arr=groups.get(v);
-      const gz=(gi+0.5)*CGAP;                                        // each cluster sits further down the flight path
-      const gAng=gi*GA, gSpread=0.6;                                 // just off the central axis so you weave through them
-      const gx=Math.cos(gAng)*gSpread, gy=Math.sin(gAng)*gSpread;
-      const baseR=Math.min(2.3, 0.42*Math.sqrt(arr.length));         // bigger trait-groups = wider nebula
+      const tg=(gi/G)*2*Math.PI;                                     // this cluster's angle around the ring
+      const ccx=ringRx*Math.cos(tg), ccy=ringRz*Math.sin(tg)*ringSin, ccz=ringRz*Math.sin(tg)*ringCos;
+      const baseR=Math.min(ringR*0.28, 0.42*Math.sqrt(arr.length));  // bigger trait-groups = wider nebula
       for(const k of arr){ const s=sprites[k];
         const u=Math.random(), ct=Math.random()*2-1, ph=Math.random()*Math.PI*2;
-        const rr=Math.cbrt(u)*baseR, st=Math.sqrt(1-ct*ct);          // uniform point in a 3D ball
-        s.wz=gz+rr*ct*1.5;
-        s.wx=gx+rr*st*Math.cos(ph) + CA*Math.sin(kw*s.wz);           // lateral offset rides the curved spine
-        s.wy=gy+rr*st*Math.sin(ph) + CA*0.5*Math.sin(2*kw*s.wz+1.7);
+        const rr=Math.cbrt(u)*baseR, st=Math.sqrt(1-ct*ct);          // uniform point in a 3D ball around the cluster centre
+        s.wx=ccx+rr*st*Math.cos(ph); s.wy=ccy+rr*ct; s.wz=ccz+rr*st*Math.sin(ph);
         s.ws=0.42*(0.85+Math.random()*0.4);                         // head world size (slight variation)
       }
     });
@@ -537,7 +538,7 @@
     camTX=((e.clientX/W)-0.5)*1.2; camTY=((e.clientY/H)-0.5)*1.2; });
   cv.addEventListener('pointerleave', ()=>{ camTX=0; camTY=0; });
   cv.addEventListener('wheel', e=>{ if(P.mode!=='cluster') return; e.preventDefault();   // scroll out → rise & pitch down to see the whole galaxy
-    const step=clusterL*0.07*(e.deltaY>0?1:-1); camBackT=Math.max(0, Math.min(clusterL*0.95, camBackT+step)); }, {passive:false});
+    ovTarget=Math.max(0, Math.min(1, ovTarget+(e.deltaY>0?0.14:-0.14))); syncGalaxyBtn(); }, {passive:false});
 
   // ---- info / buy card ----
   const CONTRACT='0xa179a765c52ced91647c082f02d7e737d7781cae';
@@ -591,14 +592,15 @@
   function rebuildAtlas(){ if(!ready) return; for(let k=0;k<sprites.length;k++) drawTile(sprites[k].img,k,P.shape); uploadAtlas(); }
   function setShape(sh){ P.shape=sh; bShape.textContent=shapeLabel[sh]; rebuildAtlas(); }
   bShape.onclick=()=>{ setShape(P.shape==='round'?'circle':P.shape==='circle'?'square':'round'); };
-  bGalaxy.onclick=()=>{ overview=!overview; bGalaxy.classList.toggle('on',overview); if(overview) camBackT=0;   // ◎ stop & view the whole galaxy
-    hint.textContent = overview ? 'full galaxy view · ◎ to fly again · ⤮ regroup' : 'flying through: '+P.clusterTrait+' · move to steer · scroll to zoom out · ◎ full galaxy'; };
+  function syncGalaxyBtn(){ const on=ovTarget>0.5; bGalaxy.classList.toggle('on',on);
+    if(P.mode==='cluster') hint.textContent = on ? 'elliptical galaxy view · ◎ to fly again · ⤮ regroup' : 'flying the ellipse · move to steer · scroll / ◎ for full galaxy · ⤮ regroup'; }
+  bGalaxy.onclick=()=>{ ovTarget = ovTarget>0.5?0:1; syncGalaxyBtn(); };   // ◎ stop & view the whole elliptical galaxy
   bPause.onclick=()=>{ P.paused=!P.paused; bPause.classList.toggle('on',P.paused); bPause.textContent=P.paused?'▶':'⏸'; };
   bShuffle.onclick=()=>{
     if(P.mode==='mosaic'){ for(const c of cells) startFade(c); }
     else if(P.mode==='time'){ for(const d of drops){ d.active=Math.random()<(P.rainPct/100); d.y=-rnd(1,gRows); } }
     else if(P.mode==='photo'){ buildPhotoGrid(IDS[(Math.random()*IDS.length)|0]); }
-    else if(P.mode==='cluster'){ P.clusterTrait=CLUSTER_TRAITS[(CLUSTER_TRAITS.indexOf(P.clusterTrait)+1)%CLUSTER_TRAITS.length]; camZ=0; buildClusters(); hint.textContent='flying through: '+P.clusterTrait+' · move to steer · scroll to zoom out · ⤮ regroup'; }
+    else if(P.mode==='cluster'){ P.clusterTrait=CLUSTER_TRAITS[(CLUSTER_TRAITS.indexOf(P.clusterTrait)+1)%CLUSTER_TRAITS.length]; camAngle=0; buildClusters(); syncGalaxyBtn(); }
     else { for(const s of sprites){ s.r=Math.sqrt(Math.random()); s.a=rnd(0,Math.PI*2); s.zPh=rnd(0,Math.PI*2); s.base=rnd(0.55,1.35);} shuffle(order); }
   };
   const mTime=document.getElementById('mTime'), mPhoto=document.getElementById('mPhoto'), mCluster=document.getElementById('mCluster');
@@ -612,7 +614,7 @@
     mUni.classList.toggle('on',uni); mMos.classList.toggle('on',mos); mTime.classList.toggle('on',tim);
     mPhoto.classList.toggle('on',pho); mCluster.classList.toggle('on',clu);
     bFlip.style.display='none'; bShuffle.textContent='⤮'; bGalaxy.style.display=clu?'':'none';
-    hint.textContent = clu ? (overview ? 'full galaxy view · ◎ to fly again · ⤮ regroup' : 'flying through: '+P.clusterTrait+' · move to steer · scroll to zoom out · ◎ full galaxy') : (pho ? 'click a tile → rebuild the mosaic from it' : '');
+    hint.textContent = clu ? (ovTarget>0.5 ? 'elliptical galaxy view · ◎ to fly again · ⤮ regroup' : 'flying the ellipse · move to steer · scroll / ◎ for full galaxy · ⤮ regroup') : (pho ? 'click a tile → rebuild the mosaic from it' : '');
   }
   function setMode(m){
     if(P.mode===m) return; P.mode=m;
@@ -621,7 +623,7 @@
     if(m==='mosaic') buildGrid();
     else if(m==='time') timeDirty=true;
     else if(m==='photo') buildPhotoGrid(pickPhotoTarget());
-    else if(m==='cluster'){ camZ=0; camX=camY=camTX=camTY=0; camBack=camBackT=0; overview=false; ovBlend=0; ovAngle=0; bGalaxy.classList.remove('on'); buildClusters(); }
+    else if(m==='cluster'){ camAngle=0; camX=camY=camTX=camTY=0; ovTarget=0; ovBlend=0; ovA=0; bGalaxy.classList.remove('on'); buildClusters(); }
     if(m!=='mosaic' && P.paused){ P.paused=false; bPause.classList.remove('on'); bPause.textContent='⏸'; }   // animated modes auto-play
     applyMode();
   }
@@ -730,36 +732,41 @@
         gl.drawArrays(gl.TRIANGLES,0,mo/5);
 
       } else if(P.mode==='cluster'){
-        // galaxy fly-through: pilot forward down the corridor; heads stream past the cockpit, faces ahead grow from specks
+        // elliptical galaxy: fly around a tilted 3D ellipse; ◎/scroll lifts the camera out to view the whole loop
         if(!clusterReady) buildClusters();
-        const L=clusterL, F=Math.min(W,H)*0.92;
-        const flySpeed=0.6+P.fly*5;                                  // world-units / sec
-        ovBlend += ((overview?1:0)-ovBlend)*Math.min(1,dt*2.0);      // ease the alpha lift for the full-galaxy view
-        if(!P.paused && !overview) camZ += flySpeed*dt;              // ◎ freezes the spaceship; off → resume the flight
-        camX += (camTX-camX)*Math.min(1,dt*2.5);                     // ease steering toward the cursor bank
+        const F=Math.min(W,H)*0.92, TAU=Math.PI*2;
+        const flySpeed=0.6+P.fly*5;                                  // world-units / sec along the loop
+        ovBlend += (ovTarget-ovBlend)*Math.min(1,dt*3.2);           // ease cockpit ↔ full-galaxy
+        const bl=ovBlend;
+        if(!P.paused && bl<0.5) camAngle += (flySpeed/ringR)*dt;     // freeze the orbit once we settle into the overview
+        camAngle%=TAU; if(camAngle<0) camAngle+=TAU;
+        camX += (camTX-camX)*Math.min(1,dt*2.5);                     // ease steering toward the cursor
         camY += (camTY-camY)*Math.min(1,dt*2.5);
-        const camBackGoal = overview ? Math.max(camBackT, L*0.5) : camBackT;   // ◎ pulls back to frame the whole galaxy
-        camBack += (camBackGoal-camBack)*Math.min(1,dt*3);           // smooth zoom-out / zoom-in
-        const kw=2*Math.PI/L, CA=L*0.06, bl=ovBlend;
-        // curved-spine look-at: pitches down & rises as it pulls back, revealing the whole galaxy
-        const baseX=CA*Math.sin(kw*camZ)+camX, baseY=CA*0.5*Math.sin(2*kw*camZ+1.7)+camY;
-        let fx=CA*kw*Math.cos(kw*camZ), fy=CA*kw*Math.cos(2*kw*camZ+1.7), fz=1;
-        let fl=Math.hypot(fx,fy,fz)||1; fx/=fl; fy/=fl; fz/=fl;
-        const pf=Math.min(1,camBack/(L*0.5)); fy-=pf*1.3; fl=Math.hypot(fx,fy,fz)||1; fx/=fl; fy/=fl; fz/=fl;
+        if(bl>0.01) ovA += dt*0.14;                                  // slow turntable while the galaxy view is up
+        // --- cockpit camera: ride the ellipse, look along the tangent ---
+        const ca=camAngle, sca=Math.sin(ca), cca=Math.cos(ca);
+        const fpx=ringRx*cca, fpy=ringRz*sca*ringSin, fpz=ringRz*sca*ringCos;
+        let ftx=-ringRx*sca, fty=ringRz*cca*ringSin, ftz=ringRz*cca*ringCos;
+        let tl=Math.hypot(ftx,fty,ftz)||1; ftx/=tl; fty/=tl; ftz/=tl;
+        ftx+=camX*0.18; fty+=-camY*0.18; tl=Math.hypot(ftx,fty,ftz)||1; ftx/=tl; fty/=tl; ftz/=tl;   // gentle look-steer
+        const La=ringR*0.8, tfx=fpx+ftx*La, tfy=fpy+fty*La, tfz=fpz+ftz*La;          // cockpit look-target: ahead on the ring
+        // --- overview camera: orbit the galaxy centre (origin) ---
+        const D=ringR*2.1, phi=0.78;                                                 // look down onto the disc → rounder ellipse
+        const opx=D*Math.cos(phi)*Math.sin(ovA), opy=D*Math.sin(phi), opz=D*Math.cos(phi)*Math.cos(ovA);
+        // --- blend POSITION and look-TARGET (target → origin), so the view always faces the galaxy ---
+        const camPx=fpx+(opx-fpx)*bl, camPy=fpy+(opy-fpy)*bl, camPz=fpz+(opz-fpz)*bl;
+        const tgx=tfx*(1-bl), tgy=tfy*(1-bl), tgz=tfz*(1-bl);
+        let fx=tgx-camPx, fy=tgy-camPy, fz=tgz-camPz; const fl=Math.hypot(fx,fy,fz)||1; fx/=fl; fy/=fl; fz/=fl;
         let rx=fz, rz=-fx; const rl=Math.hypot(rx,rz)||1; rx/=rl; rz/=rl;            // right = up × forward
         const ux=fy*rz, uy=fz*rx-fx*rz, uz=-fy*rx;                                   // up = forward × right
-        const camPx=baseX-fx*camBack, camPy=baseY-fy*camBack, camPz=camZ-fz*camBack;
-        const FADE_NEAR=1.3, FADE_FAR=Math.min(CGAP, L*0.45);
         const vis=clusterVis; let vn=0;
         for(let i=0;i<sprites.length;i++){ const s=sprites[i];
-          let d=(s.wz-camZ)%L; if(d<0) d+=L; if(d<0.05) d=0.05;       // cyclic path-distance ahead → endless loop
-          const aN=d<FADE_NEAR?d/FADE_NEAR:1;                         // fade out the head you pass (hides the wrap)
-          const aF=(L-d)<FADE_FAR?(L-d)/FADE_FAR:1;                   // fade in from the far distance
-          const al=(aN*aF)*(1-bl) + 0.92*bl;                         // fly fades → full-lit in the galaxy view
-          if(al<0.012){ s._bs=0; continue; }
-          const rxp=s.wx-camPx, ryp=s.wy-camPy, rzp=(camZ+d)-camPz;   // head sits ahead by d along the path
+          const rxp=s.wx-camPx, ryp=s.wy-camPy, rzp=s.wz-camPz;
           const cz=rxp*fx+ryp*fy+rzp*fz;                              // camera-space depth
-          if(cz<0.08){ s._bs=0; continue; }
+          if(cz<0.08){ s._bs=0; continue; }                          // behind the camera (the arc you just flew past)
+          const nf=cz<1.6?cz/1.6:1;                                  // fade the head you're flying into (avoid whiteout)
+          const al=nf*(1-bl) + 0.92*bl;                              // full-lit in the galaxy view
+          if(al<0.012){ s._bs=0; continue; }
           const cx=rxp*rx+rzp*rz, cy=rxp*ux+ryp*uy+rzp*uz;
           const inv=F/cz, sx=W*0.5+cx*inv, sy=H*0.5-cy*inv, size=s.ws*inv;
           if(size<1.2 || sx<-size || sx>W+size || sy<-size || sy>H+size){ s._bs=0; continue; }
