@@ -160,6 +160,7 @@
   const CGAP=6.0;                                  // world-units between cluster centres along the corridor
   let camAngle=0, camX=0, camY=0, camTX=0, camTY=0, clusterL=CGAP, clusterReady=false;
   let ringR=1, ringRx=1, ringRz=1, ringSin=0.52, ringCos=0.85;       // the galaxy is a tilted 3D ellipse (closed loop)
+  let clusterMembers=[];                                              // sprite indices in the galaxy (respects the filter)
   let ovTarget=0, ovBlend=0, ovA=0;                // zoom 0=cockpit → 1=full elliptical-galaxy view (◎ / scroll); ovA = turntable angle
   const clusterVis=new Int32Array(IDS.length+8);   // reused visible-index scratch for the fly-through
   const bind = (id, key, f) => {
@@ -464,8 +465,19 @@
   function buildClusters(){
     gW=W; gH=H;
     const key=P.clusterTrait, groups=new Map();
-    for(let k=0;k<sprites.length;k++){ const v=traitVal(sprites[k].id,key); (groups.get(v)||groups.set(v,[]).get(v)).push(k); }
-    const keys=[...groups.keys()], G=keys.length;
+    const members = pool;                                            // honour the active tier / favourites filter (empty favs → empty galaxy + hint)
+    clusterMembers = members.slice();
+    for(const s of sprites) s._bs=0;                                  // drop filtered-out heads from render + hit-test
+    for(const k of members){ const v=traitVal(sprites[k].id,key); (groups.get(v)||groups.set(v,[]).get(v)).push(k); }
+    let keys=[...groups.keys()];
+    if(keys.length<7 && members.length){    // too few trait-groups for a ring (e.g. a filtered set) → spread into arc stations
+      const ordered=members.slice().sort((a,b)=>{ const va=traitVal(sprites[a].id,key), vb=traitVal(sprites[b].id,key); return va<vb?-1:va>vb?1:0; });
+      const nb=Math.min(ordered.length,16), per=Math.ceil(ordered.length/nb);
+      groups.clear(); for(let g=0;g<nb;g++) groups.set('arc'+g,[]);
+      ordered.forEach((k,idx)=> groups.get('arc'+Math.min(nb-1,(idx/per)|0)).push(k));   // keep same-trait heads adjacent
+      keys=[...groups.keys()];
+    }
+    const G=keys.length;
     clusterL = Math.max(CGAP, G*CGAP);
     // the galaxy is one big closed ellipse (clusters spaced around the loop), tilted in 3D
     ringR = (clusterL/(2*Math.PI))*0.95;
@@ -588,7 +600,8 @@
     else { if(P.shape!=='square') setShape('square'); }
     if(m==='mosaic') buildGrid();
     else if(m==='time') timeDirty=true;
-    else if(m==='cluster'){ camAngle=0; camX=camY=camTX=camTY=0; ovTarget=0; ovBlend=0; ovA=0; bGalaxy.classList.remove('on'); buildClusters(); }
+    else if(m==='cluster'){ camAngle=0; camX=camY=camTX=camTY=0; ovBlend=0; ovA=0; buildClusters();
+      ovTarget=(P.tiers.size>0||P.favOnly)?1:0; syncGalaxyBtn(); }   // enter filtered → overview; enter unfiltered → cockpit fly
     if(m!=='mosaic' && P.paused){ P.paused=false; bPause.classList.remove('on'); bPause.textContent='⏸'; }   // animated modes auto-play
     applyMode();
   }
@@ -612,6 +625,8 @@
       buildGrid();                                   // resize + assign each item once
       if(!P.paused){ for(const c of cells){ c.prevItem=null; c.flipping=true; c.flip=0; } }   // fade the new set in
     } else if(P.mode==='time'){ timeDirty=true; }
+    else if(P.mode==='cluster'){ camAngle=0; buildClusters();
+      ovTarget=(P.tiers.size>0||P.favOnly)?1:0; syncGalaxyBtn(); }   // a filtered subset → frame it all in the overview; "all" → fly the full galaxy
     // empty favourites → show a friendly hint over the dark canvas
     if(P.favOnly && pool.length===0){ boot.textContent='no favourites yet — open any item and tap ☆'; boot.style.opacity=1; }
     else { boot.style.opacity=0; }
@@ -729,7 +744,7 @@
         let rx=fz, rz=-fx; const rl=Math.hypot(rx,rz)||1; rx/=rl; rz/=rl;            // right = up × forward
         const ux=fy*rz, uy=fz*rx-fx*rz, uz=-fy*rx;                                   // up = forward × right
         const vis=clusterVis; let vn=0;
-        for(let i=0;i<sprites.length;i++){ const s=sprites[i];
+        for(const i of clusterMembers){ const s=sprites[i];
           const rxp=s.wx-camPx, ryp=s.wy-camPy, rzp=s.wz-camPz;
           const cz=rxp*fx+ryp*fy+rzp*fz;                              // camera-space depth
           if(cz<0.08){ s._bs=0; continue; }                          // behind the camera (the arc you just flew past)
