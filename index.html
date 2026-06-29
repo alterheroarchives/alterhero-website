@@ -293,7 +293,6 @@
       uploadAtlas();
       ready=true; window.__diag.ready=true; window.__diag.sprites=sprites.length;
       boot.style.opacity=0; loadbar.style.opacity=0;
-      document.getElementById('count').max=sprites.length;
       darkOrder=sprites.map((_,i)=>i).sort((a,b)=>sprites[a].lum-sprites[b].lum);
       rebuildPool();
       if(P.mode==='mosaic') buildGrid();
