@@ -91,18 +91,11 @@
 <div id="panel">
   <h1>AH!</h1>
   <div class="btns">
-    <button id="mTime" class="on">✺ AH!</button>
-    <button id="mMos">▦ mosaic</button>
-    <button id="mUni">✦ universe</button>
-    <button id="mPhoto">▩ photo</button>
-    <button id="mCluster">◉ clusters</button>
+    <button id="mTime" class="on">ah!</button>
+    <button id="mMos">mosaic</button>
+    <button id="mCluster">origins</button>
   </div>
   <div class="sliders">
-    <div class="row uni"><label>Heads <b id="vCount">—</b></label><input id="count" type="range" min="40" max="999" value="999"></div>
-    <div class="row uni"><label>Sway <b id="vSwirl">0.18</b></label><input id="swirl" type="range" min="0" max="150" value="18"></div>
-    <div class="row uni"><label>Depth <b id="vDepth">0.26</b></label><input id="depth" type="range" min="0" max="150" value="26"></div>
-    <div class="row uni"><label>Speed <b id="vDrift">0.18</b></label><input id="drift" type="range" min="0" max="150" value="18"></div>
-    <div class="row uni"><label>Size <b id="vSize">1.00</b></label><input id="size" type="range" min="40" max="200" value="100"></div>
     <div class="row mos"><label>Speed <b id="vMspeed">0.50</b></label><input id="mspeed" type="range" min="0" max="150" value="50"></div>
     <div class="row mos"><label>Active <b id="vActive">60</b></label><input id="active" type="range" min="0" max="100" value="60"></div>
     <div class="row cellrow"><label>Cell <b id="vCell">90</b></label><input id="cell" type="range" min="44" max="180" value="90"></div>
@@ -174,17 +167,11 @@
     const upd=()=>{ const v=+el.value; P[key]= f? f(v): v; if(out) out.textContent=(typeof P[key]==='number'?(Number.isInteger(P[key])?P[key]:P[key].toFixed(2)):P[key]); };
     el.addEventListener('input',upd); upd();
   };
-  bind('count','count', v=>Math.round(v));
-  bind('swirl','swirl', v=>v/100);
-  bind('depth','depth', v=>v/100);
-  bind('drift','drift', v=>v/100);
-  bind('size','size',  v=>v/100);
   bind('mspeed','mspeed', v=>v/100);
   bind('cell','cell', v=>Math.round(v));
   bind('active','activePct', v=>Math.round(v));
   bind('flick','rainPct', v=>Math.round(v));
   bind('fly','fly', v=>v/100);
-  document.getElementById('vCount').textContent = P.count;
 
   // ---- shaders ----
   function sh(type,src){ const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
@@ -311,7 +298,6 @@
       rebuildPool();
       if(P.mode==='mosaic') buildGrid();
       else if(P.mode==='time') buildTimeGrid();
-      else if(P.mode==='photo') buildPhotoGrid(pickPhotoTarget());
       else if(P.mode==='cluster') buildClusters();
     },30);
   }
@@ -433,16 +419,18 @@
     tColStart=Math.floor((gCols-fontCols)/2); tRowStart=Math.floor((gRows-5)/2);
     litSet=buildLit('AH!');
     // rain now flows through every non-logo cell (incl. those hugging the letters) — no dark margin
-    // matrix-rain columns (staggered starts above the top edge)
+    // matrix rain: TWO independently-timed streams per column (left & right half), each with
+    // its own random speed + vertical span, so columns never read as rigid parallel lines.
     drops=[]; const rainFrac=P.rainPct/100;
-    for(let col=0;col<gCols;col++) drops.push({ y:-(Math.random()*gRows*1.6), spd:rnd(4,11), len:rnd(4,9), active:Math.random()<rainFrac });
+    for(let col=0;col<gCols;col++) for(const side of [-1,1]) drops.push(makeLane(col,side,rainFrac));
     shown=new Map(); cells=[];
     // the logo cells get UNIQUE heads (shuffled bag) so the letters never show the same face twice;
     // the background cells are random (repeats there are invisible under the dim rain).
     const logoBag=pool.slice(); shuffle(logoBag); let lb=0;
     for(let i=0;i<gCols*gRows;i++){ const row=(i/gCols)|0, col=i%gCols;
       const c={ cx:x0+(col+0.5)*cell, cy:y0+(row+0.5)*cell, r:Math.random(),
-        item:undefined, flip:0, flipping:false, swapped:false, axis:0, next:T+Math.random()*2.5 };
+        item:undefined, item2:logoItem(),   // item = left stream's head, item2 = right stream's head
+        flip:0, flipping:false, swapped:false, axis:0, next:T+Math.random()*2.5 };
       let it;
       if(litSet.has(i)){ if(lb>=logoBag.length){ shuffle(logoBag); lb=0; } it=logoBag.length?logoBag[lb++]:logoItem(); }
       else it=logoItem();
@@ -450,6 +438,16 @@
       cells.push(c);
     }
     ahT0=T;   // (re)start the 2s launch timer
+  }
+  // one rain stream: a vertical band [top,bot) it falls through, varied so some run full-height,
+  // some start mid-screen & fade at the bottom, some run top→middle & fade out.
+  function makeLane(col, side, frac){
+    const t=Math.random(); let top, bot;
+    if(t<0.5){ top=0; bot=gRows; }                                                   // full top→bottom
+    else if(t<0.75){ top=Math.floor(gRows*(0.34+Math.random()*0.22)); bot=gRows; }   // middle→bottom
+    else { top=0; bot=Math.ceil(gRows*(0.5+Math.random()*0.22)); }                   // top→middle
+    return { col, side, top, bot, y: top-(Math.random()*(bot-top)*0.8+2),
+             spd: rnd(4,12), len: rnd(3,8), active: Math.random()<frac };
   }
 
   // begin a dissolve: the cell's current image fades out to reveal a different one behind it
@@ -461,33 +459,7 @@
     c.flipping=true; c.flip=0;
   }
 
-  // ---- photomosaic: the grid's colours recreate one chosen NFT, big ----
-  const photoCv=document.createElement('canvas'); const photoCtx=photoCv.getContext('2d',{willReadFrequently:true});
-  function findSpriteByID(id){ for(let i=0;i<sprites.length;i++) if(sprites[i].id===id) return i; return 0; }
-  function pickPhotoTarget(){ if(P.photoTarget!=null) return P.photoTarget;
-    if(favs.size) return [...favs][0]; return IDS[(Math.random()*IDS.length)|0]; }
-  function buildPhotoGrid(targetId){
-    P.photoTarget=targetId; gW=W; gH=H; const AH=Math.max(1,H-MOSAIC_BAR);
-    gCols=Math.max(1,Math.round(W/P.cell)); gRows=Math.max(1,Math.round(AH/P.cell));
-    const cell=Math.min(W/gCols, AH/gRows); gCell=cell; gCellW=cell; gCellH=cell; gCellParam=P.cell;
-    const x0=(W-gCols*cell)/2, y0=(AH-gRows*cell)/2;
-    const ti=findSpriteByID(targetId), timg=sprites[ti]?sprites[ti].img:null;
-    let tgt=null; photoCv.width=gCols; photoCv.height=gRows;
-    if(timg){ try{ photoCtx.drawImage(timg,0,0,gCols,gRows); tgt=photoCtx.getImageData(0,0,gCols,gRows).data; }catch(e){ tgt=null; } }
-    const oldCells=cells; cells=[]; shown=new Map();
-    for(let i=0;i<gCols*gRows;i++){ const row=(i/gCols)|0, col=i%gCols;
-      let item=ti;
-      if(tgt){ const r=tgt[i*4],g=tgt[i*4+1],b=tgt[i*4+2]; let best=0,bd=1e15;
-        for(let k=0;k<sprites.length;k++){ const cc=sprites[k].rgb, dr=cc[0]-r,dg=cc[1]-g,db=cc[2]-b, dd=dr*dr+dg*dg+db*db; if(dd<bd){bd=dd;best=k;} }
-        item=best; }
-      const prev = oldCells[i] ? oldCells[i].item : null;
-      const c={ cx:x0+(col+0.5)*cell, cy:y0+(row+0.5)*cell, r:Math.random(),
-        item, prevItem:(prev!=null&&prev!==item)?prev:null, flip:0, flipping:true, swapped:false, axis:0, next:T };
-      shown.set(item,(shown.get(item)||0)+1); cells.push(c);
-    }
-  }
-
-  // ---- constellation: tiles drift into clusters grouped by a trait ----
+  // ---- origins: tiles drift into clusters grouped by a trait ----
   const CLUSTER_TRAITS=['Tier','Tone','Realm','Origin','Vision','Aura','Flow','Artifact'];
   function traitVal(id,key){ const m=META[id]; if(!m||!m.t) return 'none'; const t=m.t.find(x=>x[0]===key); return t?t[1]:'none'; }
   function buildClusters(){
@@ -519,16 +491,15 @@
   const focusName=document.getElementById('focusName'); let focusTimer=0;
   cv.addEventListener('pointerdown', e=>{
     const mx=e.clientX,my=e.clientY;
-    if(P.mode==='mosaic' || P.mode==='time' || P.mode==='photo'){    // grid hit-test
+    if(P.mode==='mosaic' || P.mode==='time'){    // grid hit-test
       const hw=gCellW/2, hh=gCellH/2;
       for(const c of cells){ if(mx>=c.cx-hw&&mx<=c.cx+hw&&my>=c.cy-hh&&my<=c.cy+hh){
         const s=sprites[c.item]; if(!s) break;
-        if(P.mode==='photo') buildPhotoGrid(s.id);   // click → rebuild the mosaic from this piece
-        else showCard(s.id);
+        showCard(s.id);
         break; } }
       return;
     }
-    let best=null,bz=-Infinity;                   // universe / clusters: hit-test the topmost head
+    let best=null,bz=-Infinity;                   // origins: hit-test the topmost head
     for(const s of sprites){ if(!s._bs) continue; const h=s._bs/2;
       if(mx>=s._bx-h&&mx<=s._bx+h&&my>=s._by-h&&my<=s._by+h&&s._z>bz){ best=s; bz=s._z; } }
     if(best){ best.focus=performance.now(); showCard(best.id); }
@@ -571,7 +542,7 @@
     if(favs.has(cardId)) favs.delete(cardId); else favs.add(cardId);
     saveFavs(); syncFavBtn();
     if(typeof refreshFavBtn==='function') refreshFavBtn();
-    if(P.favOnly){ rebuildPool(); if(P.mode!=='universe') buildGrid(); }   // live-update the favourites view
+    if(P.favOnly){ rebuildPool(); if(P.mode==='mosaic') buildGrid(); else if(P.mode==='cluster') buildClusters(); }   // live-update the favourites view
   };
   function hideCard(){ card.classList.remove('show'); backdrop.classList.remove('show'); }
   document.getElementById('cardClose').onclick=hideCard;
@@ -582,7 +553,7 @@
   const bShape=document.getElementById('bShape'), bPause=document.getElementById('bPause'),
         bShuffle=document.getElementById('bShuffle'), bGalaxy=document.getElementById('bGalaxy'),
         bFlip=document.getElementById('bFlip'),
-        mUni=document.getElementById('mUni'), mMos=document.getElementById('mMos'),
+        mMos=document.getElementById('mMos'),
         hint=document.getElementById('hint');
   const flipLabel={h:'⇆', v:'⇅', both:'⤢', null:'⊘'};
   const flipOrder=['both','h','v','null'];
@@ -598,39 +569,32 @@
   bPause.onclick=()=>{ P.paused=!P.paused; bPause.classList.toggle('on',P.paused); bPause.textContent=P.paused?'▶':'⏸'; };
   bShuffle.onclick=()=>{
     if(P.mode==='mosaic'){ for(const c of cells) startFade(c); }
-    else if(P.mode==='time'){ for(const d of drops){ d.active=Math.random()<(P.rainPct/100); d.y=-rnd(1,gRows); } }
-    else if(P.mode==='photo'){ buildPhotoGrid(IDS[(Math.random()*IDS.length)|0]); }
+    else if(P.mode==='time'){ for(const d of drops){ d.active=Math.random()<(P.rainPct/100); d.y=d.top-rnd(1,Math.max(2,(d.bot-d.top)*0.6)); } }
     else if(P.mode==='cluster'){ P.clusterTrait=CLUSTER_TRAITS[(CLUSTER_TRAITS.indexOf(P.clusterTrait)+1)%CLUSTER_TRAITS.length]; camAngle=0; buildClusters(); syncGalaxyBtn(); }
-    else { for(const s of sprites){ s.r=Math.sqrt(Math.random()); s.a=rnd(0,Math.PI*2); s.zPh=rnd(0,Math.PI*2); s.base=rnd(0.55,1.35);} shuffle(order); }
   };
-  const mTime=document.getElementById('mTime'), mPhoto=document.getElementById('mPhoto'), mCluster=document.getElementById('mCluster');
+  const mTime=document.getElementById('mTime'), mCluster=document.getElementById('mCluster');
   function applyMode(){
-    const uni=P.mode==='universe', tim=P.mode==='time', pho=P.mode==='photo', clu=P.mode==='cluster', mos=P.mode==='mosaic';
-    document.querySelectorAll('.row.uni').forEach(e=>e.style.display=uni?'flex':'none');
+    const tim=P.mode==='time', clu=P.mode==='cluster', mos=P.mode==='mosaic';
     document.querySelectorAll('.row.mos').forEach(e=>e.style.display=mos?'flex':'none');
     document.querySelectorAll('.row.tim').forEach(e=>e.style.display=tim?'flex':'none');
-    document.querySelectorAll('.row.cellrow').forEach(e=>e.style.display=(mos||pho)?'flex':'none');
+    document.querySelectorAll('.row.cellrow').forEach(e=>e.style.display=mos?'flex':'none');
     document.querySelectorAll('.row.clu').forEach(e=>e.style.display=clu?'flex':'none');
-    mUni.classList.toggle('on',uni); mMos.classList.toggle('on',mos); mTime.classList.toggle('on',tim);
-    mPhoto.classList.toggle('on',pho); mCluster.classList.toggle('on',clu);
+    mMos.classList.toggle('on',mos); mTime.classList.toggle('on',tim); mCluster.classList.toggle('on',clu);
     bFlip.style.display='none'; bShuffle.textContent='⤮'; bGalaxy.style.display=clu?'':'none';
-    hint.textContent = clu ? (ovTarget>0.5 ? 'elliptical galaxy view · ◎ to fly again · ⤮ regroup' : 'flying the ellipse · move to steer · scroll / ◎ for full galaxy · ⤮ regroup') : (pho ? 'click a tile → rebuild the mosaic from it' : '');
+    hint.textContent = clu ? (ovTarget>0.5 ? 'elliptical galaxy view · ◎ to fly again · ⤮ regroup' : 'flying the ellipse · move to steer · scroll / ◎ for full galaxy · ⤮ regroup') : '';
   }
   function setMode(m){
     if(P.mode===m) return; P.mode=m;
-    if(m==='universe'||m==='cluster'){ if(P.shape==='square') setShape('round'); }
+    if(m==='cluster'){ if(P.shape==='square') setShape('round'); }
     else { if(P.shape!=='square') setShape('square'); }
     if(m==='mosaic') buildGrid();
     else if(m==='time') timeDirty=true;
-    else if(m==='photo') buildPhotoGrid(pickPhotoTarget());
     else if(m==='cluster'){ camAngle=0; camX=camY=camTX=camTY=0; ovTarget=0; ovBlend=0; ovA=0; bGalaxy.classList.remove('on'); buildClusters(); }
     if(m!=='mosaic' && P.paused){ P.paused=false; bPause.classList.remove('on'); bPause.textContent='⏸'; }   // animated modes auto-play
     applyMode();
   }
-  mUni.onclick=()=>setMode('universe');
   mMos.onclick=()=>setMode('mosaic');
   mTime.onclick=()=>setMode('time');
-  mPhoto.onclick=()=>setMode('photo');
   mCluster.onclick=()=>setMode('cluster');
   applyMode();
 
@@ -676,21 +640,19 @@
     if(ready){
       gl.uniform2f(uRes,W,H); gl.activeTexture(gl.TEXTURE0);
 
-      if(P.mode==='mosaic' || P.mode==='photo'){
-        const photo=P.mode==='photo';
-        if(photo){ if(gW!==W || gH!==H) buildPhotoGrid(P.photoTarget); }
-        else if(gW!==W || gH!==H || (!P.favOnly && P.tiers.size===0 && gCellParam!==P.cell)) buildGrid();
-        const fadeDur=photo?0.9:0.75;
+      if(P.mode==='mosaic'){
+        if(gW!==W || gH!==H || (!P.favOnly && P.tiers.size===0 && gCellParam!==P.cell)) buildGrid();
+        const fadeDur=0.75;
         let mo=0;
         const frac=P.activePct/100;
         for(const c of cells){
           if(!P.paused){
-            if(!photo && !c.flipping && T>=c.next){      // only mosaic auto-cycles
+            if(!c.flipping && T>=c.next){
               if(c.r<frac){ startFade(c); }
               else { c.next=T+rndInterval(); }
             }
             if(c.flipping){ c.flip += dt/fadeDur;
-              if(c.flip>=1){ c.flipping=false; c.flip=0; c.prevItem=null; if(!photo) c.next=T+rndInterval(); } }
+              if(c.flip>=1){ c.flipping=false; c.flip=0; c.prevItem=null; c.next=T+rndInterval(); } }
           }
           const hw=gCellW*0.5, hh=gCellH*0.5;
           if(c.flipping){
@@ -713,19 +675,27 @@
         const RAIN_MAX=0.5, hw=gCellW*0.5, hh=gCellH*0.5; let mo=0;   // background luminosity never exceeds 50%
         let rs=(T-ahT0)-2; rs=rs<=0?0:rs>=1?1:rs; rs=rs*rs*(3-2*rs);   // rain fades in over ~1s starting at 2s
         if(!P.paused && rs>0){
-          for(let col=0;col<gCols;col++){ const d=drops[col]; d.y+=d.spd*dt;
-            if(d.y-d.len>gRows){ d.y=-rnd(1,gRows*0.6); d.spd=rnd(4,11); d.len=rnd(4,9); d.active=Math.random()<(P.rainPct/100); } }
+          for(const d of drops){ d.y+=d.spd*dt;
+            if(d.y-d.len>d.bot){ d.y=d.top-(Math.random()*(d.bot-d.top)*0.6+1); d.spd=rnd(4,12); d.len=rnd(3,8); d.active=Math.random()<(P.rainPct/100); } }
         }
-        for(let i=0;i<cells.length;i++){ const c=cells[i], s=sprites[c.item]; if(!s) continue;
-          const row=(i/gCols)|0, col=i%gCols;
-          if(litSet.has(i)){                                  // the logo — always full-colour and static, on top
-            mo=quadWH(mainArr,mo, c.cx,c.cy, hw,hh, s.u0,s.v0,s.u1,s.v1, 1);
-          } else if(rs>0){ const d=drops[col];                // every other cell (incl. those hugging the logo) = rain
-            if(d.active){ const dist=d.y-row;
-              if(dist>=0 && dist<d.len){ const a=(1-dist/d.len)*RAIN_MAX*rs;   // clean 0→50% fade down the trail
-                if(a>0.01) mo=quadWH(mainArr,mo, c.cx,c.cy, hw*0.5,hh*0.5, s.u0,s.v0,s.u1,s.v1, a); } }   // rain heads = half the logo size
+        // logo first (always full-colour, static, on top)
+        for(let i=0;i<cells.length;i++){ if(!litSet.has(i)) continue; const c=cells[i], s=sprites[c.item];
+          if(s){ mo=quadWH(mainArr,mo, c.cx,c.cy, hw,hh, s.u0,s.v0,s.u1,s.v1, 1); } }
+        // rain: walk each stream's trail; left stream draws c.item on the left half, right draws c.item2 on the right
+        if(rs>0){ const hs=Math.min(gCellW,gCellH)*0.25, xo=gCellW*0.25, F1=2.0, F2=2.4;
+          for(const d of drops){ if(!d.active) continue;
+            const r0=Math.max(d.top, Math.ceil(d.y-d.len)), r1=Math.min(d.bot-1, Math.floor(d.y));
+            for(let r=r0; r<=r1; r++){ const ci=r*gCols+d.col; if(litSet.has(ci)) continue;
+              const c=cells[ci]; if(!c) continue;
+              const s=sprites[d.side<0?c.item:c.item2]; if(!s) continue;
+              const trail=1-(d.y-r)/d.len;
+              const env=Math.min(1,(r-d.top+0.5)/F1,(d.bot-r-0.5)/F2);   // fade in/out at the band edges
+              const a=trail*(env>0?env:0)*RAIN_MAX*rs;
+              if(a>0.01) mo=quadWH(mainArr,mo, c.cx+d.side*xo, c.cy, hs,hs, s.u0,s.v0,s.u1,s.v1, a);
+              if(mo>=mainArr.length-30) break;
+            }
+            if(mo>=mainArr.length-30) break;
           }
-          if(mo>=mainArr.length-30) break;
         }
         gl.bindTexture(gl.TEXTURE_2D,atlasTex); gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
         gl.bindBuffer(gl.ARRAY_BUFFER,vbo); gl.bufferData(gl.ARRAY_BUFFER,mainArr.subarray(0,mo),gl.DYNAMIC_DRAW); setAttribs();
@@ -780,37 +750,6 @@
           if(mo>=mainArr.length-30) break;
         }
         gl.bindTexture(gl.TEXTURE_2D,atlasTex); gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
-        gl.bindBuffer(gl.ARRAY_BUFFER,vbo); gl.bufferData(gl.ARRAY_BUFFER,mainArr.subarray(0,mo),gl.DYNAMIC_DRAW); setAttribs();
-        gl.drawArrays(gl.TRIANGLES,0,mo/5);
-
-      } else {
-        const unit=Math.min(W,H)*0.20*P.size;
-        const spanX=W+unit*2;                  // horizontal wrap span
-        const hbase=P.drift*W*0.13;            // horizontal scroll speed (px/s)
-        const sway=P.swirl*unit*0.5;           // optional gentle vertical sway
-        const N=Math.min(P.count,order.length);
-        document.getElementById('vCount').textContent=N;
-        const active=order.slice(0,N);
-        for(const idx of active){ const s=sprites[idx];
-          let z=0.5+0.5*Math.sin(s.zPh + T*s.zSp*(0.6+P.depth*1.6));
-          if(s.focus){ const k=Math.max(0,1-(now-s.focus)/3400); z=z*(1-k)+(0.95+0.05*Math.sin(now/200))*k; s._fk=k; } else s._fk=0;
-          s._z=z;
-          const pf=0.45+0.7*s.base;             // parallax: larger heads scroll faster
-          let x=s.sx*spanX - T*hbase*pf;        // continuous leftward drift
-          x=((x%spanX)+spanX)%spanX - unit;     // wrap horizontally
-          const y=unit*0.5 + s.sy*(H-unit) + Math.sin(T*s.spSp*0.8 + s.zPh)*sway;
-          s._bx=x; s._by=y; s._bs=(0.30+0.74*z)*s.base*unit*(1+0.35*s._fk);
-        }
-        active.sort((i,j)=>sprites[i]._z-sprites[j]._z);
-
-        let mo=0;
-        for(const idx of active){ const s=sprites[idx]; const size=s._bs; if(size<2) continue;
-          const al=Math.min(1,0.34+0.66*s._z+0.3*s._fk);
-          const hs=size/2;   // axis-aligned upright squares (no rotation)
-          mo=quad(mainArr,mo, s._bx,s._by,hs,1,0, s.u0,s.v0,s.u1,s.v1, al);
-        }
-        gl.bindTexture(gl.TEXTURE_2D,atlasTex);
-        gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
         gl.bindBuffer(gl.ARRAY_BUFFER,vbo); gl.bufferData(gl.ARRAY_BUFFER,mainArr.subarray(0,mo),gl.DYNAMIC_DRAW); setAttribs();
         gl.drawArrays(gl.TRIANGLES,0,mo/5);
       }
