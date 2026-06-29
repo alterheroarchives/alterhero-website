@@ -162,6 +162,7 @@
   let ringR=1, ringRx=1, ringRz=1, ringSin=0.52, ringCos=0.85;       // the galaxy is a tilted 3D ellipse (closed loop)
   let clusterMembers=[];                                              // sprite indices in the galaxy (respects the filter)
   let ovTarget=0, ovBlend=0, ovA=0;                // zoom 0=cockpit → 1=full elliptical-galaxy view (◎ / scroll); ovA = turntable angle
+  const OV_DFAC=2.1, OV_PHI=0.78;                   // overview camera distance factor + elevation (shared by render + re-entry)
   const clusterVis=new Int32Array(IDS.length+8);   // reused visible-index scratch for the fly-through
   const bind = (id, key, f) => {
     const el=document.getElementById(id), out=document.getElementById('v'+id[0].toUpperCase()+id.slice(1));
@@ -576,8 +577,17 @@
   bShape.onclick=()=>{ setShape(P.shape==='round'?'circle':P.shape==='circle'?'square':'round'); };
   function syncGalaxyBtn(){ const on=ovTarget>0.5; bGalaxy.classList.toggle('on',on);
     if(P.mode==='cluster') hint.textContent = on ? 'elliptical galaxy view · ◎ to fly again · ⤮ regroup' : 'flying the ellipse · move to steer · scroll / ◎ for full galaxy · ⤮ regroup'; }
+  function nearestEntryAngle(){   // ellipse angle whose point is closest to the current overview camera → short descent, no cross-galaxy sweep
+    const D=ringR*OV_DFAC, ox=D*Math.cos(OV_PHI)*Math.sin(ovA), oy=D*Math.sin(OV_PHI), oz=D*Math.cos(OV_PHI)*Math.cos(ovA);
+    let best=0, bd=Infinity;
+    for(let k=0;k<96;k++){ const t=k/96*Math.PI*2, s=Math.sin(t), c=Math.cos(t);
+      const px=ringRx*c, py=ringRz*s*ringSin, pz=ringRz*s*ringCos;
+      const dd=(px-ox)*(px-ox)+(py-oy)*(py-oy)+(pz-oz)*(pz-oz);
+      if(dd<bd){ bd=dd; best=t; } }
+    return best + (Math.random()-0.5)*0.7;   // small jitter so quick toggles still vary, descent stays short
+  }
   function setOverview(v){ const wasOverview=ovTarget>0.5; ovTarget=Math.max(0,Math.min(1,v));
-    if(wasOverview && ovTarget<=0.5) camAngle=Math.random()*Math.PI*2;   // dropping back into the fly → re-enter at a random point on the ellipse
+    if(wasOverview && ovTarget<=0.5) camAngle=nearestEntryAngle();   // re-enter the fly near where we're looking — varied but short
     syncGalaxyBtn(); }
   bGalaxy.onclick=()=>{ setOverview(ovTarget>0.5?0:1); };   // ◎ stop & view the whole elliptical galaxy
   bPause.onclick=()=>{ P.paused=!P.paused; bPause.classList.toggle('on',P.paused); bPause.textContent=P.paused?'▶':'⏸'; };
@@ -768,7 +778,7 @@
         const La=ringR*0.8;
         const flyB=basisFrom(fpx,fpy,fpz, fpx+ftx*La, fpy+fty*La, fpz+ftz*La);       // cockpit: look ahead on the ring
         // --- overview camera: orbit the galaxy centre (origin) ---
-        const D=ringR*2.1, phi=0.78;                                                 // look down onto the disc → rounder ellipse
+        const D=ringR*OV_DFAC, phi=OV_PHI;                                           // look down onto the disc → rounder ellipse
         const opx=D*Math.cos(phi)*Math.sin(ovA), opy=D*Math.sin(phi), opz=D*Math.cos(phi)*Math.cos(ovA);
         const ovB=basisFrom(opx,opy,opz, 0,0,0);                                     // overview: look at the galaxy centre
         // --- position lerps; ORIENTATION slerps along the shortest arc (no roll-flip on a randomized re-entry) ---
