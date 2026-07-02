@@ -40,6 +40,12 @@
   .tiers button{ min-width:26px; font-weight:600; }
   .tiers button.on{ background:rgba(255,196,124,.24); border-color:rgba(255,196,124,.65); color:#ffe6c4;
     box-shadow:0 0 8px rgba(255,196,124,.25); }
+  #toExplore{ flex:0 0 auto; font:inherit; font-size:8px; letter-spacing:.06em; font-weight:700; text-decoration:none;
+    color:#04122a; background:linear-gradient(90deg,#7cc7ff,#9ad0ff); border:1px solid rgba(124,199,255,.6);
+    border-radius:4px; padding:3px 8px; cursor:pointer; white-space:nowrap; box-shadow:0 0 8px rgba(124,199,255,.25); }
+  #toExplore:hover{ filter:brightness(1.08); }
+  /* narrow screens: let the panel wrap instead of clipping the tier buttons + explore link off-screen */
+  @media (max-width:640px){ #panel{ flex-wrap:wrap; } }
   #hint { display:none; }
   #stat { position:fixed; top:8px; right:10px; z-index:10; text-align:right; font-size:8px;
     color:var(--dim); letter-spacing:.05em; line-height:1.4; opacity:.45; }
@@ -117,6 +123,8 @@
     <button id="t3" title="22 items">T3</button>
     <button id="tFav" title="Favourites">★</button>
   </div>
+  <div class="sep"></div>
+  <a id="toExplore" href="explorer.html" title="Browse & filter the whole collection by trait">⊞ explore</a>
 </div>
 <div id="stat"><div>loaded <b id="sLoaded">0</b>/<span id="sTotal">999</span></div><div><b id="sFps">0</b> fps</div></div>
 <div id="focusName"></div>
@@ -525,12 +533,16 @@
 
   // ---- info / buy card ----
   const CONTRACT='0xa179a765c52ced91647c082f02d7e737d7781cae';
+  // meta.js stores only {h, t} now: n/u/i/d are 100% derivable — DESC is the one description, identical for all 999 items
+  const DESC='[ˈäl̪t̪er] ヒーロー';
   const card=document.getElementById('card'), backdrop=document.getElementById('backdrop'),
         cardImg=document.getElementById('cardImg'), cardName=document.getElementById('cardName'),
         cardTraits=document.getElementById('cardTraits'), cardDesc=document.getElementById('cardDesc'),
         cardBuy=document.getElementById('cardBuy'), cardFav=document.getElementById('cardFav');
   function thumbSrc(id){ return (window.THUMB_DATA&&window.THUMB_DATA[id])?window.THUMB_DATA[id]:'thumbs/'+id+'.jpg'; }
-  function hiResSrc(id){ const m=window.THUMB_META&&window.THUMB_META[id]; return (m&&m.i)?m.i+'?w=1000':null; }   // crisp 1000px CDN render
+  function hiResSrc(id){ const m=window.THUMB_META&&window.THUMB_META[id]; if(!m) return null;
+    const img = m.i || (m.h ? ('https://i2c.seadn.io/ethereum/'+CONTRACT+'/'+m.h.slice(2)+'/'+m.h+'.png') : null);
+    return img ? img+'?w=1000' : null; }   // crisp 1000px CDN render (derived from the stored hash when m.i is absent)
   let cardId=null;
   function syncFavBtn(){ const on=cardId!=null&&favs.has(cardId);
     cardFav.classList.toggle('on',on); cardFav.textContent=on?'★':'☆';
@@ -546,11 +558,12 @@
     cardTraits.innerHTML='';
     if(m&&m.t&&m.t.length){ for(const tr of m.t){ const c=document.createElement('span'); c.className='chip'; c.innerHTML=tr[0]+' · <b>'+tr[1]+'</b>'; cardTraits.appendChild(c); } }
     else { const c=document.createElement('span'); c.className='chip'; c.textContent='#'+id; cardTraits.appendChild(c); }
-    cardDesc.textContent=(m&&m.d)||''; cardDesc.style.display=(m&&m.d)?'block':'none';
+    const desc=(m&&(m.d||DESC))||''; cardDesc.textContent=desc; cardDesc.style.display=desc?'block':'none';
     syncFavBtn();
     card.classList.add('show'); backdrop.classList.add('show');
   }
   cardFav.onclick=()=>{ if(cardId==null) return;
+    try{ const raw=localStorage.getItem('ahFavs'); favs=new Set(raw?JSON.parse(raw):[]); }catch(e){}   // re-read: explorer page / other tab may have written
     if(favs.has(cardId)) favs.delete(cardId); else favs.add(cardId);
     saveFavs(); syncFavBtn();
     if(typeof refreshFavBtn==='function') refreshFavBtn();
@@ -628,6 +641,12 @@
         tierBtns={'1':document.getElementById('t1'),'2':document.getElementById('t2'),'3':document.getElementById('t3')};
   function refreshFavBtn(){ tFav.classList.toggle('on',P.favOnly);
     tFav.textContent = '★ '+favs.size; }
+  // favourites live on the shared 'ahFavs' key — refresh when the explorer page / another tab writes it
+  function reloadFavs(){ try{ const raw=localStorage.getItem('ahFavs'); favs=new Set(raw?JSON.parse(raw):[]); }catch(e){}
+    refreshFavBtn(); if(typeof syncFavBtn==='function') syncFavBtn();
+    if(P.favOnly){ rebuildPool(); if(P.mode==='mosaic') buildGrid(); else if(P.mode==='cluster') buildClusters(); } }
+  addEventListener('storage', e=>{ if(e.key==='ahFavs') reloadFavs(); });
+  addEventListener('pageshow', e=>{ if(e.persisted) reloadFavs(); });
   function syncTierBtns(){ tA.classList.toggle('on',P.tiers.size===0 && !P.favOnly);
     for(const k in tierBtns) tierBtns[k].classList.toggle('on',!P.favOnly && P.tiers.has(k));
     refreshFavBtn(); }

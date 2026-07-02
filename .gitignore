@@ -14,3 +14,8 @@ download_opensea.mjs
 
 # macOS
 .DS_Store
+
+# local backups / editor state
+*.bak
+.claude/
+.netlify/
