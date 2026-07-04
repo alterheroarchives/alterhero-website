@@ -191,17 +191,17 @@
   function draw(t){
     var w=cv.width, h=cv.height;
     ctx.clearRect(0,0,w,h);
-    warp += (warpTarget-warp)*0.05;
-    pan += (0.006 + warp*0.12);                              // gentle drift, accelerates on descent
+    warp += (warpTarget-warp)*0.04;
+    pan += (0.0011 + warp*0.07);                             // very gentle drift, eases up only during the descent
     for(var li=0; li<stars.length; li++){ var layer=stars[li], ox=pan*layer.d;
       for(var i=0;i<layer.s.length;i++){ var st=layer.s[i];
         var fx=st.x+ox; fx-=Math.floor(fx);
-        var fy=st.y + warp*layer.d*0.35; fy-=Math.floor(fy);   // stars stream downward as you fall
-        var px=fx*w, py=fy*h, b=st.b*(0.75+0.25*Math.sin(t*0.001*st.ts+st.tw))*(0.5+0.5*(1-fy)), r=st.r*DPR*(1+warp*1.5);
+        var fy=st.y + warp*layer.d*0.22; fy-=Math.floor(fy);   // stars ease downward as you fall
+        var px=fx*w, py=fy*h, b=st.b*(0.75+0.25*Math.sin(t*0.001*st.ts+st.tw))*(0.5+0.5*(1-fy)), r=st.r*DPR*(1+warp*1.1);
         if(st.r>1.5){ ctx.beginPath(); ctx.arc(px,py,r*2.4,0,6.28);
           ctx.fillStyle=st.warm?'rgba(255,220,180,'+(b*0.12*layer.d)+')':'rgba(150,190,255,'+(b*0.14*layer.d)+')'; ctx.fill(); }
         if(warp>0.05){ ctx.strokeStyle=st.warm?'rgba(255,226,192,'+(b*0.6)+')':'rgba(214,230,255,'+(b*0.6)+')';
-          ctx.lineWidth=r; ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px,py+warp*40*layer.d); ctx.stroke(); }
+          ctx.lineWidth=r; ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px,py+warp*26*layer.d); ctx.stroke(); }
         ctx.beginPath(); ctx.arc(px,py,r,0,6.28);
         ctx.fillStyle=st.warm?'rgba(255,226,192,'+b+')':'rgba(214,230,255,'+b+')'; ctx.fill();
       }
