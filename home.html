@@ -24,33 +24,33 @@
   #hero{ width:100%; height:100%; display:block; transform-style:preserve-3d;
     filter:drop-shadow(0 26px 40px rgba(20,16,24,.12)); }
 
-  /* ---- logo cluster pinned to the BOTTOM ---- */
-  #foot{ position:fixed; left:0; right:0; bottom:4vh; z-index:5; display:flex; flex-direction:column;
-    align-items:center; gap:6px; pointer-events:none; }
-  #logo{ width:min(15vh,30vw,150px); opacity:0; transition:opacity 1s ease .3s; user-select:none; -webkit-user-drag:none; }
+  /* ---- logo pinned to the TOP ---- */
+  #top{ position:fixed; left:0; right:0; top:3.4vh; z-index:5; display:flex; justify-content:center; pointer-events:none; }
+  #logo{ width:min(14vh,30vw,160px); opacity:0; transition:opacity 1s ease .3s; user-select:none; -webkit-user-drag:none; }
   #logo.in{ opacity:1; }
-  #logoFallback{ font-weight:900; font-size:clamp(22px,5vw,40px); letter-spacing:-.02em; line-height:.86;
+  #logoFallback{ font-weight:900; font-size:clamp(20px,4.4vw,34px); letter-spacing:-.02em; line-height:.86;
     text-align:center; text-transform:uppercase; -webkit-text-stroke:1px #111; color:#fff;
     text-shadow:2px 2px 0 #111; opacity:0; transition:opacity 1s ease .3s; }
   #logoFallback.in{ opacity:1; }
-  #tag{ font-size:11px; letter-spacing:.34em; text-transform:uppercase; color:#8a8290;
+  /* ---- "all frequencies reserved" line pinned to the BOTTOM ---- */
+  #foot{ position:fixed; left:0; right:0; bottom:2.2vh; z-index:5; display:flex; justify-content:center; pointer-events:none; }
+  #tag{ font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:#8a8290;
     opacity:0; transition:opacity 1s ease .5s; }
-  #tag.in{ opacity:.9; }
+  #tag.in{ opacity:.85; }
 
-  /* ---- floating world icons ---- */
-  .orb{ position:fixed; z-index:6; left:0; top:0; width:98px; text-align:center; cursor:grab;
-    touch-action:none; will-change:transform; user-select:none; }
-  .orb:active{ cursor:grabbing; }
-  .orb .chip{ width:78px; height:78px; margin:0 auto; border-radius:50%; background:#fff; border:2px solid #111;
+  /* ---- world bubbles: static, parallax only, name written inside ---- */
+  .orb{ position:fixed; z-index:6; left:0; top:0; width:104px; text-align:center; cursor:pointer;
+    touch-action:manipulation; will-change:transform; user-select:none; }
+  .orb .chip{ width:98px; height:98px; margin:0 auto; position:relative; border-radius:50%; background:#fff; border:2px solid #111;
     overflow:hidden; box-shadow:0 10px 22px rgba(20,16,24,.18), 0 2px 0 #111;
     transition:transform .16s cubic-bezier(.2,.7,.2,1), box-shadow .16s; }
   .orb .chip img{ width:100%; height:100%; object-fit:cover; display:block; -webkit-user-drag:none; }
+  /* the handwritten world name, sitting inside the lower part of the bubble */
+  .orb .name{ position:absolute; left:0; right:0; bottom:0; padding:20px 3px 9px; z-index:2;
+    font-family:"Bradley Hand","Snell Roundhand","Brush Script MT",cursive; font-weight:700;
+    font-size:12.5px; line-height:1; letter-spacing:-.01em; color:#111; white-space:nowrap;
+    background:linear-gradient(rgba(255,255,255,0), rgba(255,255,255,.55) 40%, rgba(255,255,255,.94)); }
   .orb:hover .chip{ transform:translateY(-3px) scale(1.06); box-shadow:0 18px 34px rgba(20,16,24,.26), 0 2px 0 #111; }
-  .orb .lbl{ margin-top:9px; font-size:10.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#111;
-    text-shadow:0 0 4px #fff,0 0 8px #fff,0 1px 2px #fff; }
-  .orb .sub{ font-size:8.5px; letter-spacing:.12em; text-transform:uppercase; color:#8a8290; margin-top:2px;
-    text-shadow:0 0 4px #fff,0 0 8px #fff; }
-  .orb.dragging .chip{ transform:scale(1.12) rotate(-4deg); }
 
   /* ---- thought-trail bubbles rising from his head to the world-orbs ---- */
   .tdot{ position:fixed; z-index:4; border-radius:50%; background:#fff; border:1.5px solid #111;
@@ -116,7 +116,7 @@
   .world .wrap{ transform:translateY(34px); transition:transform .7s cubic-bezier(.2,.7,.2,1) .12s; }
   .world.show .wrap{ transform:translateY(0); }
 
-  #hint{ position:fixed; bottom:14px; left:50%; transform:translateX(-50%); z-index:5; font-size:10.5px;
+  #hint{ position:fixed; bottom:5.4vh; left:50%; transform:translateX(-50%); z-index:5; font-size:10.5px;
     letter-spacing:.16em; text-transform:uppercase; color:#b3abba; opacity:0; transition:opacity 1s ease 1.4s; }
   #hint.in{ opacity:1; }
 
@@ -125,30 +125,24 @@
 </style>
 </head>
 <body>
+  <header id="top">
+    <img id="logo" alt="ALTER HERO" />
+    <div id="logoFallback">Alter<br>Hero.</div>
+  </header>
+
   <div id="stage">
     <div id="heroWrap"><canvas id="hero" aria-label="Alter Hero collage"></canvas></div>
   </div>
-  <footer id="foot">
-    <img id="logo" alt="ALTER HERO" />
-    <div id="logoFallback">Alter<br>Hero.</div>
-    <div id="tag">999 alters · one hero</div>
-  </footer>
 
-  <!-- thought-trail bubbles (positioned from his head in JS) -->
-  <div class="tdot" id="td0"></div><div class="tdot" id="td1"></div><div class="tdot" id="td2"></div>
-
-  <!-- floating worlds — alter heads bubbling up as his thoughts -->
+  <!-- world bubbles — a straight row below the hero, name written inside -->
   <a class="orb" id="oArchives" href="index.html" data-world="Archives" data-key="archives">
-    <div class="chip"><img src="thumbs/2.jpg" alt="" /></div>
-    <div class="lbl">Archives</div><div class="sub">999 NFT</div>
+    <div class="chip"><img src="thumbs/2.jpg" alt="" /><span class="name">AH!RCHIVES</span></div>
   </a>
   <a class="orb" id="oBook" href="#book" data-world="Book" data-key="book">
-    <div class="chip"><img src="thumbs/77.jpg" alt="" /></div>
-    <div class="lbl">Book</div><div class="sub">the story</div>
+    <div class="chip"><img src="thumbs/77.jpg" alt="" /><span class="name">PHENOMENAH!</span></div>
   </a>
   <a class="orb" id="oMusic" href="#music" data-world="Music" data-key="music">
-    <div class="chip"><img src="thumbs/982.jpg" alt="" /></div>
-    <div class="lbl">Music</div><div class="sub">the sound</div>
+    <div class="chip"><img src="thumbs/982.jpg" alt="" /><span class="name">BEAH!TS</span></div>
   </a>
 
   <!-- sparse comic messages -->
@@ -156,7 +150,8 @@
   <div class="cap" id="cap2">to offer them <em>art</em>, and <em>music</em>, and escape the confines of earth.</div>
   <div class="cap" id="cap3">and that, as I recall, was one of my <em>finest hours</em>.</div>
 
-  <div id="hint">drag the worlds · tap to descend</div>
+  <div id="hint">tap a world to descend</div>
+  <footer id="foot"><div id="tag">ah! All Frequencies Reserved.</div></footer>
 
   <!-- reveal veil + worlds -->
   <div id="reveal" aria-hidden="true"></div>
@@ -164,7 +159,7 @@
   <section class="world" id="wArchives" aria-hidden="true"><div class="starmini"></div>
     <button class="back" data-close>← home</button>
     <div class="wrap">
-      <div class="eyebrow">The Archives</div>
+      <div class="eyebrow">AH!RCHIVES</div>
       <h1>999 alters,<br>one hero.</h1>
       <p>The full on-chain collection — every alter forged in the fall. Fly the galaxy of heads through the starfield, or filter all 999 by trait, rarity and aura.</p>
       <div class="cta">
@@ -177,7 +172,7 @@
   <section class="world" id="wBook" aria-hidden="true">
     <button class="back" data-close>← home</button>
     <div class="wrap">
-      <div class="eyebrow">The Book</div>
+      <div class="eyebrow">PHENOMENAH!</div>
       <h1>The story<br>of the fall.</h1>
       <p>The alterhero myth, page by page — how nine hundred and ninety-nine alters came to be, and the one hero behind them all.</p>
       <span class="soon">Chapter one · coming soon</span>
@@ -190,7 +185,7 @@
   <section class="world" id="wMusic" aria-hidden="true">
     <button class="back" data-close>← home</button>
     <div class="wrap">
-      <div class="eyebrow">The Music</div>
+      <div class="eyebrow">BEAH!TS</div>
       <h1>The sound<br>of the alters.</h1>
       <p>The score to the descent — the tracks the hero fell through. Streaming links and the full record, soon.</p>
       <span class="soon">First drop · coming soon</span>
@@ -298,7 +293,7 @@
   logo.onload=function(){ logoFb.style.display='none'; logo.classList.add('in'); if(window._sizeHero)window._sizeHero(); };
   logo.onerror=function(){ logo.style.display='none'; logoFb.classList.add('in'); if(window._sizeHero)window._sizeHero(); };
   logo.src='assets/logo_t.png';
-  setTimeout(function(){ ['tag','hint','td0','cap1','td1','cap2','td2','cap3'].forEach(function(id,i){
+  setTimeout(function(){ ['tag','hint','cap1','cap2','cap3'].forEach(function(id,i){
     setTimeout(function(){ var e=document.getElementById(id); if(e) e.classList.add('in'); }, i*150); }); }, 400);
 
   /* pointer / gyro parallax */
@@ -314,58 +309,38 @@
       cur:{x:0,y:0}, vel:{x:0,y:0}, home:{x:0,y:0}, bob:Math.random()*6.28, drag:false, moved:0, px:0,py:0 };
   });
   function place(o){ o.el.style.transform='translate('+(o.cur.x-o.el.offsetWidth/2)+'px,'+(o.cur.y-36)+'px)'; }
-  var heroWrap=document.getElementById('heroWrap');
+  var heroWrap=document.getElementById('heroWrap'), GAP=26;
 
-  // 1) size the hero DOMINANT from the viewport (reserve a little room top for the bubbles, bottom for the logo)
+  // size the hero DOMINANT: reserve the logo at the top, and the icon-row + AFR line at the bottom
   function sizeHero(){
     var W=innerWidth,H=innerHeight;
-    var footH=document.getElementById('foot').getBoundingClientRect().height;
-    var Rtop=Math.max(118, H*0.15), Rbot=footH + H*0.045 + 16;      // reserve the MEASURED logo cluster below
+    var topH=document.getElementById('top').getBoundingClientRect().height;
+    var Rtop=topH + H*0.03 + 12;
+    var Rbot=GAP + 104 + H*0.10 + 14;                              // icon row + hint + AFR line
     var availH=H-Rtop-Rbot;
-    var hh=Math.min(availH, 860), hw=hh*heroAspect, maxW=W*0.92;
+    var hh=Math.min(availH, 820), hw=hh*heroAspect, maxW=W*0.92;
     if(hw>maxW){ hw=maxW; hh=hw/heroAspect; }
     heroWrap.style.width=hw+'px'; heroWrap.style.height=hh+'px';
-    heroWrap.style.top=(Rtop+availH/2)+'px';                        // vertical centre of the hero band
+    heroWrap.style.top=(Rtop+availH/2)+'px';
     sizeCanvas();
   }
-  // 2) position the world-bubbles hugging the TOP of the hero (close), then the thought-trail from his head
+  // the three world-bubbles: a straight horizontal row just below the hero (static, parallax only)
   function layout(){
     sizeHero();
-    var hr=heroWrap.getBoundingClientRect(), cx=hr.left+hr.width/2, top=hr.top, gap=42;
-    var homes=[
-      {x:cx - hr.width*0.34, y:top - gap},                         // archives — upper left
-      {x:cx + hr.width*0.03, y:top - gap - hr.height*0.05},        // book — centre, a touch higher (toward his head)
-      {x:cx + hr.width*0.36, y:top - gap}                          // music — upper right
-    ];
-    orbs.forEach(function(o,i){ o.home.x=homes[i].x; o.home.y=homes[i].y;
+    var hr=heroWrap.getBoundingClientRect(), cx=hr.left+hr.width/2;
+    var y=hr.bottom + GAP + 36;                                    // element-top sits just below the hero
+    var sp=Math.max(120, Math.min(170, hr.width*0.30));           // spacing between bubbles
+    orbs.forEach(function(o,i){ o.home.x=cx+(i-1)*sp; o.home.y=y;
       if(o.cur.x===0&&o.cur.y===0){ o.cur.x=o.home.x; o.cur.y=o.home.y; }
       place(o); });
-    positionThought();
-  }
-  // thought-trail: small bubbles rising from just above his head to the centre bubble
-  var tdots=[document.getElementById('td0'),document.getElementById('td1'),document.getElementById('td2')];
-  function positionThought(){
-    var hr=heroWrap.getBoundingClientRect();
-    var hx=hr.left+0.64*hr.width, hy=hr.top+0.06*hr.height;         // just above his head (upper-right of the collage)
-    var mid=orbs[1].home, ts=[0.32,0.58,0.82], sz=[7,10,13];
-    tdots.forEach(function(d,i){ if(!d) return; var t=ts[i], x=hx+(mid.x-hx)*t, y=hy+(mid.y-hy)*t;
-      d.style.width=sz[i]+'px'; d.style.height=sz[i]+'px'; d.style.left=(x-sz[i]/2)+'px'; d.style.top=(y-sz[i]/2)+'px'; });
   }
   window._sizeHero=layout;                                          // async hero/logo load → re-layout
   layout(); addEventListener('resize', layout);
 
-  var dragging=null;
+  var dragging=null;                                                // kept: guards the pointer-parallax handler
   orbs.forEach(function(o){
-    o.el.addEventListener('pointerdown', function(e){ e.preventDefault(); o.drag=true; dragging=o; o.moved=0;
-      o.px=e.clientX; o.py=e.clientY; o.el.classList.add('dragging'); o.el.setPointerCapture(e.pointerId); });
-    o.el.addEventListener('pointermove', function(e){ if(!o.drag) return;
-      var dx=e.clientX-o.px, dy=e.clientY-o.py; o.px=e.clientX; o.py=e.clientY; o.moved+=Math.abs(dx)+Math.abs(dy);
-      o.cur.x+=dx; o.cur.y+=dy; o.vel.x=dx; o.vel.y=dy; });
-    function release(e){ if(!o.drag) return; o.drag=false; dragging=null; o.el.classList.remove('dragging');
-      if(o.moved<6){ enter(o, o.cur.x, o.cur.y); } }               // a tap (not a drag) → enter the world
-    o.el.addEventListener('pointerup', release);
-    o.el.addEventListener('pointercancel', release);
-    o.el.addEventListener('click', function(e){ e.preventDefault(); });   // never hard-navigate; enter() handles it
+    o.el.addEventListener('click', function(e){ e.preventDefault();
+      var r=o.el.getBoundingClientRect(); enter(o, r.left+r.width/2, r.top+r.height/2); });   // tap = descend
   });
 
   var ORB_PX=24;                                                  // parallax travel — bubbles read as nearer than the hero
