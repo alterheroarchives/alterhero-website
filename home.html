@@ -17,17 +17,17 @@
   body{ font-family:var(--mono); color:var(--ink); background:var(--paper); overflow:hidden;
     -webkit-font-smoothing:antialiased; touch-action:none; }
 
-  /* ---- the stage: hero canvas in the MIDDLE ---- */
-  #stage{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
-  #heroWrap{ position:relative; width:min(48vh,82vw,420px); aspect-ratio:1; perspective:1100px;
-    transition:opacity .8s ease, transform .8s ease; }
+  /* ---- the stage: hero canvas in the MIDDLE (sized+centred by JS to the gap between icons & logo) ---- */
+  #stage{ position:fixed; inset:0; }
+  #heroWrap{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:340px; height:340px; perspective:1100px; transition:opacity .8s ease; }
   #hero{ width:100%; height:100%; display:block; transform-style:preserve-3d;
     filter:drop-shadow(0 26px 40px rgba(20,16,24,.12)); }
 
   /* ---- logo cluster pinned to the BOTTOM ---- */
   #foot{ position:fixed; left:0; right:0; bottom:4vh; z-index:5; display:flex; flex-direction:column;
     align-items:center; gap:6px; pointer-events:none; }
-  #logo{ width:min(30vmin,210px); opacity:0; transition:opacity 1s ease .3s; user-select:none; -webkit-user-drag:none; }
+  #logo{ width:min(30vh,66vw,360px); opacity:0; transition:opacity 1s ease .3s; user-select:none; -webkit-user-drag:none; }
   #logo.in{ opacity:1; }
   #logoFallback{ font-weight:900; font-size:clamp(22px,5vw,40px); letter-spacing:-.02em; line-height:.86;
     text-align:center; text-transform:uppercase; -webkit-text-stroke:1px #111; color:#fff;
@@ -262,8 +262,8 @@
 
   /* logo (fallback to text lockup if assets/logo.png missing) */
   var logo=document.getElementById('logo'), logoFb=document.getElementById('logoFallback');
-  logo.onload=function(){ logoFb.style.display='none'; logo.classList.add('in'); };
-  logo.onerror=function(){ logo.style.display='none'; logoFb.classList.add('in'); };
+  logo.onload=function(){ logoFb.style.display='none'; logo.classList.add('in'); if(window._sizeHero)window._sizeHero(); };
+  logo.onerror=function(){ logo.style.display='none'; logoFb.classList.add('in'); if(window._sizeHero)window._sizeHero(); };
   logo.src='assets/logo.png';
   setTimeout(function(){ document.getElementById('tag').classList.add('in'); document.getElementById('hint').classList.add('in'); }, 300);
 
@@ -285,7 +285,20 @@
     orbs.forEach(function(o,i){ o.home.x=pts[i].x*W; o.home.y=pts[i].y*H;
       if(o.cur.x===0&&o.cur.y===0){ o.cur.x=o.home.x; o.cur.y=o.home.y; }
       place(o); });                                                  // position now — don't wait for the first rAF
+    sizeHero();
   }
+  // size + centre the hero to exactly fill the gap between the top icons and the bottom logo
+  var heroWrap=document.getElementById('heroWrap');
+  function sizeHero(){
+    var footTop=document.getElementById('foot').getBoundingClientRect().top;
+    var iconsBottom=0; orbs.forEach(function(o){ iconsBottom=Math.max(iconsBottom, o.home.y+o.el.offsetHeight-36); });
+    var band=footTop-iconsBottom;
+    var size=Math.max(200, Math.min(band-26, innerWidth*0.88, 680));  // as big as fits, capped
+    heroWrap.style.width=size+'px'; heroWrap.style.height=size+'px';
+    heroWrap.style.top=((iconsBottom+footTop)/2)+'px';               // centre in the band, not the viewport
+    sizeCanvas();
+  }
+  window._sizeHero=sizeHero;                                         // let the async logo load re-trigger a resize
   layout(); addEventListener('resize', layout);
 
   var dragging=null;
