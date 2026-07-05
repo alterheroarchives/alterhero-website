@@ -38,25 +38,27 @@
     opacity:0; transition:opacity 1s ease .5s; }
   #tag.in{ opacity:.85; }
 
-  /* ---- world bubbles: anchored (no parallax), head + a comic thought-bubble title ---- */
-  .orb{ position:fixed; z-index:6; left:0; top:0; width:160px; display:flex; flex-direction:column; align-items:center;
+  /* ---- world bubbles: anchored heads; the comic bubble appears only ON HOVER ---- */
+  .orb{ position:fixed; z-index:6; left:0; top:0; width:96px; display:flex; justify-content:center;
     cursor:pointer; touch-action:manipulation; user-select:none; }
-  /* little comic thought-bubble holding the FULL title (same font as the comic captions, not italic) */
-  .orb .think{ position:relative; background:#fff; border:2px solid #111; border-radius:16px; padding:6px 12px; margin-bottom:17px;
-    font-family:var(--mono); font-style:normal; font-weight:700; font-size:11px; letter-spacing:.03em; text-transform:uppercase;
-    color:#111; white-space:nowrap; box-shadow:3px 3px 0 rgba(0,0,0,.22);
-    transition:transform .18s cubic-bezier(.2,.7,.2,1); }
-  .orb .think::before{ content:""; position:absolute; left:calc(50% - 5px); bottom:-9px; width:9px; height:9px; border-radius:50%;
-    background:#fff; border:2px solid #111; }                       /* the thought-trail dots */
-  .orb .think::after{ content:""; position:absolute; left:calc(50% + 6px); bottom:-16px; width:5px; height:5px; border-radius:50%;
-    background:#fff; border:1.5px solid #111; }
   .orb .chip{ width:96px; height:96px; border-radius:50%; background:#fff; border:2px solid #111;
     overflow:hidden; box-shadow:0 10px 22px rgba(20,16,24,.18), 0 2px 0 #111;
     transition:transform .18s cubic-bezier(.2,.7,.2,1), box-shadow .18s; }
   .orb .chip img{ width:100%; height:100%; object-fit:cover; display:block; -webkit-user-drag:none; }
-  /* slight tilt on hover only — nothing moves otherwise */
   .orb:hover .chip{ transform:rotate(-5deg) scale(1.04); box-shadow:0 16px 30px rgba(20,16,24,.26), 0 2px 0 #111; }
-  .orb:hover .think{ transform:rotate(2.5deg); }
+  /* the comic bubble — hidden until the cursor is on that head */
+  .orb .think{ position:absolute; left:50%; bottom:calc(100% + 16px); z-index:7; width:max-content; max-width:210px;
+    background:#fff; border:2px solid #111; border-radius:16px; padding:8px 13px; text-align:center;
+    font-family:var(--mono); font-style:normal; font-weight:700; font-size:11px; line-height:1.32; letter-spacing:.02em;
+    text-transform:uppercase; color:#111; box-shadow:3px 3px 0 rgba(0,0,0,.22);
+    opacity:0; transform:translateX(-50%) translateY(8px) scale(.96); transform-origin:bottom center; pointer-events:none;
+    transition:opacity .16s ease, transform .22s cubic-bezier(.2,.7,.2,1); }
+  .orb .think em{ color:#a03828; font-style:normal; }
+  .orb .think::before{ content:""; position:absolute; left:calc(50% - 5px); bottom:-11px; width:10px; height:10px; border-radius:50%;
+    background:#fff; border:2px solid #111; }                       /* thought-trail dots pointing to the head */
+  .orb .think::after{ content:""; position:absolute; left:calc(50% + 7px); bottom:-19px; width:6px; height:6px; border-radius:50%;
+    background:#fff; border:1.5px solid #111; }
+  .orb:hover .think{ opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
 
   /* ---- thought-trail bubbles rising from his head to the world-orbs ---- */
   .tdot{ position:fixed; z-index:4; border-radius:50%; background:#fff; border:1.5px solid #111;
@@ -107,6 +109,18 @@
     background:radial-gradient(1.5px 1.5px at 20% 30%,#cfe3ff,transparent),radial-gradient(1.5px 1.5px at 70% 60%,#bcd,transparent),
     radial-gradient(1px 1px at 40% 80%,#fff,transparent),radial-gradient(1px 1px at 85% 20%,#dfe,transparent),
     radial-gradient(1.5px 1.5px at 55% 15%,#cde,transparent); background-repeat:no-repeat; }
+  /* archives descent — full-height steps you scroll through (AH! → origins → mosaic → explorer) */
+  #wArchives.show{ scroll-snap-type:y proximity; }
+  #wArchives .step{ position:relative; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; gap:14px; padding:80px 24px; scroll-snap-align:start; }
+  #wArchives .step .num{ font-size:11px; letter-spacing:.34em; text-transform:uppercase; color:#7cc7ff; opacity:.9; }
+  #wArchives .step h2{ font-size:clamp(38px,9vw,86px); font-weight:900; letter-spacing:-.02em; line-height:.9; text-transform:uppercase; }
+  #wArchives .step p{ max-width:48ch; font-size:14px; line-height:1.7; opacity:.82; }
+  #wArchives .step .glyph{ font-size:46px; line-height:1; margin-bottom:4px; opacity:.9; }
+  #wArchives .step .btn{ margin-top:12px; }
+  #wArchives .cue{ position:absolute; bottom:26px; left:50%; transform:translateX(-50%); font-size:11px; letter-spacing:.24em;
+    text-transform:uppercase; color:#8fa6c8; animation:bob 1.8s ease-in-out infinite; }
+  @keyframes bob{ 0%,100%{ transform:translateX(-50%) translateY(0) } 50%{ transform:translateX(-50%) translateY(6px) } }
   /* book = warm paper */
   #wBook, #reveal.toBook{ background:#f3ead6; }
   #wBook{ color:#2a2016; } #wBook .card{ border-color:rgba(42,32,22,.18); background:rgba(255,255,255,.4); }
@@ -142,24 +156,19 @@
 
   <!-- world bubbles — a straight row below the hero, name written inside -->
   <a class="orb" id="oArchives" href="index.html" data-world="Archives" data-key="archives">
-    <div class="think">AH!RCHIVES</div>
     <div class="chip"><img src="thumbs/2.jpg" alt="" /></div>
+    <div class="think">I stepped into the <em>archives</em> —</div>
   </a>
   <a class="orb" id="oBook" href="#book" data-world="Book" data-key="book">
-    <div class="think">PHENOMENAH!</div>
     <div class="chip"><img src="thumbs/77.jpg" alt="" /></div>
+    <div class="think">PHENOMENAH!</div>
   </a>
   <a class="orb" id="oMusic" href="#music" data-world="Music" data-key="music">
-    <div class="think">BEAH!TS</div>
     <div class="chip"><img src="thumbs/982.jpg" alt="" /></div>
+    <div class="think">to offer them <em>art</em>, and <em>music</em>, and escape the confines of earth.</div>
   </a>
 
-  <!-- sparse comic messages -->
-  <div class="cap" id="cap1">I stepped into the <em>archives</em> —</div>
-  <div class="cap" id="cap2">to offer them <em>art</em>, and <em>music</em>, and escape the confines of earth.</div>
-  <div class="cap" id="cap3">and that, as I recall, was one of my <em>finest hours</em>.</div>
-
-  <div id="hint">tap a world to descend</div>
+  <div id="hint">hover a head · tap to descend</div>
   <footer id="foot"><div id="tag">ah! All Frequencies Reserved.</div></footer>
 
   <!-- reveal veil + worlds -->
@@ -167,14 +176,36 @@
 
   <section class="world" id="wArchives" aria-hidden="true"><div class="starmini"></div>
     <button class="back" data-close>← home</button>
-    <div class="wrap">
-      <div class="eyebrow">AH!RCHIVES</div>
-      <h1>999 alters,<br>one hero.</h1>
-      <p>The full on-chain collection — every alter forged in the fall. Fly the galaxy of heads through the starfield, or filter all 999 by trait, rarity and aura.</p>
-      <div class="cta">
-        <a class="btn" href="index.html">◎ Enter the origins</a>
-        <a class="btn" href="explorer.html">⊞ Browse the archive</a>
-      </div>
+
+    <div class="step">
+      <div class="num">The Archives</div>
+      <h2>AH!<br>rchives</h2>
+      <p>Nine hundred and ninety-nine alters, one hero — the whole collection, forged in the fall. Scroll to descend through it.</p>
+      <div class="cue">scroll ↓</div>
+    </div>
+
+    <div class="step">
+      <div class="num">01 · Origins</div>
+      <div class="glyph">◎</div>
+      <h2>Origins</h2>
+      <p>Fly the galaxy of heads through the starfield — the cosmos the hero fell through.</p>
+      <a class="btn" href="index.html">Enter the origins →</a>
+    </div>
+
+    <div class="step">
+      <div class="num">02 · The wall</div>
+      <div class="glyph">▦</div>
+      <h2>Mosaic</h2>
+      <p>All 999 heads at once — the full mosaic wall, side B of the origins.</p>
+      <a class="btn" href="index.html">Open the mosaic →</a>
+    </div>
+
+    <div class="step">
+      <div class="num">03 · Explore</div>
+      <div class="glyph">⊞</div>
+      <h2>Explorer</h2>
+      <p>Filter every alter by trait, rarity and aura — and read each one's page.</p>
+      <a class="btn" href="explorer.html">Browse the archive →</a>
     </div>
   </section>
 
@@ -302,7 +333,7 @@
   logo.onload=function(){ logoFb.style.display='none'; logo.classList.add('in'); if(window._sizeHero)window._sizeHero(); };
   logo.onerror=function(){ logo.style.display='none'; logoFb.classList.add('in'); if(window._sizeHero)window._sizeHero(); };
   logo.src='assets/logo_t.png';
-  setTimeout(function(){ ['tag','hint','cap1','cap2','cap3'].forEach(function(id,i){
+  setTimeout(function(){ ['tag','hint'].forEach(function(id,i){
     setTimeout(function(){ var e=document.getElementById(id); if(e) e.classList.add('in'); }, i*150); }); }, 400);
 
   /* pointer / gyro parallax */
@@ -325,7 +356,7 @@
     var W=innerWidth,H=innerHeight;
     var topH=document.getElementById('top').getBoundingClientRect().height;
     var Rtop=topH + H*0.03 + 12;
-    var Rbot=GAP + 156 + H*0.08 + 14;                              // thought-bubble + head unit + hint + AFR line
+    var Rbot=GAP + 110 + H*0.08 + 14;                              // head row (bubbles are hover-only) + hint + AFR line
     var availH=H-Rtop-Rbot;
     var hh=Math.min(availH, 820), hw=hh*heroAspect, maxW=W*0.92;
     if(hw>maxW){ hw=maxW; hh=hw/heroAspect; }
