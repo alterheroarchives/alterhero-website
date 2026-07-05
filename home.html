@@ -95,6 +95,9 @@
   #reveal{ position:fixed; inset:0; z-index:20; pointer-events:none;
     clip-path:circle(0% at var(--rx,50%) var(--ry,50%)); transition:clip-path .7s cubic-bezier(.7,0,.3,1); }
   body.opening #reveal{ clip-path:circle(150% at var(--rx,50%) var(--ry,50%)); pointer-events:auto; }
+  /* the descent: a fall through the abyss of the universe into the AH! matrix */
+  #descent{ position:fixed; inset:0; z-index:19; opacity:0; pointer-events:none; background:#03040a;
+    transition:opacity .6s ease; }
 
   /* ---- world overlays (scrollable) ---- */
   .world{ position:fixed; inset:0; z-index:21; overflow-y:auto; overflow-x:hidden; opacity:0; pointer-events:none;
@@ -192,6 +195,7 @@
 
   <!-- reveal veil + worlds -->
   <div id="reveal" aria-hidden="true"></div>
+  <canvas id="descent" aria-hidden="true"></canvas>
 
   <section class="world" id="wArchives" aria-hidden="true">
     <button class="back" data-close>← home</button>
@@ -397,20 +401,49 @@
   }
   arcWorld.addEventListener('scroll', arcScroll, {passive:true});
 
+  function showWorld(world, isArc){ world.classList.add('show'); world.setAttribute('aria-hidden','false'); world.scrollTop=0;
+    if(isArc) arcScroll(); }
+
+  // the abyss-fall: accelerating star streaks plunging down through the universe into the AH! matrix
+  var dcv=document.getElementById('descent'), dctx=dcv.getContext('2d'), dStars=[], dRAF=0;
+  function startDescent(done){
+    var DPR2=Math.min(devicePixelRatio||1,2), W=dcv.width=innerWidth*DPR2, H=dcv.height=innerHeight*DPR2;
+    dStars=[]; for(var i=0;i<240;i++) dStars.push({x:Math.random(),y:Math.random(),z:Math.random()});
+    dcv.style.transition='none'; dcv.style.opacity=1;
+    dctx.fillStyle='#03040a'; dctx.fillRect(0,0,W,H);
+    var start=performance.now(), fired=false;
+    function finish(){ if(fired) return; fired=true; if(done) done();                // arrive: hand off to the matrix
+      dcv.style.transition='opacity .6s ease'; dcv.style.opacity=0; }
+    setTimeout(finish, 1400);                                                        // fallback if rAF is throttled
+    (function frame(t){
+      var el=Math.min(1,(t-start)/1150), sp=0.003+el*el*0.075;                       // accelerate into the warp
+      dctx.fillStyle='rgba(3,4,10,'+(0.30+0.35*el)+')'; dctx.fillRect(0,0,W,H);       // motion-blur trails
+      dctx.strokeStyle='rgba(200,222,255,0.9)';
+      for(var i=0;i<dStars.length;i++){ var s=dStars[i], px=s.x*W, py=s.y*H, len=sp*H*(0.5+s.z);
+        dctx.lineWidth=(0.5+s.z*1.7)*DPR2; dctx.beginPath(); dctx.moveTo(px,py); dctx.lineTo(px,py+len); dctx.stroke();
+        s.y+=sp*(0.5+s.z); if(s.y>1){ s.y-=1; s.x=Math.random(); } }
+      if(el<1) dRAF=requestAnimationFrame(frame); else finish();
+    })(performance.now());
+  }
+
   function enter(o, sx, sy){
     if(document.body.classList.contains('opening')) return;
     var world=document.getElementById('w'+o.world); if(!world) return;
     openWorld=world;
-    reveal.className=''; reveal.classList.add('to'+o.world);
-    reveal.style.setProperty('--rx',(sx/innerWidth*100)+'%');
-    reveal.style.setProperty('--ry',(sy/innerHeight*100)+'%');
     document.body.classList.add('opening');
-    if(o.world==='Archives') arcLoad();
-    setTimeout(function(){ world.classList.add('show'); world.setAttribute('aria-hidden','false'); world.scrollTop=0;
-      if(o.world==='Archives') arcScroll(); }, reduced?0:520);
+    if(o.world==='Archives'){ arcLoad();
+      if(reduced) showWorld(world,true);
+      else startDescent(function(){ showWorld(world,true); });
+    } else {
+      reveal.className=''; reveal.classList.add('to'+o.world);
+      reveal.style.setProperty('--rx',(sx/innerWidth*100)+'%');
+      reveal.style.setProperty('--ry',(sy/innerHeight*100)+'%');
+      setTimeout(function(){ showWorld(world,false); }, reduced?0:520);
+    }
   }
   function close(){ if(!openWorld) return; var w=openWorld;
     w.classList.remove('show'); w.setAttribute('aria-hidden','true');
+    if(dRAF) cancelAnimationFrame(dRAF); dcv.style.transition='opacity .3s ease'; dcv.style.opacity=0;
     setTimeout(function(){ document.body.classList.remove('opening'); openWorld=null; }, reduced?0:120);
   }
   [].forEach.call(document.querySelectorAll('[data-close]'), function(b){ b.addEventListener('click', close); });
