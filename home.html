@@ -46,8 +46,10 @@
     transition:transform .16s cubic-bezier(.2,.7,.2,1), box-shadow .16s; }
   .orb .chip img{ width:100%; height:100%; object-fit:cover; display:block; -webkit-user-drag:none; }
   .orb:hover .chip{ transform:translateY(-3px) scale(1.06); box-shadow:0 18px 34px rgba(20,16,24,.26), 0 2px 0 #111; }
-  .orb .lbl{ margin-top:9px; font-size:10.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#111; }
-  .orb .sub{ font-size:8.5px; letter-spacing:.12em; text-transform:uppercase; color:#9a92a0; margin-top:2px; }
+  .orb .lbl{ margin-top:9px; font-size:10.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#111;
+    text-shadow:0 0 4px #fff,0 0 8px #fff,0 1px 2px #fff; }
+  .orb .sub{ font-size:8.5px; letter-spacing:.12em; text-transform:uppercase; color:#8a8290; margin-top:2px;
+    text-shadow:0 0 4px #fff,0 0 8px #fff; }
   .orb.dragging .chip{ transform:scale(1.12) rotate(-4deg); }
 
   /* ---- thought-trail bubbles rising from his head to the world-orbs ---- */
@@ -205,7 +207,8 @@
   /* ===================== 1. hero: depth-map pseudo-3D (WebGL) ===================== */
   var canvas=document.getElementById('hero');
   var gl = canvas.getContext('webgl',{alpha:true,premultipliedAlpha:false,antialias:true});
-  var HERO_SRC='assets/hero.png', HERO_FALLBACK='thumbs/999.jpg';
+  var HERO_SRC='assets/hero_t.png', HERO_FALLBACK='thumbs/999.jpg';
+  var heroAspect=0.949;                                          // w/h of the trimmed collage; refined on load
   var mx=0,my=0, tmx=0,tmy=0;                                   // eased / target parallax (-1..1)
 
   function loadImg(src, fallback){ return new Promise(function(res){
@@ -218,8 +221,7 @@
   function makeDepth(img){                    // depth from ALPHA (drawn=near, empty=far), darker ink = nearer
     var s=256;
     var c=document.createElement('canvas'); c.width=c.height=s; var x=c.getContext('2d');
-    var r=Math.min(s/img.width,s/img.height), w=img.width*r, h=img.height*r;
-    x.drawImage(img,(s-w)/2,(s-h)/2,w,h);
+    x.drawImage(img,0,0,s,s);                   // FILL (uv 0..1 must match the colour texture, not letterbox)
     var id=x.getImageData(0,0,s,s), d=id.data;
     for(var i=0;i<d.length;i+=4){
       var a=d[i+3]/255;
@@ -283,6 +285,7 @@
 
   Promise.all([loadImg(HERO_SRC,HERO_FALLBACK)]).then(function(res){
     var img=res[0]; if(!img) return;
+    if(img.naturalWidth&&img.naturalHeight){ heroAspect=img.naturalWidth/img.naturalHeight; if(window._sizeHero)window._sizeHero(); }
     initGL(img, makeDepth(img)); sizeCanvas();
     if(gl&&ready) gl.viewport(0,0,canvas.width,canvas.height);
     frame(performance.now());                 // one synchronous paint (survives a hidden first frame)
@@ -294,7 +297,7 @@
   var logo=document.getElementById('logo'), logoFb=document.getElementById('logoFallback');
   logo.onload=function(){ logoFb.style.display='none'; logo.classList.add('in'); if(window._sizeHero)window._sizeHero(); };
   logo.onerror=function(){ logo.style.display='none'; logoFb.classList.add('in'); if(window._sizeHero)window._sizeHero(); };
-  logo.src='assets/logo.png';
+  logo.src='assets/logo_t.png';
   setTimeout(function(){ ['tag','hint','td0','cap1','td1','cap2','td2','cap3'].forEach(function(id,i){
     setTimeout(function(){ var e=document.getElementById(id); if(e) e.classList.add('in'); }, i*150); }); }, 400);
 
@@ -311,34 +314,44 @@
       cur:{x:0,y:0}, vel:{x:0,y:0}, home:{x:0,y:0}, bob:Math.random()*6.28, drag:false, moved:0, px:0,py:0 };
   });
   function place(o){ o.el.style.transform='translate('+(o.cur.x-o.el.offsetWidth/2)+'px,'+(o.cur.y-36)+'px)'; }
-  function layout(){ var W=innerWidth,H=innerHeight;
-    var pts=[ {x:0.17,y:0.16}, {x:0.50,y:0.10}, {x:0.83,y:0.16} ];   // archives / book / music — an arc of thoughts
-    orbs.forEach(function(o,i){ o.home.x=pts[i].x*W; o.home.y=pts[i].y*H;
-      if(o.cur.x===0&&o.cur.y===0){ o.cur.x=o.home.x; o.cur.y=o.home.y; }
-      place(o); });                                                  // position now — don't wait for the first rAF
-    sizeHero();
-  }
-  // size + centre the hero to exactly fill the gap between the top icons and the bottom logo
   var heroWrap=document.getElementById('heroWrap');
+
+  // 1) size the hero DOMINANT from the viewport (reserve a little room top for the bubbles, bottom for the logo)
   function sizeHero(){
-    var footTop=document.getElementById('foot').getBoundingClientRect().top;
-    var iconsBottom=0; orbs.forEach(function(o){ iconsBottom=Math.max(iconsBottom, o.home.y+o.el.offsetHeight-36); });
-    var band=footTop-iconsBottom;
-    var size=Math.max(200, Math.min(band-24, innerWidth*0.90, 760));  // hero dominant: as big as fits, capped
-    heroWrap.style.width=size+'px'; heroWrap.style.height=size+'px';
-    heroWrap.style.top=((iconsBottom+footTop)/2)+'px';               // centre in the band, not the viewport
-    sizeCanvas(); positionThought();
+    var W=innerWidth,H=innerHeight;
+    var footH=document.getElementById('foot').getBoundingClientRect().height;
+    var Rtop=Math.max(118, H*0.15), Rbot=footH + H*0.045 + 16;      // reserve the MEASURED logo cluster below
+    var availH=H-Rtop-Rbot;
+    var hh=Math.min(availH, 860), hw=hh*heroAspect, maxW=W*0.92;
+    if(hw>maxW){ hw=maxW; hh=hw/heroAspect; }
+    heroWrap.style.width=hw+'px'; heroWrap.style.height=hh+'px';
+    heroWrap.style.top=(Rtop+availH/2)+'px';                        // vertical centre of the hero band
+    sizeCanvas();
   }
-  // the thought-trail: small bubbles rising from just above his head to the centre world-orb
+  // 2) position the world-bubbles hugging the TOP of the hero (close), then the thought-trail from his head
+  function layout(){
+    sizeHero();
+    var hr=heroWrap.getBoundingClientRect(), cx=hr.left+hr.width/2, top=hr.top, gap=42;
+    var homes=[
+      {x:cx - hr.width*0.34, y:top - gap},                         // archives — upper left
+      {x:cx + hr.width*0.03, y:top - gap - hr.height*0.05},        // book — centre, a touch higher (toward his head)
+      {x:cx + hr.width*0.36, y:top - gap}                          // music — upper right
+    ];
+    orbs.forEach(function(o,i){ o.home.x=homes[i].x; o.home.y=homes[i].y;
+      if(o.cur.x===0&&o.cur.y===0){ o.cur.x=o.home.x; o.cur.y=o.home.y; }
+      place(o); });
+    positionThought();
+  }
+  // thought-trail: small bubbles rising from just above his head to the centre bubble
   var tdots=[document.getElementById('td0'),document.getElementById('td1'),document.getElementById('td2')];
   function positionThought(){
-    var hr=heroWrap.getBoundingClientRect(), size=hr.width||300;
-    var hx=hr.left+0.64*size, hy=hr.top+0.05*size;                   // just above his head (upper-right of the collage)
-    var mid=orbs[1].home, ts=[0.30,0.55,0.78], sz=[7,10,13];
+    var hr=heroWrap.getBoundingClientRect();
+    var hx=hr.left+0.64*hr.width, hy=hr.top+0.06*hr.height;         // just above his head (upper-right of the collage)
+    var mid=orbs[1].home, ts=[0.32,0.58,0.82], sz=[7,10,13];
     tdots.forEach(function(d,i){ if(!d) return; var t=ts[i], x=hx+(mid.x-hx)*t, y=hy+(mid.y-hy)*t;
       d.style.width=sz[i]+'px'; d.style.height=sz[i]+'px'; d.style.left=(x-sz[i]/2)+'px'; d.style.top=(y-sz[i]/2)+'px'; });
   }
-  window._sizeHero=sizeHero;                                         // let the async logo load re-trigger a resize
+  window._sizeHero=layout;                                          // async hero/logo load → re-layout
   layout(); addEventListener('resize', layout);
 
   var dragging=null;
@@ -355,14 +368,13 @@
     o.el.addEventListener('click', function(e){ e.preventDefault(); });   // never hard-navigate; enter() handles it
   });
 
+  var ORB_PX=24;                                                  // parallax travel — bubbles read as nearer than the hero
   function physics(t){
+    var ox=-mx*ORB_PX, oy=-my*ORB_PX;                            // counter-move to the cursor = depth in front of the hero
     orbs.forEach(function(o){
-      if(!o.drag){
-        var bx=o.home.x + Math.sin(t*0.0009+o.bob)*10;            // idle float
-        var by=o.home.y + Math.cos(t*0.0011+o.bob)*12;
-        var ax=(bx-o.cur.x)*0.06 - o.vel.x*0.18;
-        var ay=(by-o.cur.y)*0.06 - o.vel.y*0.18;
-        o.vel.x+=ax; o.vel.y+=ay; o.cur.x+=o.vel.x; o.cur.y+=o.vel.y;
+      if(!o.drag){                                                // static: just ease to home + parallax (no idle float)
+        o.cur.x += (o.home.x+ox - o.cur.x)*0.12;
+        o.cur.y += (o.home.y+oy - o.cur.y)*0.12;
       }
       place(o);
     });
