@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>ALTER HERO — AH!rchives</title>
+<style>
+  /* ============================================================================
+     HOME — white page. The hero collage floats in depth-map pseudo-3D; three
+     draggable worlds (archives · book · music) hover over it and dive open.
+     Assets expected: assets/hero.png (collage) + assets/logo.png (graffiti mark).
+     Falls back to a placeholder image until those files are dropped in.
+     ============================================================================ */
+  :root{ --ink:#111; --paper:#fff; --mono:ui-monospace,"SF Mono",Menlo,monospace; }
+  *{ box-sizing:border-box; margin:0; }
+  html,body{ height:100%; }
+  body{ font-family:var(--mono); color:var(--ink); background:var(--paper); overflow:hidden;
+    -webkit-font-smoothing:antialiased; touch-action:none; }
+
+  /* ---- the stage: hero canvas + logo, centred ---- */
+  #stage{ position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:2vh; padding:4vh 4vw; }
+  #heroWrap{ position:relative; width:min(72vmin,640px); aspect-ratio:1; perspective:1100px;
+    transition:opacity .8s ease, transform .8s ease; }
+  #hero{ width:100%; height:100%; display:block; transform-style:preserve-3d;
+    filter:drop-shadow(0 26px 40px rgba(20,16,24,.14)); }
+  #logo{ width:min(30vmin,220px); opacity:0; transition:opacity 1s ease .3s; user-select:none; -webkit-user-drag:none; }
+  #logo.in{ opacity:1; }
+  #logoFallback{ font-weight:900; font-size:clamp(22px,5vw,40px); letter-spacing:-.02em; line-height:.86;
+    text-align:center; text-transform:uppercase; -webkit-text-stroke:1px #111; color:#fff;
+    text-shadow:2px 2px 0 #111; opacity:0; transition:opacity 1s ease .3s; }
+  #logoFallback.in{ opacity:1; }
+  #tag{ font-size:11px; letter-spacing:.34em; text-transform:uppercase; color:#8a8290; margin-top:-1vh;
+    opacity:0; transition:opacity 1s ease .5s; }
+  #tag.in{ opacity:.9; }
+
+  /* ---- floating world icons ---- */
+  .orb{ position:fixed; z-index:6; left:0; top:0; width:98px; text-align:center; cursor:grab;
+    touch-action:none; will-change:transform; user-select:none; }
+  .orb:active{ cursor:grabbing; }
+  .orb .chip{ width:74px; height:74px; margin:0 auto; border-radius:50%; background:#fff; border:2px solid #111;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 10px 22px rgba(20,16,24,.18), 0 2px 0 #111;
+    transition:transform .16s cubic-bezier(.2,.7,.2,1), box-shadow .16s; }
+  .orb .chip svg{ width:38px; height:38px; }
+  .orb:hover .chip{ transform:translateY(-3px) scale(1.05); box-shadow:0 18px 34px rgba(20,16,24,.26), 0 2px 0 #111; }
+  .orb .lbl{ margin-top:9px; font-size:10.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#111; }
+  .orb .sub{ font-size:8.5px; letter-spacing:.12em; text-transform:uppercase; color:#9a92a0; margin-top:2px; }
+  .orb.dragging .chip{ transform:scale(1.12) rotate(-4deg); }
+
+  /* ---- the world reveal (circle bloom out of the icon) ---- */
+  #reveal{ position:fixed; inset:0; z-index:20; pointer-events:none;
+    clip-path:circle(0% at var(--rx,50%) var(--ry,50%)); transition:clip-path .7s cubic-bezier(.7,0,.3,1); }
+  body.opening #reveal{ clip-path:circle(150% at var(--rx,50%) var(--ry,50%)); pointer-events:auto; }
+
+  /* ---- world overlays (scrollable) ---- */
+  .world{ position:fixed; inset:0; z-index:21; overflow-y:auto; overflow-x:hidden; opacity:0; pointer-events:none;
+    transition:opacity .5s ease; -webkit-overflow-scrolling:touch; }
+  .world.show{ opacity:1; pointer-events:auto; }
+  .world .wrap{ min-height:100%; padding:96px 24px 120px; max-width:820px; margin:0 auto; }
+  .world .eyebrow{ font-size:11px; letter-spacing:.34em; text-transform:uppercase; opacity:.7; }
+  .world h1{ font-size:clamp(34px,8vw,72px); font-weight:900; letter-spacing:-.02em; line-height:.92; margin:10px 0 18px; text-transform:uppercase; }
+  .world p{ font-size:15px; line-height:1.7; max-width:56ch; margin:0 0 16px; opacity:.9; }
+  .world .cta{ display:flex; gap:14px; flex-wrap:wrap; margin-top:26px; }
+  .world .btn{ text-decoration:none; font-weight:800; text-transform:uppercase; letter-spacing:.06em; font-size:13px;
+    padding:13px 22px; border:2px solid currentColor; transition:transform .15s, background .15s, color .15s; }
+  .world .btn:hover{ transform:translateY(-2px); }
+  .world .soon{ display:inline-block; margin-top:24px; padding:8px 16px; border:2px dashed currentColor; opacity:.7;
+    font-size:12px; letter-spacing:.16em; text-transform:uppercase; }
+  .world .card{ border:1.5px solid rgba(0,0,0,.14); padding:22px; margin:14px 0; }
+  .world .back{ position:fixed; top:18px; left:18px; z-index:22; font-family:var(--mono); font-weight:800; font-size:12px;
+    letter-spacing:.1em; text-transform:uppercase; background:none; border:0; cursor:pointer; color:inherit; opacity:.8; }
+  .world .back:hover{ opacity:1; }
+
+  /* archives = deep space (dark) */
+  #wArchives, #reveal.toArchives{ background:#05060a; }
+  #wArchives{ color:#eef2ff; }
+  #wArchives .btn{ color:#7cc7ff; } #wArchives .btn:hover{ background:#7cc7ff; color:#04122a; }
+  #wArchives .starmini{ position:fixed; inset:0; z-index:-1; opacity:.5;
+    background:radial-gradient(1.5px 1.5px at 20% 30%,#cfe3ff,transparent),radial-gradient(1.5px 1.5px at 70% 60%,#bcd,transparent),
+    radial-gradient(1px 1px at 40% 80%,#fff,transparent),radial-gradient(1px 1px at 85% 20%,#dfe,transparent),
+    radial-gradient(1.5px 1.5px at 55% 15%,#cde,transparent); background-repeat:no-repeat; }
+  /* book = warm paper */
+  #wBook, #reveal.toBook{ background:#f3ead6; }
+  #wBook{ color:#2a2016; } #wBook .card{ border-color:rgba(42,32,22,.18); background:rgba(255,255,255,.4); }
+  /* music = vinyl dark */
+  #wMusic, #reveal.toMusic{ background:#0d0b12; }
+  #wMusic{ color:#efe7f6; } #wMusic .btn{ color:#e08a63; } #wMusic .card{ border-color:rgba(255,255,255,.12); }
+
+  body.opening #stage, body.opening .orb{ opacity:.25; transition:opacity .5s ease; pointer-events:none; }
+
+  #hint{ position:fixed; bottom:14px; left:50%; transform:translateX(-50%); z-index:5; font-size:10.5px;
+    letter-spacing:.16em; text-transform:uppercase; color:#b3abba; opacity:0; transition:opacity 1s ease 1.4s; }
+  #hint.in{ opacity:1; }
+
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
+  @media (max-width:640px){ .orb{ width:82px; } .orb .chip{ width:60px; height:60px; } .orb .chip svg{ width:30px; height:30px; } }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div id="heroWrap"><canvas id="hero" aria-label="Alter Hero collage"></canvas></div>
+    <img id="logo" alt="ALTER HERO" />
+    <div id="logoFallback">Alter<br>Hero.</div>
+    <div id="tag">999 alters · one hero</div>
+  </div>
+
+  <!-- floating worlds -->
+  <a class="orb" id="oArchives" href="index.html" data-world="Archives" data-key="archives">
+    <div class="chip"><svg viewBox="0 0 40 40" fill="none" stroke="#111" stroke-width="2.4"><rect x="6" y="6" width="12" height="12"/><rect x="22" y="6" width="12" height="12"/><rect x="6" y="22" width="12" height="12"/><rect x="22" y="22" width="12" height="12"/></svg></div>
+    <div class="lbl">Archives</div><div class="sub">999 NFT</div>
+  </a>
+  <a class="orb" id="oBook" href="#book" data-world="Book" data-key="book">
+    <div class="chip"><svg viewBox="0 0 40 40" fill="none" stroke="#111" stroke-width="2.4" stroke-linejoin="round"><path d="M20 9c-4-2.5-9-2.5-12 0v22c3-2.5 8-2.5 12 0 4-2.5 9-2.5 12 0V9c-3-2.5-8-2.5-12 0z"/><path d="M20 9v22"/></svg></div>
+    <div class="lbl">Book</div><div class="sub">the story</div>
+  </a>
+  <a class="orb" id="oMusic" href="#music" data-world="Music" data-key="music">
+    <div class="chip"><svg viewBox="0 0 40 40" fill="none" stroke="#111" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 27V11l16-3v13"/><circle cx="12" cy="28" r="3.4"/><circle cx="28" cy="24" r="3.4"/></svg></div>
+    <div class="lbl">Music</div><div class="sub">the sound</div>
+  </a>
+
+  <div id="hint">drag the worlds · tap to enter</div>
+
+  <!-- reveal veil + worlds -->
+  <div id="reveal" aria-hidden="true"></div>
+
+  <section class="world" id="wArchives" aria-hidden="true"><div class="starmini"></div>
+    <button class="back" data-close>← home</button>
+    <div class="wrap">
+      <div class="eyebrow">The Archives</div>
+      <h1>999 alters,<br>one hero.</h1>
+      <p>The full on-chain collection — every alter forged in the fall. Fly the galaxy of heads through the starfield, or filter all 999 by trait, rarity and aura.</p>
+      <div class="cta">
+        <a class="btn" href="index.html">◎ Enter the origins</a>
+        <a class="btn" href="explorer.html">⊞ Browse the archive</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="world" id="wBook" aria-hidden="true">
+    <button class="back" data-close>← home</button>
+    <div class="wrap">
+      <div class="eyebrow">The Book</div>
+      <h1>The story<br>of the fall.</h1>
+      <p>The alterhero myth, page by page — how nine hundred and ninety-nine alters came to be, and the one hero behind them all.</p>
+      <span class="soon">Chapter one · coming soon</span>
+      <div class="card"><b>I.</b> He stepped into the archives —</div>
+      <div class="card"><b>II.</b> and offered them art, and music, to escape the confines of earth.</div>
+      <div class="card"><b>III.</b> and that, as he recalls, was one of his finest hours.</div>
+    </div>
+  </section>
+
+  <section class="world" id="wMusic" aria-hidden="true">
+    <button class="back" data-close>← home</button>
+    <div class="wrap">
+      <div class="eyebrow">The Music</div>
+      <h1>The sound<br>of the alters.</h1>
+      <p>The score to the descent — the tracks the hero fell through. Streaming links and the full record, soon.</p>
+      <span class="soon">First drop · coming soon</span>
+      <div class="card">◈ Side A — the ascent</div>
+      <div class="card">◈ Side B — the archive</div>
+    </div>
+  </section>
+
+<script>
+(function(){
+  "use strict";
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ===================== 1. hero: depth-map pseudo-3D (WebGL) ===================== */
+  var canvas=document.getElementById('hero');
+  var gl = canvas.getContext('webgl',{alpha:true,premultipliedAlpha:false,antialias:true});
+  var HERO_SRC='assets/hero.png', HERO_FALLBACK='thumbs/999.jpg';
+  var mx=0,my=0, tmx=0,tmy=0;                                   // eased / target parallax (-1..1)
+
+  function loadImg(src, fallback){ return new Promise(function(res){
+    var im=new Image(); im.crossOrigin='anonymous';
+    im.onload=function(){ res(im); };
+    im.onerror=function(){ if(fallback){ im.onerror=function(){res(null);}; im.src=fallback; } else res(null); };
+    im.src=src;
+  }); }
+
+  function makeDepth(img){                                       // grayscale→invert→blur : ink=near(1), paper=far(0)
+    var s=256, c=document.createElement('canvas'); c.width=c.height=s; var x=c.getContext('2d');
+    x.fillStyle='#000'; x.fillRect(0,0,s,s);
+    x.filter='grayscale(1) invert(1) blur(9px)';
+    // contain the image into the square
+    var r=Math.min(s/img.width, s/img.height), w=img.width*r, h=img.height*r;
+    x.drawImage(img,(s-w)/2,(s-h)/2,w,h);
+    return c;
+  }
+
+  var prog, uMouse,uAmp,uTime, texC,texD, ready=false;
+  function initGL(colorImg, depthCanvas){
+    if(!gl){ fallback2D(colorImg); return; }
+    var vs='attribute vec2 p;varying vec2 uv;void main(){uv=vec2(p.x*.5+.5,.5-p.y*.5);gl_Position=vec4(p,0.,1.);}';
+    var fs='precision highp float;varying vec2 uv;uniform sampler2D uC,uD;uniform vec2 uMouse;uniform float uAmp,uTime;'+
+      'void main(){float d=texture2D(uD,uv).r;'+
+      'vec2 sway=vec2(sin(uTime*.0004),cos(uTime*.0005))*0.12;'+          // idle drift
+      'vec2 off=(uMouse+sway)*uAmp*d;'+
+      'vec2 suv=uv-off;'+
+      'vec4 col=texture2D(uC,suv);'+
+      // outside the image → treat as white paper
+      'if(suv.x<0.||suv.x>1.||suv.y<0.||suv.y>1.) col=vec4(1.);'+
+      'gl_FragColor=col;}';
+    function sh(t,s){var o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);return o;}
+    prog=gl.createProgram(); gl.attachShader(prog,sh(gl.VERTEX_SHADER,vs)); gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,fs));
+    gl.linkProgram(prog); gl.useProgram(prog);
+    var buf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+    var pl=gl.getAttribLocation(prog,'p'); gl.enableVertexAttribArray(pl); gl.vertexAttribPointer(pl,2,gl.FLOAT,false,0,0);
+    uMouse=gl.getUniformLocation(prog,'uMouse'); uAmp=gl.getUniformLocation(prog,'uAmp'); uTime=gl.getUniformLocation(prog,'uTime');
+    function tex(src,unit){ var t=gl.createTexture(); gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,t);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,src); return t; }
+    texC=tex(colorImg,0); texD=tex(depthCanvas,1);
+    gl.uniform1i(gl.getUniformLocation(prog,'uC'),0); gl.uniform1i(gl.getUniformLocation(prog,'uD'),1);
+    ready=true;
+  }
+
+  function fallback2D(img){                                      // no WebGL: just show the image (still gets CSS tilt)
+    var x=canvas.getContext('2d'); function d(){ var s=canvas.width; x.clearRect(0,0,s,s);
+      var r=Math.min(s/img.width,s/img.height),w=img.width*r,h=img.height*r; x.drawImage(img,(s-w)/2,(s-h)/2,w,h); }
+    canvas._draw2d=d; d();
+  }
+
+  function sizeCanvas(){ var dpr=Math.min(devicePixelRatio||1,2); var box=canvas.getBoundingClientRect();
+    canvas.width=Math.max(2,box.width*dpr|0); canvas.height=Math.max(2,box.height*dpr|0);
+    if(gl&&ready) gl.viewport(0,0,canvas.width,canvas.height); if(canvas._draw2d) canvas._draw2d(); }
+
+  function frame(t){
+    mx+=(tmx-mx)*0.06; my+=(tmy-my)*0.06;
+    // CSS perspective tilt of the whole plane (the "2D→3D")
+    canvas.style.transform='rotateY('+(mx*7)+'deg) rotateX('+(-my*7)+'deg) translateZ(0)';
+    if(gl&&ready){ gl.uniform2f(uMouse,mx,my); gl.uniform1f(uAmp,reduced?0:0.018); gl.uniform1f(uTime,t);
+      gl.drawArrays(gl.TRIANGLE_STRIP,0,4); }
+  }
+  function render(t){ frame(t); requestAnimationFrame(render); }
+
+  Promise.all([loadImg(HERO_SRC,HERO_FALLBACK)]).then(function(res){
+    var img=res[0]; if(!img) return;
+    initGL(img, makeDepth(img)); sizeCanvas();
+    if(gl&&ready) gl.viewport(0,0,canvas.width,canvas.height);
+    frame(performance.now());                 // one synchronous paint (survives a hidden first frame)
+    if(!reduced) requestAnimationFrame(render);
+  });
+  addEventListener('resize', sizeCanvas);
+
+  /* logo (fallback to text lockup if assets/logo.png missing) */
+  var logo=document.getElementById('logo'), logoFb=document.getElementById('logoFallback');
+  logo.onload=function(){ logoFb.style.display='none'; logo.classList.add('in'); };
+  logo.onerror=function(){ logo.style.display='none'; logoFb.classList.add('in'); };
+  logo.src='assets/logo.png';
+  setTimeout(function(){ document.getElementById('tag').classList.add('in'); document.getElementById('hint').classList.add('in'); }, 300);
+
+  /* pointer / gyro parallax */
+  if(!reduced){
+    addEventListener('pointermove', function(e){ if(dragging) return; tmx=(e.clientX/innerWidth-0.5)*2; tmy=(e.clientY/innerHeight-0.5)*2; });
+    addEventListener('deviceorientation', function(e){ if(e.gamma==null) return;
+      tmx=Math.max(-1,Math.min(1,e.gamma/30)); tmy=Math.max(-1,Math.min(1,(e.beta-45)/30)); });
+  }
+
+  /* ===================== 2. floating draggable world-orbs ===================== */
+  var orbs=[].map.call(document.querySelectorAll('.orb'), function(el){
+    return { el:el, key:el.dataset.key, href:el.getAttribute('href'), world:el.dataset.world,
+      cur:{x:0,y:0}, vel:{x:0,y:0}, home:{x:0,y:0}, bob:Math.random()*6.28, drag:false, moved:0, px:0,py:0 };
+  });
+  function place(o){ o.el.style.transform='translate('+(o.cur.x-o.el.offsetWidth/2)+'px,'+(o.cur.y-36)+'px)'; }
+  function layout(){ var W=innerWidth,H=innerHeight;
+    var pts=[ {x:0.20,y:0.60}, {x:0.50,y:0.74}, {x:0.80,y:0.60} ];   // archives / book / music
+    orbs.forEach(function(o,i){ o.home.x=pts[i].x*W; o.home.y=pts[i].y*H;
+      if(o.cur.x===0&&o.cur.y===0){ o.cur.x=o.home.x; o.cur.y=o.home.y; }
+      place(o); });                                                  // position now — don't wait for the first rAF
+  }
+  layout(); addEventListener('resize', layout);
+
+  var dragging=null;
+  orbs.forEach(function(o){
+    o.el.addEventListener('pointerdown', function(e){ e.preventDefault(); o.drag=true; dragging=o; o.moved=0;
+      o.px=e.clientX; o.py=e.clientY; o.el.classList.add('dragging'); o.el.setPointerCapture(e.pointerId); });
+    o.el.addEventListener('pointermove', function(e){ if(!o.drag) return;
+      var dx=e.clientX-o.px, dy=e.clientY-o.py; o.px=e.clientX; o.py=e.clientY; o.moved+=Math.abs(dx)+Math.abs(dy);
+      o.cur.x+=dx; o.cur.y+=dy; o.vel.x=dx; o.vel.y=dy; });
+    function release(e){ if(!o.drag) return; o.drag=false; dragging=null; o.el.classList.remove('dragging');
+      if(o.moved<6){ enter(o, o.cur.x, o.cur.y); } }               // a tap (not a drag) → enter the world
+    o.el.addEventListener('pointerup', release);
+    o.el.addEventListener('pointercancel', release);
+    o.el.addEventListener('click', function(e){ e.preventDefault(); });   // never hard-navigate; enter() handles it
+  });
+
+  function physics(t){
+    orbs.forEach(function(o){
+      if(!o.drag){
+        var bx=o.home.x + Math.sin(t*0.0009+o.bob)*10;            // idle float
+        var by=o.home.y + Math.cos(t*0.0011+o.bob)*12;
+        var ax=(bx-o.cur.x)*0.06 - o.vel.x*0.18;
+        var ay=(by-o.cur.y)*0.06 - o.vel.y*0.18;
+        o.vel.x+=ax; o.vel.y+=ay; o.cur.x+=o.vel.x; o.cur.y+=o.vel.y;
+      }
+      place(o);
+    });
+    requestAnimationFrame(physics);
+  }
+  requestAnimationFrame(physics);
+
+  /* ===================== 3. dive into a world (circle bloom) ===================== */
+  var reveal=document.getElementById('reveal'), openWorld=null;
+  function enter(o, sx, sy){
+    if(document.body.classList.contains('opening')) return;
+    var world=document.getElementById('w'+o.world); if(!world) return;
+    openWorld=world;
+    reveal.className=''; reveal.classList.add('to'+o.world);
+    reveal.style.setProperty('--rx',(sx/innerWidth*100)+'%');
+    reveal.style.setProperty('--ry',(sy/innerHeight*100)+'%');
+    document.body.classList.add('opening');
+    setTimeout(function(){ world.classList.add('show'); world.setAttribute('aria-hidden','false'); world.scrollTop=0; },
+      reduced?0:520);
+  }
+  function close(){ if(!openWorld) return; var w=openWorld;
+    w.classList.remove('show'); w.setAttribute('aria-hidden','true');
+    setTimeout(function(){ document.body.classList.remove('opening'); openWorld=null; }, reduced?0:120);
+  }
+  [].forEach.call(document.querySelectorAll('[data-close]'), function(b){ b.addEventListener('click', close); });
+  addEventListener('keydown', function(e){ if(e.key==='Escape') close(); });
+  // links inside worlds (archives → index/explorer) navigate normally — they are real <a href>.
+})();
+</script>
+</body>
+</html>
