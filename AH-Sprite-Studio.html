@@ -391,6 +391,50 @@
       quick.onclick=function(){ f.frames.forEach(function(fr,idx){ if(fr.use) addToTimeline(f.id,idx); }); };
       body.appendChild(quick);
     }
+    enableMarquee(body,grid,f);
+  }
+
+  /* ---------- marquee: drag a box on empty space to select the frames inside it ---------- */
+  function enableMarquee(body,grid,f){
+    body.style.position='relative';
+    var marq=null, x0=0, y0=0;
+    function box(e){ var br=body.getBoundingClientRect();
+      var x1=e.clientX-br.left+body.scrollLeft, y1=e.clientY-br.top+body.scrollTop;
+      return {left:Math.min(x0,x1),top:Math.min(y0,y1),right:Math.max(x0,x1),bottom:Math.max(y0,y1)}; }
+    function cellRect(cell){ var br=body.getBoundingClientRect(), r=cell.getBoundingClientRect();
+      return {left:r.left-br.left+body.scrollLeft,top:r.top-br.top+body.scrollTop,
+              right:r.right-br.left+body.scrollLeft,bottom:r.bottom-br.top+body.scrollTop}; }
+    function hits(b){ return [].map.call(grid.querySelectorAll('.fr'),function(cell){
+      var c=cellRect(cell);
+      return c.left<b.right && c.right>b.left && c.top<b.bottom && c.bottom>b.top; }); }
+    body.onpointerdown=function(e){
+      if(e.button!==0 || e.target.closest('.fr,button,input,select,.bhead')) return;
+      var br=body.getBoundingClientRect();
+      x0=e.clientX-br.left+body.scrollLeft; y0=e.clientY-br.top+body.scrollTop;
+      marq=document.createElement('div');
+      marq.style.cssText='position:absolute;border:1px dashed var(--accent);background:rgba(255,176,56,.08);pointer-events:none;z-index:5';
+      body.appendChild(marq);
+      try{ body.setPointerCapture(e.pointerId); }catch(err){}
+      e.preventDefault();
+    };
+    body.onpointermove=function(e){
+      if(!marq) return;
+      var b=box(e);
+      marq.style.left=b.left+'px'; marq.style.top=b.top+'px';
+      marq.style.width=(b.right-b.left)+'px'; marq.style.height=(b.bottom-b.top)+'px';
+      var h=hits(b);
+      [].forEach.call(grid.querySelectorAll('.fr'),function(cell,i){
+        cell.style.outlineOffset='1px';
+        cell.style.outline=h[i]?'2px solid var(--accent)':''; });
+    };
+    body.onpointerup=function(e){
+      if(!marq) return;
+      var b=box(e); marq.remove(); marq=null;
+      if((b.right-b.left)+(b.bottom-b.top)<8) return;          // just a click — leave selection alone
+      var h=hits(b);
+      f.frames.forEach(function(fr,i){ fr.use=!!h[i] && !fr.empty; });   // selection = exactly the boxed frames
+      renderBrowser();
+    };
   }
 
   /* ---------- SPRITE EDITOR ---------- */
