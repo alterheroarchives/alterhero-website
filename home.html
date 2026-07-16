@@ -156,6 +156,22 @@
     mask-image:linear-gradient(to top, #000 20%, transparent 85%); }
   body.moon-in #slime{ opacity:1; transform:translateY(0); }
 
+  /* hover BACKDROPS — each character gets a soft CHANNEL of their own world rising behind them:
+     GIANT → the red moon (back-moon.jpeg), WalkBoy → the teal sky/sun (back-sun.jpeg). A radial mask
+     fades every edge so the image only exists around the character; inside, it drifts slowly upward
+     and back — a little breathing world. z1 = behind everything (chars z6, lights/moon z3, van z2). */
+  .backdrop{ position:fixed; z-index:1; pointer-events:none; opacity:0; transition:opacity .9s ease;
+    background-size:cover; background-position:50% 62%;
+    -webkit-mask-image:radial-gradient(ellipse 52% 54% at 50% 58%, #000 38%, transparent 76%);
+            mask-image:radial-gradient(ellipse 52% 54% at 50% 58%, #000 38%, transparent 76%);
+    animation:backdrift 20s ease-in-out infinite; }
+  #backMoon{ background-image:url(assets/back-moon.jpeg); }
+  #backSun{ background-image:url(assets/back-sun.jpeg); }
+  body.clouds-in #backMoon{ opacity:.92; }
+  body.moon-in #backSun{ opacity:.92; }
+  @keyframes backdrift{ 0%,100%{ background-position:50% 62%; } 50%{ background-position:50% 46%; } }
+  @media (prefers-reduced-motion:reduce){ .backdrop{ animation:none; } }
+
   /* GIANT hover → two soft spot-lights BEHIND the GIANT, between him and the clouds (z3): blue at the chest, cream at
      the head. Unity Light2D spec approximated as radial glows — blue In2.5/Out4.5, cream In0.8/Out2.8, Intensity 2.8,
      Falloff .55. (On a white page a true additive light is invisible, so these read as soft coloured light-pools.) */
@@ -316,6 +332,10 @@
 </style>
 </head>
 <body>
+  <!-- hover backdrops: each character's world in a soft masked channel behind them -->
+  <div id="backSun" class="backdrop" aria-hidden="true"></div>
+  <div id="backMoon" class="backdrop" aria-hidden="true"></div>
+
   <!-- atmosphere: clouds settle at the GIANT's feet · the moon descends when WalkBoy is picked -->
   <div id="clouds" aria-hidden="true">
     <img class="back"  src="assets/clouds_2_crop.png" alt="">
@@ -603,6 +623,11 @@
     if(slime){ var slScale=3, wbHalf=Math.round(48*rs2), slDisp=16*slScale;   // 16×16 sprite ×3 = 48px
       slime.style.setProperty('--sl-scale', slScale);
       slime.style.left=Math.round(cx - wbHalf - 8 - slDisp/2)+'px'; slime.style.top=soilY+'px'; }   // slime CENTRE, just LEFT of the WalkBoy
+    // hover backdrops: a soft channel of world rising above each character (WalkBoy → sun, GIANT → moon)
+    var bs=document.getElementById('backSun'), bm=document.getElementById('backMoon');
+    if(bs&&bm){ var bw=Math.round(360*rs2), bt=Math.round(innerHeight*0.06);
+      [[bs,cx],[bm,cx+sp]].forEach(function(p){ p[0].style.left=Math.round(p[1]-bw/2)+'px'; p[0].style.top=bt+'px';
+        p[0].style.width=bw+'px'; p[0].style.height=Math.round(soilY-bt+30)+'px'; }); }
     // the moon HIDES behind the logo (only her eyes peek below it — first half), then DROPS to the
     // midpoint between the logo and the WalkBoy (second half). The clip window's TOP tucks 6px behind
     // the logo baseline (keeps her body hidden while peeking); the window runs tall enough that she's

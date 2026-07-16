@@ -25,7 +25,7 @@
   .pbody{flex:1;overflow:auto;padding:10px;min-height:0}
   /* PREVIEW */
   #preview{flex:1.35}
-  .stage{flex:1;display:flex;align-items:flex-end;justify-content:center;padding-bottom:11%;
+  .stage{flex:1;display:flex;align-items:center;justify-content:center;
     background:#fff;overflow:hidden;position:relative}
   #previewCanvas{image-rendering:pixelated}
   .previewbar{display:flex;gap:8px;align-items:center;padding:6px 10px;border-top:1px solid var(--line);color:var(--dim);font-size:11px}
@@ -137,6 +137,7 @@
         <option value="auto">real</option><option value="1">×1</option><option value="2">×2</option><option value="4">×4</option><option value="8">×8</option>
       </select>
       <button id="gridBtn" title="pixel grid" style="background:#0e0d13;color:var(--dim);border:1px solid var(--line);border-radius:4px;font:inherit;padding:2px 8px;cursor:pointer">grid</button>
+      <button id="anchorBtn" title="sprite position in the preview" style="background:#0e0d13;color:var(--dim);border:1px solid var(--line);border-radius:4px;font:inherit;padding:2px 8px;cursor:pointer">◎ middle</button>
     </div>
   </section>
 
@@ -195,10 +196,14 @@
     <h3>SPRITE <span>EDITOR</span><span id="edClose" style="cursor:pointer;color:var(--dim)">✕</span></h3>
     <div class="editbody">
       <div class="editrow">
-        <label>PIXEL SIZE</label>
-        X <input id="pxW" type="number" min="1" value="16">
-        Y <input id="pxH" type="number" min="1" value="16">
-        <div class="presets" id="presets"></div>
+        <label>PIXEL SIZE X</label>
+        <input id="pxW" type="number" min="1" value="16">
+        <div class="presets" id="presetsX"></div>
+      </div>
+      <div class="editrow">
+        <label>PIXEL SIZE Y</label>
+        <input id="pxH" type="number" min="1" value="16">
+        <div class="presets" id="presetsY"></div>
       </div>
       <div class="editrow"><span class="info muted" id="edGridInfo"></span></div>
       <div class="gridprev"><canvas id="gridCanvas"></canvas></div>
@@ -442,9 +447,11 @@
   function openEditor(f){
     edFile=f; $('#pxW').value=f.frameW; $('#pxH').value=f.frameH;
     $('#edFile').textContent=f.name+' — '+f.img.width+'×'+f.img.height+'px';
-    var pr=$('#presets'); pr.innerHTML='';
-    [8,16,24,32,48,64].forEach(function(n){ var b=document.createElement('button'); b.className='preset'; b.textContent=n;
-      b.onclick=function(){ $('#pxW').value=n; $('#pxH').value=n; drawGrid(); }; pr.appendChild(b); });
+    [['#presetsX','#pxW'],['#presetsY','#pxH']].forEach(function(pair){
+      var pr=$(pair[0]); pr.innerHTML='';
+      [8,16,24,32,48,64].forEach(function(n){ var b=document.createElement('button'); b.className='preset'; b.textContent=n;
+        b.onclick=function(){ $(pair[1]).value=n; drawGrid(); }; pr.appendChild(b); });
+    });
     $('#overlay').classList.add('on'); drawGrid();
   }
   function drawGrid(){
@@ -719,6 +726,15 @@
   $('#animName').oninput=function(e){ S.name=e.target.value||'animation'; };
   $('#zoom').onchange=function(e){ S.zoom=e.target.value; drawPreview(); };
   $('#gridBtn').onclick=function(){ S.grid=!S.grid; $('#gridBtn').style.color=S.grid?'var(--accent)':'var(--dim)'; drawPreview(); };
+  $('#anchorBtn').onclick=function(){
+    S.anchor=(S.anchor==='bottom')?'middle':'bottom';
+    var st=document.querySelector('.stage');
+    st.style.alignItems=(S.anchor==='bottom')?'flex-end':'center';
+    st.style.paddingBottom=(S.anchor==='bottom')?'2%':'0';
+    $('#anchorBtn').textContent=(S.anchor==='bottom')?'⬓ bottom':'◎ middle';
+    $('#anchorBtn').style.color=(S.anchor==='bottom')?'var(--accent)':'var(--dim)';
+    drawPreview();
+  };
   $('#addFolder').onclick=function(){ var n=prompt('Folder name'); if(n){ S.folders.push({id:++uid,name:n,open:true}); S.curFolder=uid; renderFiles(); } };
   $('#gridBtn').style.color='var(--accent)';   // grid on by default
   var fl=$('#flist');   // drop a file row on the list background → move it back to root
