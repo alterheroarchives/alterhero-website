@@ -25,7 +25,7 @@
   .pbody{flex:1;overflow:auto;padding:10px;min-height:0}
   /* PREVIEW */
   #preview{flex:1.35}
-  .stage{flex:1;display:flex;align-items:center;justify-content:center;
+  .stage{flex:1;display:flex;align-items:flex-end;justify-content:center;padding-bottom:11%;
     background:
       linear-gradient(45deg,#0000 25%,#00000030 0 75%,#0000 0),
       linear-gradient(45deg,#0000 25%,#00000030 0 75%,#0000 0) 8px 8px,
@@ -137,7 +137,7 @@
       <input id="scrub" type="range" min="0" max="0" value="0">
       <span id="pvcount">0</span>
       <select id="zoom" title="pixel zoom" style="background:#0e0d13;color:var(--ink);border:1px solid var(--line);border-radius:4px;font:inherit;padding:2px 4px">
-        <option value="auto">fit</option><option value="1">×1</option><option value="2">×2</option><option value="4">×4</option><option value="8">×8</option>
+        <option value="auto">real</option><option value="1">×1</option><option value="2">×2</option><option value="4">×4</option><option value="8">×8</option>
       </select>
       <button id="gridBtn" title="pixel grid" style="background:#0e0d13;color:var(--dim);border:1px solid var(--line);border-radius:4px;font:inherit;padding:2px 8px;cursor:pointer">grid</button>
     </div>
@@ -464,7 +464,8 @@
     var f=fileById(t.fileId); var fr=f&&f.frames[t.frame]; if(!fr)return;
     var sc;
     if(S.zoom==='auto'){ var box=cv.parentElement.getBoundingClientRect(); var target=Math.min(box.width,box.height)-24;
-      sc=Math.max(1,Math.floor(target/Math.max(fr.sw,fr.sh))); }
+      var REF=64;   // shared reference cell: EVERY sprite gets the same ×N, so 16×16 vs 32×32 vs 32×64 keep their true relative sizes
+      sc=Math.max(1,Math.floor(target/REF)); }
     else sc=Math.max(1,+S.zoom||1);
     cv.width=fr.sw*sc; cv.height=fr.sh*sc; x=cv.getContext('2d'); x.imageSmoothingEnabled=false;
     x.drawImage(f.img,fr.sx,fr.sy,fr.sw,fr.sh,0,0,cv.width,cv.height);
