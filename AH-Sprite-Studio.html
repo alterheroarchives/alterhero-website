@@ -59,7 +59,7 @@
   .fr:hover{border-color:var(--accent2)}
   .fr.empty{opacity:.32}
   .fr canvas{image-rendering:pixelated;display:block}
-  .fr .fi{font-size:9px;color:var(--dim)}
+  .fr .fi{font-size:9px;color:var(--accent);background:#0008;border:1px solid var(--line);border-radius:8px;min-width:16px;text-align:center;line-height:14px}
   .fr .chk{position:absolute;top:2px;left:2px;width:12px;height:12px;accent-color:var(--accent)}
   .muted{color:var(--dim);font-size:11px}
   /* ANIMATION */
@@ -87,6 +87,7 @@
   .slot canvas{display:block;image-rendering:pixelated}
   .slot .rm{position:absolute;top:-7px;right:-7px;width:16px;height:16px;border-radius:50%;background:var(--danger);color:#fff;
      font-size:11px;line-height:16px;text-align:center;display:none;cursor:pointer}
+  .slot .snum{position:absolute;bottom:1px;left:1px;font-size:9px;color:var(--accent);background:#000c;border-radius:5px;padding:0 4px;pointer-events:none}
   .slot:hover .rm{display:block}
   .slot.on{box-shadow:0 0 0 2px var(--accent)}
   .playhead{position:absolute;top:-4px;width:2px;background:var(--accent);pointer-events:none;transition:left .04s linear}
@@ -125,7 +126,6 @@
 
 <header>
   <b>AH<span>!</span> SPRITE STUDIO</b>
-  <span class="hint">load a PNG sheet → <b>Slice</b> into frames → drag frames onto the <b>timeline</b> → <b>play</b> → <b>Export</b></span>
 </header>
 
 <div class="row top">
@@ -136,13 +136,20 @@
       <span id="pvframe">–</span>
       <input id="scrub" type="range" min="0" max="0" value="0">
       <span id="pvcount">0</span>
+      <select id="zoom" title="pixel zoom" style="background:#0e0d13;color:var(--ink);border:1px solid var(--line);border-radius:4px;font:inherit;padding:2px 4px">
+        <option value="auto">fit</option><option value="1">×1</option><option value="2">×2</option><option value="4">×4</option><option value="8">×8</option>
+      </select>
+      <button id="gridBtn" title="pixel grid" style="background:#0e0d13;color:var(--dim);border:1px solid var(--line);border-radius:4px;font:inherit;padding:2px 8px;cursor:pointer">grid</button>
     </div>
   </section>
 
   <section class="panel" id="project">
     <div class="ptitle">PROJECT · FOLDER LIST</div>
     <div class="pbody">
-      <div class="addbtn" id="addbtn">+ ADD PNG<br><span style="font-size:10px">click or drop files</span></div>
+      <div style="display:flex;gap:6px">
+        <div class="addbtn" id="addFolder" style="flex:1">+ FOLDER</div>
+        <div class="addbtn" id="addbtn" style="flex:2">+ ADD PNG<br><span style="font-size:10px">click or drop files</span></div>
+      </div>
       <input type="file" id="fileInput" accept="image/png,image/*" multiple>
       <div class="flist" id="flist"></div>
     </div>
@@ -215,7 +222,9 @@
       <textarea id="exText" readonly></textarea>
       <div class="editrow" style="justify-content:flex-end">
         <button class="btn" id="exCopy">⧉ Copy</button>
-        <button class="btn primary" id="exDownload">⭳ Download JSON</button>
+        <button class="btn" id="exDownload">⭳ JSON</button>
+        <button class="btn" id="exPng">⭳ PNG sheet</button>
+        <button class="btn primary" id="exApng">⭳ PNG animé</button>
       </div>
     </div>
   </div>
@@ -225,14 +234,14 @@
 (function(){
   var $=function(s){return document.querySelector(s)};
   var uid=0;
-  var S={ files:[], selId:null, timeline:[], fps:12, name:'animation', playhead:0, playing:false };
+  var S={ files:[], folders:[], curFolder:null, selId:null, timeline:[], fps:12, name:'animation', playhead:0, playing:false, zoom:'auto', grid:false };
 
   /* ---------- load PNGs ---------- */
   function loadImage(dataURL,name){
     return new Promise(function(res){
       var img=new Image();
       img.onload=function(){
-        var f={id:++uid, name:name||('sheet'+uid+'.png'), url:dataURL, img:img,
+        var f={id:++uid, name:name||('sheet'+uid+'.png'), url:dataURL, img:img, folderId:S.curFolder,
                frameW:guessSize(img.width), frameH:guessSize(img.height), frames:[], open:true};
         S.files.push(f); S.selId=f.id; renderFiles(); renderBrowser(); res(f.id);
       };
@@ -282,8 +291,9 @@
   /* ---------- PROJECT list ---------- */
   function renderFiles(){
     var wrap=$('#flist'); wrap.innerHTML='';
-    S.files.forEach(function(f){
+    function fileRow(f,indent){
       var row=document.createElement('div'); row.className='frow'+(f.id===S.selId?' sel':'');
+      if(indent) row.style.marginLeft='16px';
       var tw=document.createElement('canvas'); tw.className='tw';
       var fr0=f.frames[0]||{sx:0,sy:0,sw:Math.min(f.img.width,32),sh:Math.min(f.img.height,32)};
       drawFrame(tw,f,fr0,1); tw.style.width='26px'; tw.style.height='26px';
@@ -296,8 +306,21 @@
         if(S.selId===f.id) S.selId=S.files[0]?S.files[0].id:null;
         renderFiles(); renderBrowser(); renderTimeline(); };
       row.appendChild(tw); row.appendChild(nm); row.appendChild(meta); row.appendChild(x);
-      row.onclick=function(){ S.selId=f.id; renderFiles(); renderBrowser(); };
-      wrap.appendChild(row);
+      row.onclick=function(){ S.selId=f.id; S.curFolder=f.folderId||null; renderFiles(); renderBrowser(); };
+      return row;
+    }
+    S.files.filter(function(f){return !f.folderId}).forEach(function(f){ wrap.appendChild(fileRow(f,false)); });
+    S.folders.forEach(function(fo){
+      var kids=S.files.filter(function(f){return f.folderId===fo.id});
+      var h=document.createElement('div'); h.className='frow'+(S.curFolder===fo.id?' sel':'');
+      var caret=document.createElement('span'); caret.style.cssText='width:26px;flex:none;text-align:center;color:var(--accent)';
+      caret.textContent=fo.open?'▽':'▷';
+      var nm2=document.createElement('div'); nm2.className='nm'; nm2.style.fontWeight='bold'; nm2.textContent=fo.name;
+      var meta2=document.createElement('div'); meta2.className='meta'; meta2.textContent=kids.length+' file'+(kids.length===1?'':'s');
+      h.appendChild(caret); h.appendChild(nm2); h.appendChild(meta2);
+      h.onclick=function(){ fo.open=!fo.open; S.curFolder=fo.id; renderFiles(); };
+      wrap.appendChild(h);
+      if(fo.open) kids.forEach(function(f){ wrap.appendChild(fileRow(f,true)); });
     });
   }
 
@@ -328,7 +351,7 @@
       drawFrame(cv,f,fr,sc);
       var chk=document.createElement('input'); chk.type='checkbox'; chk.className='chk'; chk.checked=fr.use;
       chk.onclick=function(e){ e.stopPropagation(); fr.use=chk.checked; };
-      var fi=document.createElement('div'); fi.className='fi'; fi.textContent=idx;
+      var fi=document.createElement('div'); fi.className='fi'; fi.textContent=idx+1;
       cell.appendChild(chk); cell.appendChild(cv); cell.appendChild(fi);
       cell.onclick=function(){ addToTimeline(f.id,idx); };
       cell.ondragstart=function(e){ e.dataTransfer.setData('text/frame',JSON.stringify({fileId:f.id,idx:idx})); };
@@ -379,7 +402,7 @@
     var track=$('#track'); track.innerHTML='';
     $('#samples').value=S.timeline.length; $('#pvcount').textContent=S.timeline.length;
     $('#scrub').max=Math.max(0,S.timeline.length-1);
-    if(!S.timeline.length){ track.innerHTML='<div class="tlempty">drop frames here · they play left → right, looping</div>'; drawRuler(0); drawPreview(); return; }
+    if(!S.timeline.length){ track.innerHTML='<div class="tlempty">drop frames here · they play left → right, looping</div>'; drawRuler(); drawPreview(); return; }
     S.timeline.forEach(function(t,i){
       var f=fileById(t.fileId); if(!f){return;}
       var slot=document.createElement('div'); slot.className='slot'+(i===S.playhead?' on':''); slot.draggable=true;
@@ -387,21 +410,25 @@
       var sc=Math.max(1,Math.round(46/Math.max(fr.sw,fr.sh))); drawFrame(cv,f,fr,sc);
       var rm=document.createElement('div'); rm.className='rm'; rm.textContent='×';
       rm.onclick=function(e){ e.stopPropagation(); S.timeline.splice(i,1); if(S.playhead>=S.timeline.length)S.playhead=Math.max(0,S.timeline.length-1); renderTimeline(); };
-      slot.appendChild(cv); slot.appendChild(rm);
+      var num=document.createElement('div'); num.className='snum'; num.textContent=t.frame+1;
+      slot.appendChild(cv); slot.appendChild(rm); slot.appendChild(num);
       slot.onclick=function(){ setPlayhead(i); };
       slot.ondragstart=function(e){ e.dataTransfer.setData('text/reorder',i); };
       track.appendChild(slot);
     });
     var ph=document.createElement('div'); ph.className='playhead'; ph.id='ph'; ph.style.height='100%'; track.appendChild(ph);
-    drawRuler(S.timeline.length); positionPlayhead(); drawPreview();
+    drawRuler(); positionPlayhead(); drawPreview();
   }
-  function drawRuler(n){
-    var ruler=$('#ruler'); ruler.innerHTML=''; if(!n){return;}
-    var slotW=52; // approx slot pitch (46 + margins)
-    for(var i=0;i<=n;i++){ if(i%5!==0 && i!==n) continue;
-      var t=document.createElement('div'); t.className='tick'; t.style.left=(i*slotW)+'px';
-      var s=document.createElement('span'); s.textContent=i; t.appendChild(s); ruler.appendChild(t);
-    }
+  function drawRuler(){
+    var ruler=$('#ruler'); ruler.innerHTML='';
+    var slots=$('#track').querySelectorAll('.slot');
+    slots.forEach(function(el,i){
+      var d=document.createElement('div');
+      d.style.cssText='position:absolute;top:4px;left:'+(el.offsetLeft+el.offsetWidth/2-4)+'px;color:var(--accent2);font-size:9px';
+      d.textContent='◆'; ruler.appendChild(d);
+      if(i%5===0){ var t=document.createElement('div'); t.className='tick'; t.style.left=el.offsetLeft+'px';
+        var s=document.createElement('span'); s.textContent=i+1; t.appendChild(s); ruler.appendChild(t); }
+    });
   }
   function positionPlayhead(){
     var ph=$('#ph'); if(!ph)return; var slots=$('#track').querySelectorAll('.slot');
@@ -435,12 +462,17 @@
     x.clearRect(0,0,cv.width,cv.height);
     var t=S.timeline[S.playhead]; if(!t){ $('#pvframe').textContent='–'; $('#pvinfo').textContent=''; return; }
     var f=fileById(t.fileId); var fr=f&&f.frames[t.frame]; if(!fr)return;
-    var box=cv.parentElement.getBoundingClientRect(); var target=Math.min(box.width,box.height)-24;
-    var sc=Math.max(1,Math.floor(target/Math.max(fr.sw,fr.sh)));
+    var sc;
+    if(S.zoom==='auto'){ var box=cv.parentElement.getBoundingClientRect(); var target=Math.min(box.width,box.height)-24;
+      sc=Math.max(1,Math.floor(target/Math.max(fr.sw,fr.sh))); }
+    else sc=Math.max(1,+S.zoom||1);
     cv.width=fr.sw*sc; cv.height=fr.sh*sc; x=cv.getContext('2d'); x.imageSmoothingEnabled=false;
     x.drawImage(f.img,fr.sx,fr.sy,fr.sw,fr.sh,0,0,cv.width,cv.height);
-    $('#pvframe').textContent='frame '+(S.playhead+1)+'/'+S.timeline.length+' (idx '+t.frame+')';
-    $('#pvinfo').textContent=fr.sw+'×'+fr.sh;
+    if(S.grid && sc>=3){ x.strokeStyle='rgba(255,176,56,.35)'; x.lineWidth=1;
+      for(var gx=1;gx<fr.sw;gx++){ x.beginPath(); x.moveTo(gx*sc+.5,0); x.lineTo(gx*sc+.5,cv.height); x.stroke(); }
+      for(var gy=1;gy<fr.sh;gy++){ x.beginPath(); x.moveTo(0,gy*sc+.5); x.lineTo(cv.width,gy*sc+.5); x.stroke(); } }
+    $('#pvframe').textContent='frame '+(S.playhead+1)+'/'+S.timeline.length+' (n°'+(t.frame+1)+')';
+    $('#pvinfo').textContent=fr.sw+'×'+fr.sh+' ×'+sc;
   }
   var acc=0,lastT=0;
   function loop(ts){
@@ -453,6 +485,80 @@
   }
   requestAnimationFrame(loop);
   function play(){ S.playing=!S.playing; lastT=0; acc=0; $('#tPlay').textContent=S.playing?'❚❚':'▶'; }
+
+  /* ---------- PNG / APNG export ---------- */
+  function timelineCanvases(){
+    var fw=null,fh=null,cvs=[];
+    for(var i=0;i<S.timeline.length;i++){ var t=S.timeline[i], f=fileById(t.fileId), fr=f&&f.frames[t.frame];
+      if(!fr) continue;
+      if(fw===null){ fw=fr.sw; fh=fr.sh; }
+      if(fr.sw!==fw||fr.sh!==fh) return null;
+      var c=document.createElement('canvas'); c.width=fw; c.height=fh;
+      var x=c.getContext('2d'); x.imageSmoothingEnabled=false;
+      x.drawImage(f.img,fr.sx,fr.sy,fr.sw,fr.sh,0,0,fw,fh); cvs.push(c); }
+    return cvs;
+  }
+  function downloadBlob(fn,blob){ var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fn; a.click(); }
+  function exportSheet(){
+    var cvs=timelineCanvases(); if(!cvs){ alert('All timeline frames must be the same pixel size for PNG export.'); return; }
+    if(!cvs.length) return;
+    var w=cvs[0].width,h=cvs[0].height, out=document.createElement('canvas');
+    out.width=w*cvs.length; out.height=h;
+    var x=out.getContext('2d'); x.imageSmoothingEnabled=false;
+    cvs.forEach(function(c,i){ x.drawImage(c,i*w,0); });
+    out.toBlob(function(b){ downloadBlob(S.name+'-sheet.png', b); },'image/png');
+  }
+  /* minimal APNG encoder — all frames same size, full-frame replace, infinite loop */
+  var CRC_T=(function(){ var t=[],c,n,k; for(n=0;n<256;n++){ c=n; for(k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; } return t; })();
+  function crc32(by){ var c=0xFFFFFFFF; for(var i=0;i<by.length;i++) c=CRC_T[(c^by[i])&0xFF]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+  function u32(n){ return [n>>>24&255,n>>>16&255,n>>>8&255,n&255]; }
+  function chunk(type,data){
+    var td=new Uint8Array(4+data.length);
+    td[0]=type.charCodeAt(0); td[1]=type.charCodeAt(1); td[2]=type.charCodeAt(2); td[3]=type.charCodeAt(3);
+    td.set(data,4);
+    var out=new Uint8Array(4+td.length+4); out.set(u32(data.length),0); out.set(td,4); out.set(u32(crc32(td)),4+td.length);
+    return out;
+  }
+  function pngParts(canvas){
+    var bin=atob(canvas.toDataURL('image/png').split(',')[1]);
+    var by=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) by[i]=bin.charCodeAt(i);
+    var p=8, ihdr=null, idats=[];
+    while(p<by.length){ var len=((by[p]<<24)|(by[p+1]<<16)|(by[p+2]<<8)|by[p+3])>>>0;
+      var type=String.fromCharCode(by[p+4],by[p+5],by[p+6],by[p+7]);
+      if(type==='IHDR') ihdr=by.slice(p+8,p+8+len); else if(type==='IDAT') idats.push(by.slice(p+8,p+8+len));
+      p+=12+len; }
+    var total=idats.reduce(function(s,d){return s+d.length},0), idat=new Uint8Array(total), o=0;
+    idats.forEach(function(d){ idat.set(d,o); o+=d.length; });
+    return {ihdr:ihdr, idat:idat};
+  }
+  function apngBytes(){
+    var cvs=timelineCanvases(); if(!cvs){ alert('All timeline frames must be the same pixel size for PNG export.'); return null; }
+    if(!cvs.length) return null;
+    var w=cvs[0].width,h=cvs[0].height, dnum=Math.max(1,Math.round(1000/S.fps)), seq=0, parts=[];
+    parts.push(new Uint8Array([137,80,78,71,13,10,26,10]));
+    var first=pngParts(cvs[0]);
+    parts.push(chunk('IHDR',first.ihdr));
+    var ac=new Uint8Array(8); ac.set(u32(cvs.length),0); ac.set(u32(0),4);
+    parts.push(chunk('acTL',ac));
+    function fcTL(){ var d=new Uint8Array(26);
+      d.set(u32(seq++),0); d.set(u32(w),4); d.set(u32(h),8); d.set(u32(0),12); d.set(u32(0),16);
+      d[20]=(dnum>>>8)&255; d[21]=dnum&255; d[22]=0x03; d[23]=0xE8; d[24]=0; d[25]=0;
+      return chunk('fcTL',d); }
+    parts.push(fcTL());
+    parts.push(chunk('IDAT',first.idat));
+    for(var i=1;i<cvs.length;i++){ var pp=pngParts(cvs[i]);
+      parts.push(fcTL());
+      var fd=new Uint8Array(4+pp.idat.length); fd.set(u32(seq++),0); fd.set(pp.idat,4);
+      parts.push(chunk('fdAT',fd)); }
+    parts.push(chunk('IEND',new Uint8Array(0)));
+    var total=parts.reduce(function(s,p){return s+p.length},0), out=new Uint8Array(total), o=0;
+    parts.forEach(function(p){ out.set(p,o); o+=p.length; });
+    return out;
+  }
+  function exportApng(){
+    var out=apngBytes(); if(!out) return;
+    downloadBlob(S.name+'.png', new Blob([out],{type:'image/png'}));
+  }
 
   /* ---------- EXPORT ---------- */
   function buildExport(){
@@ -467,7 +573,7 @@
     var txt='// AH! Sprite Studio — "'+S.name+'"\n';
     if(single){ var f0=fileById(S.timeline[0].fileId);
       txt+='// sheet: '+f0.name+'  ·  frame '+f0.frameW+'×'+f0.frameH+'  ·  '+f0.cols+' cols\n';
-      txt+='var SEQ = ['+seq.join(',')+'];   // frame indices, play order\n';
+      txt+='var SEQ = ['+seq.join(',')+'];   // 0-based frame indices (UI numbers are 1-based)\n';
       txt+='var COLS = '+f0.cols+', fps = '+S.fps+';\n';
     } else {
       txt+='// multiple sheets — see JSON for per-frame sheet mapping\n';
@@ -480,6 +586,7 @@
     if(!S.timeline.length){ alert('Add some frames to the timeline first.'); return; }
     var e=buildExport(); $('#exText').value=e.txt; $('#exName').textContent='· '+S.name;
     $('#exOverlay').classList.add('on'); $('#exDownload').onclick=function(){ download(S.name+'.json', JSON.stringify(e.json,null,2)); };
+    $('#exPng').onclick=exportSheet; $('#exApng').onclick=exportApng;
     window.__lastExport=e;
   }
   function download(fn,txt){ var a=document.createElement('a');
@@ -507,6 +614,9 @@
   $('#scrub').oninput=function(e){ setPlayhead(+e.target.value); };
   $('#fps').oninput=function(e){ S.fps=Math.max(1,Math.min(60,+e.target.value||12)); };
   $('#animName').oninput=function(e){ S.name=e.target.value||'animation'; };
+  $('#zoom').onchange=function(e){ S.zoom=e.target.value; drawPreview(); };
+  $('#gridBtn').onclick=function(){ S.grid=!S.grid; $('#gridBtn').style.color=S.grid?'var(--accent)':'var(--dim)'; drawPreview(); };
+  $('#addFolder').onclick=function(){ var n=prompt('Folder name'); if(n){ S.folders.push({id:++uid,name:n,open:true}); S.curFolder=uid; renderFiles(); } };
   $('#exportBtn').onclick=doExport;
   window.addEventListener('resize',drawPreview);
   window.addEventListener('keydown',function(e){ if(e.code==='Space' && e.target.tagName!=='INPUT'){ e.preventDefault(); play(); } });
@@ -514,6 +624,7 @@
   /* ---------- test API (used for automated verification; harmless) ---------- */
   window.STUDIO={ S:S, loadImage:loadImage, slice:function(id,w,h){return sliceFile(fileById(id),w,h)},
     addToTimeline:addToTimeline, setFps:function(n){S.fps=n;$('#fps').value=n;}, setName:function(n){S.name=n;$('#animName').value=n;},
-    buildExport:buildExport, fileById:fileById };
+    buildExport:buildExport, fileById:fileById, renderFiles:renderFiles,
+    timelineCanvases:timelineCanvases, apngBytes:apngBytes, drawPreview:drawPreview };
 })();
 </script>
