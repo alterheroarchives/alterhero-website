@@ -36,10 +36,15 @@
     text-shadow:2px 2px 0 #111; opacity:0; transition:opacity 1s ease .3s; }
   #logoFallback.in{ opacity:1; }
   /* ---- "all frequencies reserved" line pinned to the BOTTOM ---- */
-  #foot{ position:fixed; left:0; right:0; bottom:2.2vh; z-index:5; display:flex; justify-content:center; pointer-events:none; }
+  #foot{ position:fixed; left:0; right:0; bottom:2.2vh; z-index:5; display:flex; flex-direction:column; align-items:center; gap:5px; justify-content:center; pointer-events:none; }
   #tag{ font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:#8a8290;
     opacity:0; transition:opacity 1s ease .5s; }
   #tag.in{ opacity:.85; }
+  #studioLink{ font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:#8a8290;
+    text-decoration:none; cursor:pointer; pointer-events:auto;               /* clickable even though #foot is pointer-events:none */
+    opacity:0; transition:opacity 1s ease .5s, color .15s ease, font-weight .15s ease; }
+  #studioLink.in{ opacity:.85; }
+  #studioLink:hover{ font-weight:700; color:#4a4652; }                        /* hover → bold + darker */
 
   /* ---- world icons: animated pixel-art characters; the comic bubble appears only ON HOVER ---- */
   .orb{ position:fixed; z-index:6; left:0; top:0; width:128px; display:flex; justify-content:center;
@@ -393,7 +398,7 @@
     <div class="think" role="img" aria-label="tape is ready — listen to the beAH!ts"></div>
   </a>
 
-  <footer id="foot"><div id="tag">ah! All Frequencies Reserved.</div></footer>
+  <footer id="foot"><a id="studioLink" href="AH-Sprite-Studio.html">AH! Studio</a><div id="tag">All Frequencies Reserved</div></footer>
 
   <!-- reveal veil + worlds -->
   <div id="reveal" aria-hidden="true"></div>
@@ -542,7 +547,7 @@
   logo.onload=function(){ logoFb.style.display='none'; logo.classList.add('in'); if(window._sizeHero)window._sizeHero(); };
   logo.onerror=function(){ logo.style.display='none'; logoFb.classList.add('in'); if(window._sizeHero)window._sizeHero(); };
   logo.src='assets/logo_t.png';
-  setTimeout(function(){ ['tag','soil'].forEach(function(id,i){
+  setTimeout(function(){ ['studioLink','tag','soil'].forEach(function(id,i){
     setTimeout(function(){ var e=document.getElementById(id); if(e) e.classList.add('in'); }, i*150); }); }, 400);
 
   /* pointer / gyro parallax */
