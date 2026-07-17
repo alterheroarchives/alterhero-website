@@ -16,7 +16,7 @@
   header b span{color:var(--accent)}
   header .hint{color:var(--dim);font-size:11px}
   .row{display:flex;min-height:0}
-  .top{height:46%;border-bottom:1px solid var(--line)}
+  .top{height:56%;border-bottom:1px solid var(--line)}   /* taller → PREVIEW/EDITOR window is squarer */
   .bottom{flex:1}
   .panel{border-right:1px solid var(--line);display:flex;flex-direction:column;min-width:0;min-height:0}
   .panel:last-child{border-right:0}
@@ -30,6 +30,27 @@
   #previewCanvas{image-rendering:pixelated;position:absolute}   /* positioned at INTEGER coords by drawPreview — no half-pixel blur */
   .previewbar{display:flex;gap:8px;align-items:center;padding:6px 10px;border-top:1px solid var(--line);color:var(--dim);font-size:11px}
   .previewbar input[type=range]{flex:1}
+  /* PREVIEW / EDITOR tabs + pixel EDITOR */
+  .vtabs{display:inline-flex;gap:4px;align-items:center}
+  .vtab{cursor:pointer;color:var(--dim)}
+  .vtab.on{color:var(--accent)}
+  .vsep{color:var(--line)}
+  #editorWrap{position:absolute;inset:0;display:none;flex-direction:column;z-index:2}
+  #preview.editing #editorWrap{display:flex}
+  #preview.editing .previewbar{display:none}
+  #editScroll{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:14px;
+    background-color:#fff;
+    background-image:linear-gradient(45deg,#0000 25%,#0000000d 0 75%,#0000 0),linear-gradient(45deg,#0000 25%,#0000000d 0 75%,#0000 0);
+    background-size:16px 16px;background-position:0 0,8px 8px}
+  #editCanvas{image-rendering:pixelated;touch-action:none;cursor:crosshair;box-shadow:0 0 0 1px #0003;flex:none}
+  #editTools{display:flex;gap:4px;align-items:center;padding:5px 7px;border-top:1px solid var(--line);background:#191822;flex-wrap:wrap}
+  .etool{width:27px;height:24px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:4px;background:#0e0d13;color:var(--ink);cursor:pointer;font-size:13px;padding:0;line-height:1}
+  .etool.on{border-color:var(--accent);color:var(--accent);background:#ffb0381a}
+  .etool:disabled{opacity:.3;cursor:default}
+  #editColor{width:27px;height:24px;padding:0;border:1px solid var(--line);border-radius:4px;background:none;cursor:pointer}
+  #editZoom{background:#0e0d13;color:var(--ink);border:1px solid var(--line);border-radius:4px;font:inherit;font-size:11px;padding:2px 3px}
+  .ebtn{border:1px solid var(--line);border-radius:4px;background:#0e0d13;color:var(--dim);font:inherit;font-size:11px;padding:3px 8px;cursor:pointer}
+  .ebtn:hover{border-color:var(--accent);color:var(--accent)}
   /* PROJECT / files */
   #project{flex:.85}
   .addbtn{border:1px dashed var(--line);border-radius:6px;padding:14px;text-align:center;color:var(--dim);cursor:pointer;transition:.15s}
@@ -127,8 +148,27 @@
 
 <div class="row top">
   <section class="panel" id="preview">
-    <div class="ptitle">PREVIEW <span id="pvinfo" class="muted"></span></div>
-    <div class="stage"><canvas id="previewCanvas" width="64" height="64"></canvas></div>
+    <div class="ptitle"><span class="vtabs"><span class="vtab on" id="tabPreview">PREVIEW</span><span class="vsep">·</span><span class="vtab" id="tabEditor">EDITOR</span></span> <span id="pvinfo" class="muted"></span></div>
+    <div class="stage"><canvas id="previewCanvas" width="64" height="64"></canvas>
+      <div id="editorWrap">
+        <div id="editScroll"><canvas id="editCanvas" width="32" height="32"></canvas></div>
+        <div id="editTools">
+          <button class="etool on" id="tBrush" title="Pixel brush">✏️</button>
+          <button class="etool" id="tEraser" title="Eraser">🧽</button>
+          <input type="color" id="editColor" value="#e24b4a" title="Color wheel">
+          <button class="etool" id="tEye" title="Eyedropper — tap a pixel to pick its color">🩸</button>
+          <span class="vsep">|</span>
+          <button class="etool" id="tUndo" title="Undo" disabled>↶</button>
+          <button class="etool" id="tRedo" title="Redo" disabled>↷</button>
+          <span class="vsep">|</span>
+          <select id="editZoom" title="Zoom">
+            <option value="1">100%</option><option value="4">400%</option><option value="8" selected>800%</option><option value="16">1600%</option>
+          </select>
+          <button class="ebtn" id="editNew">New</button>
+          <button class="ebtn" id="editSave">Save to library ▸</button>
+        </div>
+      </div>
+    </div>
     <div class="previewbar">
       <span id="pvframe">–</span>
       <input id="scrub" type="range" min="0" max="0" value="0">
@@ -180,7 +220,7 @@
   </section>
 
   <section class="panel" id="timeline">
-    <div class="ptitle">TIMELINE <span class="muted">— drag frames here to build the animation</span></div>
+    <div class="ptitle"><span>TIMELINE <span class="muted">— drag frames here to build the animation</span></span><button id="saveProject" class="ebtn" title="Save this project (library + timeline + settings) in the browser">💾 SAVE PROJECT</button></div>
     <div class="pbody" style="display:flex;padding:0">
       <div class="tlwrap">
         <div class="ruler" id="ruler"></div>
@@ -692,10 +732,13 @@
   function saveLibrary(){
     var lib={ folders:S.folders.map(function(fo){ return {id:fo.id,name:fo.name,open:fo.open}; }),
       files:S.files.map(function(f){ return {name:f.name,url:f.url,folderId:f.folderId||null,
-        frameW:f.frameW,frameH:f.frameH,sliced:f.frames.length>0}; }) };
-    var el=$('#saveLib');
+        frameW:f.frameW,frameH:f.frameH,sliced:f.frames.length>0}; }),
+      timeline:S.timeline.map(function(t){ var f=fileById(t.fileId); return f?{name:f.name,frame:t.frame}:null; }).filter(Boolean),
+      settings:{ fps:S.fps, name:S.name, anchor:S.anchor||'middle' } };
+    var el=$('#saveLib'), pb=$('#saveProject');
     try{ localStorage.setItem('ahSpriteLib', JSON.stringify(lib));
-      el.textContent='✓ saved'; setTimeout(function(){ el.textContent='💾 save'; },1400); }
+      if(el){ el.textContent='✓ saved'; setTimeout(function(){ el.textContent='💾 save'; },1400); }
+      if(pb){ var o=pb.textContent; pb.textContent='✓ saved'; setTimeout(function(){ pb.textContent=o; },1400); } }
     catch(e){ alert('Save failed — the library is too big for browser storage.\n'+e.message); }
   }
   function restoreLibrary(){
@@ -709,10 +752,73 @@
         if(sf.sliced) sliceFile(f,sf.frameW,sf.frameH);
       }); });
     });
-    chain.then(function(){ S.curFolder=null; renderFiles(); renderBrowser(); });
+    chain.then(function(){
+      if(lib.settings){ S.fps=lib.settings.fps||12; if($('#fps'))$('#fps').value=S.fps;
+        S.name=lib.settings.name||'animation'; if($('#animName'))$('#animName').value=S.name;
+        S.anchor=lib.settings.anchor||'middle'; }
+      (lib.timeline||[]).forEach(function(t){ var f=S.files.filter(function(g){return g.name===t.name;})[0]; if(f) S.timeline.push({fileId:f.id,frame:t.frame}); });
+      S.curFolder=null; renderFiles(); renderBrowser(); if(typeof renderTimeline==='function') renderTimeline();
+    });
   }
   $('#saveLib').onclick=saveLibrary;
+  $('#saveProject').onclick=saveLibrary;
   restoreLibrary();
+
+  /* ---------- PREVIEW / EDITOR view toggle ---------- */
+  function setView(v){ S.view=v;
+    $('#preview').classList.toggle('editing', v==='editor');
+    $('#tabPreview').classList.toggle('on', v==='preview');
+    $('#tabEditor').classList.toggle('on', v==='editor');
+    if(v==='preview') drawPreview();
+  }
+  $('#tabPreview').onclick=function(){ setView('preview'); };
+  $('#tabEditor').onclick=function(){ setView('editor'); };
+
+  /* ---------- PIXEL EDITOR (pointer = works with iPad touch / Apple Pencil) ---------- */
+  var ED={ cv:$('#editCanvas'), w:32, h:32, scale:8, tool:'brush', color:'#e24b4a', drawing:false, lastX:-1, lastY:-1, undo:[], redo:[] };
+  ED.ctx=ED.cv.getContext('2d');
+  function edApplyZoom(){ ED.cv.style.width=(ED.w*ED.scale)+'px'; ED.cv.style.height=(ED.h*ED.scale)+'px'; }
+  function edNew(w,h){ ED.w=w; ED.h=h; ED.cv.width=w; ED.cv.height=h; ED.ctx=ED.cv.getContext('2d');
+    ED.ctx.imageSmoothingEnabled=false; ED.ctx.clearRect(0,0,w,h); ED.undo=[]; ED.redo=[]; edApplyZoom(); edUpdateUndo(); }
+  function edSnap(){ return ED.ctx.getImageData(0,0,ED.w,ED.h); }
+  function edPushUndo(){ ED.undo.push(edSnap()); if(ED.undo.length>50) ED.undo.shift(); ED.redo=[]; edUpdateUndo(); }
+  function edUpdateUndo(){ $('#tUndo').disabled=!ED.undo.length; $('#tRedo').disabled=!ED.redo.length; }
+  function edUndo(){ if(!ED.undo.length)return; ED.redo.push(edSnap()); ED.ctx.putImageData(ED.undo.pop(),0,0); edUpdateUndo(); }
+  function edRedo(){ if(!ED.redo.length)return; ED.undo.push(edSnap()); ED.ctx.putImageData(ED.redo.pop(),0,0); edUpdateUndo(); }
+  function edPixel(clientX,clientY){ var r=ED.cv.getBoundingClientRect(); if(!r.width) return null;
+    var px=Math.floor((clientX-r.left)/(r.width/ED.w)), py=Math.floor((clientY-r.top)/(r.height/ED.h));
+    return (px<0||py<0||px>=ED.w||py>=ED.h)?null:{x:px,y:py}; }
+  function edPaint(px,py){ if(ED.tool==='eraser') ED.ctx.clearRect(px,py,1,1);
+    else { ED.ctx.fillStyle=ED.color; ED.ctx.fillRect(px,py,1,1); } }
+  function edLine(x0,y0,x1,y1){ var dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1,e=dx-dy;
+    while(true){ edPaint(x0,y0); if(x0===x1&&y0===y1)break; var e2=2*e; if(e2>-dy){e-=dy;x0+=sx;} if(e2<dx){e+=dx;y0+=sy;} } }
+  function edSetColor(hex){ ED.color=hex; $('#editColor').value=hex; }
+  function edSetTool(t){ ED.tool=t;
+    $('#tBrush').classList.toggle('on',t==='brush'); $('#tEraser').classList.toggle('on',t==='eraser'); $('#tEye').classList.toggle('on',t==='eye'); }
+  function edEyedrop(px,py){ var d=ED.ctx.getImageData(px,py,1,1).data;
+    if(d[3]>0) edSetColor('#'+[d[0],d[1],d[2]].map(function(n){return('0'+n.toString(16)).slice(-2);}).join(''));
+    edSetTool('brush'); }
+  ED.cv.addEventListener('pointerdown',function(e){ e.preventDefault(); var p=edPixel(e.clientX,e.clientY); if(!p)return;
+    if(ED.tool==='eye'){ edEyedrop(p.x,p.y); return; }
+    edPushUndo(); ED.drawing=true; ED.lastX=p.x; ED.lastY=p.y; edPaint(p.x,p.y);
+    try{ ED.cv.setPointerCapture(e.pointerId); }catch(err){} });
+  ED.cv.addEventListener('pointermove',function(e){ if(!ED.drawing)return; e.preventDefault(); var p=edPixel(e.clientX,e.clientY); if(!p)return;
+    edLine(ED.lastX,ED.lastY,p.x,p.y); ED.lastX=p.x; ED.lastY=p.y; });
+  function edEnd(){ ED.drawing=false; }
+  ED.cv.addEventListener('pointerup',edEnd); ED.cv.addEventListener('pointercancel',edEnd);
+  $('#tBrush').onclick=function(){ edSetTool('brush'); };
+  $('#tEraser').onclick=function(){ edSetTool('eraser'); };
+  $('#tEye').onclick=function(){ edSetTool('eye'); };
+  $('#editColor').oninput=function(e){ edSetColor(e.target.value); if(ED.tool==='eraser') edSetTool('brush'); };
+  $('#tUndo').onclick=edUndo; $('#tRedo').onclick=edRedo;
+  $('#editZoom').onchange=function(e){ ED.scale=+e.target.value; edApplyZoom(); };
+  $('#editNew').onclick=function(){ var s=prompt('New canvas size in pixels (e.g. 16, 32, 64):','32'); if(!s)return;
+    var n=Math.max(1,Math.min(256,parseInt(s,10)||32)); edNew(n,n); };
+  $('#editSave').onclick=function(){ var nm=prompt('Save drawing to library as:','drawing.png'); if(!nm)return;
+    if(!/\.png$/i.test(nm)) nm+='.png'; loadImage(ED.cv.toDataURL('image/png'), nm); setView('preview'); };
+  edNew(32,32);
+  window.addEventListener('keydown',function(e){ if(S.view!=='editor')return;
+    if((e.metaKey||e.ctrlKey)&&(e.key==='z'||e.key==='Z')){ e.preventDefault(); if(e.shiftKey)edRedo(); else edUndo(); } });
 
   /* ---------- wire controls ---------- */
   $('#addbtn').onclick=function(){ $('#fileInput').click(); };
@@ -747,12 +853,13 @@
     e.preventDefault(); if(e.target===fl) moveFile(+e.dataTransfer.getData('text/movefile'), null); });
   $('#exportBtn').onclick=doExport;
   window.addEventListener('resize',drawPreview);
-  window.addEventListener('keydown',function(e){ if(e.code==='Space' && e.target.tagName!=='INPUT'){ e.preventDefault(); play(); } });
+  window.addEventListener('keydown',function(e){ if(e.code==='Space' && e.target.tagName!=='INPUT' && S.view!=='editor'){ e.preventDefault(); play(); } });
 
   /* ---------- test API (used for automated verification; harmless) ---------- */
   window.STUDIO={ S:S, loadImage:loadImage, slice:function(id,w,h){return sliceFile(fileById(id),w,h)},
     addToTimeline:addToTimeline, setFps:function(n){S.fps=n;$('#fps').value=n;}, setName:function(n){S.name=n;$('#animName').value=n;},
     buildExport:buildExport, fileById:fileById, renderFiles:renderFiles, moveFile:moveFile,
-    saveLibrary:saveLibrary, timelineCanvases:timelineCanvases, apngBytes:apngBytes, drawPreview:drawPreview };
+    saveLibrary:saveLibrary, timelineCanvases:timelineCanvases, apngBytes:apngBytes, drawPreview:drawPreview,
+    setView:setView, ED:ED, edNew:edNew, edPaint:edPaint, edSetTool:edSetTool, edSetColor:edSetColor, edUndo:edUndo, edRedo:edRedo };
 })();
 </script>
