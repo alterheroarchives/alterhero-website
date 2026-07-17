@@ -769,6 +769,7 @@
     $('#preview').classList.toggle('editing', v==='editor');
     $('#tabPreview').classList.toggle('on', v==='preview');
     $('#tabEditor').classList.toggle('on', v==='editor');
+    if(v==='editor') edLoadFrame(currentFrameRef());     // EDITOR edits the SAME frame shown in PREVIEW
     if(v==='preview') drawPreview();
   }
   $('#tabPreview').onclick=function(){ setView('preview'); };
@@ -780,6 +781,30 @@
   function edApplyZoom(){ ED.cv.style.width=(ED.w*ED.scale)+'px'; ED.cv.style.height=(ED.h*ED.scale)+'px'; }
   function edNew(w,h){ ED.w=w; ED.h=h; ED.cv.width=w; ED.cv.height=h; ED.ctx=ED.cv.getContext('2d');
     ED.ctx.imageSmoothingEnabled=false; ED.ctx.clearRect(0,0,w,h); ED.undo=[]; ED.redo=[]; edApplyZoom(); edUpdateUndo(); }
+  /* the frame currently shown in PREVIEW (timeline playhead), or the selected file's first frame */
+  function currentFrameRef(){ var t=S.timeline[S.playhead]; if(t && fileById(t.fileId)) return {fileId:t.fileId, frame:t.frame};
+    var f=fileById(S.selId); if(f && f.frames.length) return {fileId:f.id, frame:0}; return null; }
+  /* load that frame's pixels into the editor canvas so the Pencil edits the real sprite */
+  function edLoadFrame(ref){
+    if(!ref){ ED.target=null; updateSaveLabel(); return false; }
+    var f=fileById(ref.fileId), fr=f&&f.frames[ref.frame]; if(!fr){ ED.target=null; updateSaveLabel(); return false; }
+    ED.target={fileId:ref.fileId, frame:ref.frame};
+    edNew(fr.sw, fr.sh);                                                    // size the canvas to the frame
+    ED.ctx.drawImage(f.img, fr.sx,fr.sy,fr.sw,fr.sh, 0,0,fr.sw,fr.sh);       // draw the frame in
+    ED.undo=[]; ED.redo=[]; edUpdateUndo(); updateSaveLabel(); return true;
+  }
+  /* write the edited pixels BACK into the sheet at the frame's spot, update the file */
+  function edSaveToFrame(){
+    var t=ED.target; if(!t) return false;
+    var f=fileById(t.fileId), fr=f&&f.frames[t.frame]; if(!fr) return false;
+    var sc=document.createElement('canvas'); sc.width=f.img.width; sc.height=f.img.height;
+    var x=sc.getContext('2d'); x.imageSmoothingEnabled=false;
+    x.drawImage(f.img,0,0); x.clearRect(fr.sx,fr.sy,fr.sw,fr.sh); x.drawImage(ED.cv,fr.sx,fr.sy);
+    var url=sc.toDataURL('image/png'), img=new Image();
+    img.onload=function(){ f.img=img; f.url=url; sliceFile(f,f.frameW,f.frameH); renderFiles(); renderBrowser(); drawPreview(); };
+    img.src=url; return true;
+  }
+  function updateSaveLabel(){ var b=$('#editSave'); if(b) b.textContent = ED.target ? 'Save frame ▸' : 'Save to library ▸'; }
   function edSnap(){ return ED.ctx.getImageData(0,0,ED.w,ED.h); }
   function edPushUndo(){ ED.undo.push(edSnap()); if(ED.undo.length>50) ED.undo.shift(); ED.redo=[]; edUpdateUndo(); }
   function edUpdateUndo(){ $('#tUndo').disabled=!ED.undo.length; $('#tRedo').disabled=!ED.redo.length; }
@@ -812,9 +837,11 @@
   $('#editColor').oninput=function(e){ edSetColor(e.target.value); if(ED.tool==='eraser') edSetTool('brush'); };
   $('#tUndo').onclick=edUndo; $('#tRedo').onclick=edRedo;
   $('#editZoom').onchange=function(e){ ED.scale=+e.target.value; edApplyZoom(); };
-  $('#editNew').onclick=function(){ var s=prompt('New canvas size in pixels (e.g. 16, 32, 64):','32'); if(!s)return;
-    var n=Math.max(1,Math.min(256,parseInt(s,10)||32)); edNew(n,n); };
-  $('#editSave').onclick=function(){ var nm=prompt('Save drawing to library as:','drawing.png'); if(!nm)return;
+  $('#editNew').onclick=function(){ var s=prompt('New blank canvas size in pixels (e.g. 16, 32, 64):','32'); if(!s)return;
+    var n=Math.max(1,Math.min(256,parseInt(s,10)||32)); edNew(n,n); ED.target=null; updateSaveLabel(); };
+  $('#editSave').onclick=function(){
+    if(ED.target){ edSaveToFrame(); setView('preview'); return; }               // save edits back to the current frame
+    var nm=prompt('Save drawing to library as:','drawing.png'); if(!nm)return;   // (blank canvas) → new PNG
     if(!/\.png$/i.test(nm)) nm+='.png'; loadImage(ED.cv.toDataURL('image/png'), nm); setView('preview'); };
   edNew(32,32);
   window.addEventListener('keydown',function(e){ if(S.view!=='editor')return;
@@ -860,6 +887,7 @@
     addToTimeline:addToTimeline, setFps:function(n){S.fps=n;$('#fps').value=n;}, setName:function(n){S.name=n;$('#animName').value=n;},
     buildExport:buildExport, fileById:fileById, renderFiles:renderFiles, moveFile:moveFile,
     saveLibrary:saveLibrary, timelineCanvases:timelineCanvases, apngBytes:apngBytes, drawPreview:drawPreview,
-    setView:setView, ED:ED, edNew:edNew, edPaint:edPaint, edSetTool:edSetTool, edSetColor:edSetColor, edUndo:edUndo, edRedo:edRedo };
+    setView:setView, ED:ED, edNew:edNew, edPaint:edPaint, edSetTool:edSetTool, edSetColor:edSetColor, edUndo:edUndo, edRedo:edRedo,
+    currentFrameRef:currentFrameRef, edLoadFrame:edLoadFrame, edSaveToFrame:edSaveToFrame };
 })();
 </script>
