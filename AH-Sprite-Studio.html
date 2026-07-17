@@ -283,7 +283,7 @@
     return new Promise(function(res){
       var img=new Image();
       img.onload=function(){
-        var f={id:++uid, name:name||('sheet'+uid+'.png'), url:dataURL, img:img, folderId:S.curFolder,
+        var f={id:++uid, name:name||('sheet'+uid+'.png'), url:dataURL, original:dataURL, modified:false, img:img, folderId:S.curFolder,
                frameW:guessSize(img.width), frameH:guessSize(img.height), frames:[], open:true};
         S.files.push(f); S.selId=f.id; renderFiles(); renderBrowser(); res(f.id);
       };
@@ -342,7 +342,7 @@
     if(folderId){ var fo=S.folders.filter(function(x){return x.id===folderId})[0]; if(fo) fo.open=true; }
     renderFiles();
   }
-  function renderFiles(){
+  function renderFiles(){ markDirty();
     var wrap=$('#flist'); wrap.innerHTML='';
     function fileRow(f,indent){
       var row=document.createElement('div'); row.className='frow'+(f.id===S.selId?' sel':'');
@@ -391,10 +391,13 @@
     var head=document.createElement('div'); head.className='bhead';
     var caret=document.createElement('span'); caret.className='caret'; caret.textContent=f.open?'▽':'▷';
     caret.onclick=function(){ f.open=!f.open; renderBrowser(); };
-    var nm=document.createElement('div'); nm.className='fname'; nm.textContent=f.name;
+    var nm=document.createElement('div'); nm.className='fname'; nm.innerHTML=f.name+(f.modified?' <span style="color:var(--accent2);font-size:10px">· edited</span>':'');
     var sl=document.createElement('button'); sl.className='sliceBtn'; sl.textContent=f.frames.length?'Re-slice':'Slice ▸';
     sl.onclick=function(){ openEditor(f); };
     head.appendChild(caret); head.appendChild(nm);
+    if(f.modified){ var rv=document.createElement('button'); rv.className='btn'; rv.style.cssText='padding:4px 8px;font-size:11px;flex:none';
+      rv.title='Restore the original PNG'; rv.textContent='↺ original';
+      rv.onclick=function(){ if(confirm('Restore the original '+f.name+'? The edited version will be replaced.')) revertToOriginal(f); }; head.appendChild(rv); }
     if(f.frames.length){
       var anyOff=f.frames.some(function(q){return !q.empty && !q.use});
       var selAll=document.createElement('button'); selAll.className='btn';
@@ -516,7 +519,7 @@
 
   /* ---------- TIMELINE ---------- */
   function addToTimeline(fileId,idx){ S.timeline.push({fileId:fileId,frame:idx}); renderTimeline(); if(!S.playing) setPlayhead(S.timeline.length-1); }
-  function renderTimeline(){
+  function renderTimeline(){ markDirty();
     var track=$('#track'); track.innerHTML='';
     $('#samples').value=S.timeline.length; $('#pvcount').textContent=S.timeline.length;
     $('#scrub').max=Math.max(0,S.timeline.length-1);
@@ -728,27 +731,46 @@
     setTimeout(function(){ $('#exCopy').textContent='⧉ Copy'; $('#exCopy').classList.remove('copied'); },1400); };
   $('#exClose').onclick=function(){ $('#exOverlay').classList.remove('on'); };
 
-  /* ---------- save / restore the PNG library (browser localStorage) ---------- */
-  function saveLibrary(){
-    var lib={ folders:S.folders.map(function(fo){ return {id:fo.id,name:fo.name,open:fo.open}; }),
-      files:S.files.map(function(f){ return {name:f.name,url:f.url,folderId:f.folderId||null,
-        frameW:f.frameW,frameH:f.frameH,sliced:f.frames.length>0}; }),
+  /* ---------- persistence: AUTO-SAVE the whole project to IndexedDB (survives refresh, large quota) ---------- */
+  var IDB=(function(){ var dbp=null;
+    function open(){ if(dbp) return dbp; dbp=new Promise(function(res,rej){
+      var r=indexedDB.open('ahSpriteStudio',1);
+      r.onupgradeneeded=function(){ r.result.createObjectStore('kv'); };
+      r.onsuccess=function(){ res(r.result); }; r.onerror=function(){ rej(r.error); }; }); return dbp; }
+    return { set:function(k,v){ return open().then(function(db){ return new Promise(function(res,rej){
+        var tx=db.transaction('kv','readwrite'); tx.objectStore('kv').put(v,k);
+        tx.oncomplete=function(){res();}; tx.onerror=function(){rej(tx.error);}; }); }); },
+      get:function(k){ return open().then(function(db){ return new Promise(function(res,rej){
+        var tx=db.transaction('kv','readonly'), q=tx.objectStore('kv').get(k);
+        q.onsuccess=function(){res(q.result);}; q.onerror=function(){rej(q.error);}; }); }); } };
+  })();
+  function buildProject(){                                    // KEEPS both original + current(modified) PNG per file
+    return { folders:S.folders.map(function(fo){ return {id:fo.id,name:fo.name,open:fo.open}; }),
+      files:S.files.map(function(f){ return {name:f.name,url:f.url,original:f.original||f.url,modified:!!f.modified,
+        folderId:f.folderId||null,frameW:f.frameW,frameH:f.frameH,sliced:f.frames.length>0}; }),
       timeline:S.timeline.map(function(t){ var f=fileById(t.fileId); return f?{name:f.name,frame:t.frame}:null; }).filter(Boolean),
       settings:{ fps:S.fps, name:S.name, anchor:S.anchor||'middle' } };
-    var el=$('#saveLib'), pb=$('#saveProject');
-    try{ localStorage.setItem('ahSpriteLib', JSON.stringify(lib));
-      if(el){ el.textContent='✓ saved'; setTimeout(function(){ el.textContent='💾 save'; },1400); }
-      if(pb){ var o=pb.textContent; pb.textContent='✓ saved'; setTimeout(function(){ pb.textContent=o; },1400); } }
-    catch(e){ alert('Save failed — the library is too big for browser storage.\n'+e.message); }
   }
-  function restoreLibrary(){
-    var raw=localStorage.getItem('ahSpriteLib'); if(!raw) return;
-    var lib; try{ lib=JSON.parse(raw); }catch(e){ return; }
+  var _saveT=null;
+  function markDirty(){ if(!S.ready) return; clearTimeout(_saveT);   // debounced auto-save on any change
+    _saveT=setTimeout(function(){ IDB.set('project',buildProject()).catch(function(){}); },700); }
+  function saveLibrary(){ var el=$('#saveLib'), pb=$('#saveProject');
+    IDB.set('project',buildProject()).then(function(){
+      if(el){ el.textContent='✓ saved'; setTimeout(function(){ el.textContent='💾 save'; },1400); }
+      if(pb){ var o=pb.textContent; pb.textContent='✓ saved'; setTimeout(function(){ pb.textContent=o; },1400); }
+    }).catch(function(e){ alert('Save failed: '+(e&&e.message||e)); }); }
+  function revertToOriginal(f){ if(!f||!f.original) return;      // restore the untouched PNG
+    var img=new Image(); img.onload=function(){ f.img=img; f.url=f.original; f.modified=false;
+      sliceFile(f,f.frameW,f.frameH); renderFiles(); renderBrowser(); drawPreview(); markDirty(); };
+    img.src=f.original; }
+  function applyProject(lib){
+    if(!lib){ S.ready=true; return; }
     (lib.folders||[]).forEach(function(fo){ S.folders.push(fo); if(fo.id>uid) uid=fo.id; });
     var chain=Promise.resolve();
     (lib.files||[]).forEach(function(sf){
       chain=chain.then(function(){ return loadImage(sf.url, sf.name).then(function(id){
         var f=fileById(id); f.folderId=sf.folderId||null; f.frameW=sf.frameW; f.frameH=sf.frameH;
+        f.original=sf.original||sf.url; f.modified=!!sf.modified;
         if(sf.sliced) sliceFile(f,sf.frameW,sf.frameH);
       }); });
     });
@@ -758,10 +780,20 @@
         S.anchor=lib.settings.anchor||'middle'; }
       (lib.timeline||[]).forEach(function(t){ var f=S.files.filter(function(g){return g.name===t.name;})[0]; if(f) S.timeline.push({fileId:f.id,frame:t.frame}); });
       S.curFolder=null; renderFiles(); renderBrowser(); if(typeof renderTimeline==='function') renderTimeline();
+      S.ready=true;
     });
+  }
+  function restoreLibrary(){
+    IDB.get('project').then(function(lib){
+      if(lib){ applyProject(lib); return; }
+      var raw=localStorage.getItem('ahSpriteLib');            // migrate an old localStorage save, if any
+      if(raw){ try{ applyProject(JSON.parse(raw)); }catch(e){ S.ready=true; } } else S.ready=true;
+    }).catch(function(){ S.ready=true; });
   }
   $('#saveLib').onclick=saveLibrary;
   $('#saveProject').onclick=saveLibrary;
+  window.addEventListener('pagehide',function(){ if(S.ready) IDB.set('project',buildProject()).catch(function(){}); });
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='hidden'&&S.ready) IDB.set('project',buildProject()).catch(function(){}); });
   restoreLibrary();
 
   /* ---------- PREVIEW / EDITOR view toggle ---------- */
@@ -801,7 +833,7 @@
     var x=sc.getContext('2d'); x.imageSmoothingEnabled=false;
     x.drawImage(f.img,0,0); x.clearRect(fr.sx,fr.sy,fr.sw,fr.sh); x.drawImage(ED.cv,fr.sx,fr.sy);
     var url=sc.toDataURL('image/png'), img=new Image();
-    img.onload=function(){ f.img=img; f.url=url; sliceFile(f,f.frameW,f.frameH); renderFiles(); renderBrowser(); drawPreview(); };
+    img.onload=function(){ f.img=img; f.url=url; f.modified=true; sliceFile(f,f.frameW,f.frameH); renderFiles(); renderBrowser(); drawPreview(); markDirty(); };
     img.src=url; return true;
   }
   function updateSaveLabel(){ var b=$('#editSave'); if(b) b.textContent = ED.target ? 'Save frame ▸' : 'Save to library ▸'; }
@@ -888,6 +920,7 @@
     buildExport:buildExport, fileById:fileById, renderFiles:renderFiles, moveFile:moveFile,
     saveLibrary:saveLibrary, timelineCanvases:timelineCanvases, apngBytes:apngBytes, drawPreview:drawPreview,
     setView:setView, ED:ED, edNew:edNew, edPaint:edPaint, edSetTool:edSetTool, edSetColor:edSetColor, edUndo:edUndo, edRedo:edRedo,
-    currentFrameRef:currentFrameRef, edLoadFrame:edLoadFrame, edSaveToFrame:edSaveToFrame };
+    currentFrameRef:currentFrameRef, edLoadFrame:edLoadFrame, edSaveToFrame:edSaveToFrame,
+    IDB:IDB, buildProject:buildProject, revertToOriginal:revertToOriginal, markDirty:markDirty };
 })();
 </script>
