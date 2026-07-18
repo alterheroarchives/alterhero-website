@@ -399,6 +399,23 @@
     fo.parentId=targetId||null;
     renderFiles();
   }
+  function collectDescendantFolderIds(id){
+    var out=[id];
+    S.folders.filter(function(x){return x.parentId===id;}).forEach(function(x){ out=out.concat(collectDescendantFolderIds(x.id)); });
+    return out;
+  }
+  function deleteFolder(id){
+    var fo=S.folders.filter(function(x){return x.id===id;})[0]; if(!fo || fo.fromLibrary) return;
+    var ids=collectDescendantFolderIds(id);
+    var fileCount=S.files.filter(function(f){return ids.indexOf(f.folderId)>=0;}).length;
+    var msg='Delete "'+fo.name+'"'+(ids.length>1?' and '+(ids.length-1)+' subfolder'+(ids.length>2?'s':''):'')+
+      (fileCount?' — '+fileCount+' file'+(fileCount===1?'':'s')+' inside will be removed too':'')+'?';
+    if(!confirm(msg)) return;
+    S.files=S.files.filter(function(f){ if(ids.indexOf(f.folderId)>=0){ S.timeline=S.timeline.filter(function(t){return t.fileId!==f.id;}); if(S.selId===f.id) S.selId=null; return false; } return true; });
+    S.folders=S.folders.filter(function(x){return ids.indexOf(x.id)<0;});
+    if(ids.indexOf(S.curFolder)>=0) S.curFolder=null;
+    renderFiles(); renderBrowser(); renderTimeline();
+  }
   function renderFiles(){ markDirty();
     var wrap=$('#flist'); wrap.innerHTML='';
     function fileRow(f,depth){
@@ -444,6 +461,12 @@
       if(!fo.fromLibrary){
         h.draggable=true;
         h.ondragstart=function(e){ e.stopPropagation(); e.dataTransfer.setData('text/movefolder', String(fo.id)); };
+        h.ondblclick=function(e){ e.stopPropagation(); var nn=prompt('Rename folder', fo.name); if(nn && nn.trim()){ fo.name=nn.trim(); renderFiles(); } };
+        var fx=document.createElement('div'); fx.className='x'; fx.textContent='✕'; fx.title='Delete folder';
+        fx.onclick=function(e){ e.stopPropagation(); deleteFolder(fo.id); };
+        h.appendChild(fx);
+      } else {
+        h.title='From your asset library (assets/sprites/) — ask Claude to rename or remove it on disk so the change sticks here too.';
       }
       return h;
     }
