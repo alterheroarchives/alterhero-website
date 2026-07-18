@@ -12,6 +12,13 @@
         "frameW": 32,
         "frameH": 64
       }
+    ],
+    "WalkBoy": [
+      {
+        "file": "wb-idle.png",
+        "frameW": 32,
+        "frameH": 64
+      }
     ]
   }
 }
