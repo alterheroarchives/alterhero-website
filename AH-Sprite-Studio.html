@@ -68,9 +68,6 @@
   .frow .x:hover{color:var(--danger);background:#fff1}
   .frow .dl{color:var(--dim);flex:none;padding:0 4px;border-radius:3px}
   .frow .dl:hover{color:var(--accent2);background:#fff1}
-  .libsection{margin-top:14px;padding-top:10px;border-top:1px dashed var(--line)}
-  .libhead{font-size:10px;letter-spacing:1.5px;color:var(--dim);margin-bottom:6px}
-  .frow.lib{cursor:pointer}
   .frow.lib .nm{color:var(--accent2)}
   /* BROWSER / frames of selected */
   #browser{flex:1.2}
@@ -213,7 +210,7 @@
 
   <div class="rightTop">
   <section class="panel" id="project">
-    <div class="ptitle">PROJECT · FOLDER LIST <span id="saveLib" title="save the PNG library in this browser" style="cursor:pointer;color:var(--accent)">💾 save</span></div>
+    <div class="ptitle">LIBRARY <span id="saveLib" title="save this session in this browser" style="cursor:pointer;color:var(--accent)">💾 save</span></div>
     <div class="pbody">
       <div style="display:flex;gap:6px">
         <div class="addbtn" id="addFolder" style="flex:1">+ FOLDER</div>
@@ -221,10 +218,6 @@
       </div>
       <input type="file" id="fileInput" accept="image/png,image/*" multiple>
       <div class="flist" id="flist"></div>
-      <div class="libsection">
-        <div class="libhead">📚 LIBRARY</div>
-        <div class="flist" id="libList"><div class="muted" style="font-size:10px">loading…</div></div>
-      </div>
     </div>
   </section>
 
@@ -296,14 +289,19 @@
   var S={ files:[], folders:[], curFolder:null, selId:null, timeline:[], fps:12, name:'animation', playhead:0, playing:false, zoom:'auto', grid:true };
 
   /* ---------- load PNGs ---------- */
-  function loadImage(dataURL,name){
+  function loadImage(dataURL,name,opts){
+    opts=opts||{};
     return new Promise(function(res){
       var img=new Image();
       img.onload=function(){
-        var f={id:++uid, name:name||('sheet'+uid+'.png'), url:dataURL, original:dataURL, modified:false, img:img, folderId:S.curFolder,
+        var f={id:++uid, name:name||('sheet'+uid+'.png'), url:dataURL, original:dataURL, modified:false, img:img,
+               folderId:(opts.folderId!==undefined?opts.folderId:S.curFolder), source:opts.source||'local',
                frameW:guessSize(img.width), frameH:guessSize(img.height), frames:[], open:true};
-        S.files.push(f); S.selId=f.id; renderFiles(); renderBrowser(); res(f.id);
+        S.files.push(f);
+        if(!opts.silent){ S.selId=f.id; renderFiles(); renderBrowser(); }
+        res(f.id);
       };
+      img.onerror=function(){ res(null); };
       img.src=dataURL;
     });
   }
@@ -321,54 +319,30 @@
     });
   }
 
-  /* ---------- LIBRARY (assets/sprites/, read from manifest.json — never uploaded) ---------- */
+  /* ---------- LIBRARY (assets/sprites/, read from manifest.json) — ingested as real folders+files, merged into the SAME tree ---------- */
   var LIB_ROOT='assets/sprites/';
-  var libOpen={};
   function loadLibraryManifest(){
     fetch(LIB_ROOT+'manifest.json').then(function(r){ if(!r.ok) throw 0; return r.json(); })
-      .then(renderLibrary)
-      .catch(function(){ var el=$('#libList'); if(el) el.innerHTML='<div class="muted" style="font-size:10px">no library yet</div>'; });
+      .then(ingestLibrary)
+      .catch(function(){});
   }
-  function renderLibrary(manifest){
-    var wrap=$('#libList'); if(!wrap) return; wrap.innerHTML='';
+  function ingestLibrary(manifest){
     var cats=Object.keys(manifest||{});
-    if(!cats.length){ wrap.innerHTML='<div class="muted" style="font-size:10px">no library yet</div>'; return; }
+    var chain=Promise.resolve();
     cats.forEach(function(cat){
-      var chars=manifest[cat]||{}, names=Object.keys(chars);
-      var key='cat:'+cat;
-      var catRow=document.createElement('div'); catRow.className='frow lib';
-      var caret=document.createElement('span'); caret.style.cssText='width:20px;flex:none;text-align:center;color:var(--accent2)';
-      caret.textContent=libOpen[key]?'▽':'▷';
-      var nm=document.createElement('div'); nm.className='nm'; nm.style.fontWeight='bold'; nm.textContent=cat;
-      var meta=document.createElement('div'); meta.className='meta'; meta.textContent=names.length+(names.length===1?' item':' items');
-      catRow.appendChild(caret); catRow.appendChild(nm); catRow.appendChild(meta);
-      catRow.onclick=function(){ libOpen[key]=!libOpen[key]; renderLibrary(manifest); };
-      wrap.appendChild(catRow);
-      if(!libOpen[key]) return;
-      names.forEach(function(name){
-        var files=chars[name]||[], subKey=key+'>'+name;
-        var row=document.createElement('div'); row.className='frow lib'; row.style.marginLeft='16px';
-        var c2=document.createElement('span'); c2.style.cssText='width:20px;flex:none;text-align:center;color:var(--accent2)';
-        c2.textContent=libOpen[subKey]?'▽':'▷';
-        var nm2=document.createElement('div'); nm2.className='nm'; nm2.textContent=name;
-        var meta2=document.createElement('div'); meta2.className='meta'; meta2.textContent=files.length+'fr';
-        row.appendChild(c2); row.appendChild(nm2); row.appendChild(meta2);
-        row.onclick=function(){ libOpen[subKey]=!libOpen[subKey]; renderLibrary(manifest); };
-        wrap.appendChild(row);
-        if(!libOpen[subKey]) return;
-        files.forEach(function(fn){
-          var frow=document.createElement('div'); frow.className='frow lib'; frow.style.marginLeft='32px';
-          var nm3=document.createElement('div'); nm3.className='nm'; nm3.textContent=fn;
-          frow.appendChild(nm3);
-          frow.onclick=function(e){ e.stopPropagation(); importLibraryFile(cat,name,fn); };
-          wrap.appendChild(frow);
+      var catId='lib:'+cat;
+      if(!S.folders.some(function(x){return x.id===catId;})) S.folders.push({id:catId,name:cat,open:false,parentId:null,fromLibrary:true});
+      var chars=manifest[cat]||{};
+      Object.keys(chars).forEach(function(charName){
+        var charId='lib:'+cat+'/'+charName;
+        if(!S.folders.some(function(x){return x.id===charId;})) S.folders.push({id:charId,name:charName,open:false,parentId:catId,fromLibrary:true});
+        (chars[charName]||[]).forEach(function(fn){
+          var url=LIB_ROOT+encodeURIComponent(cat)+'/'+encodeURIComponent(charName)+'/'+encodeURIComponent(fn);
+          chain=chain.then(function(){ return loadImage(url, fn, {folderId:charId, source:'library', silent:true}); });
         });
       });
     });
-  }
-  function importLibraryFile(cat,charName,fileName){
-    var url=LIB_ROOT+encodeURIComponent(cat)+'/'+encodeURIComponent(charName)+'/'+encodeURIComponent(fileName);
-    loadImage(url, fileName);
+    chain.then(function(){ renderFiles(); renderBrowser(); });
   }
 
   /* ---------- slicing ---------- */
@@ -413,11 +387,23 @@
     if(folderId){ var fo=S.folders.filter(function(x){return x.id===folderId})[0]; if(fo) fo.open=true; }
     renderFiles();
   }
+  function moveFolder(folderId, targetId){
+    if(folderId===targetId) return;
+    var fo=S.folders.filter(function(x){return x.id===folderId})[0]; if(!fo || fo.fromLibrary) return;
+    if(targetId!=null){
+      var t=S.folders.filter(function(x){return x.id===targetId})[0], guard=0;
+      while(t && guard++<50){ if(t.id===folderId) return;   // would create a cycle — refuse
+        t=S.folders.filter(function(x){return x.id===t.parentId})[0]; }
+      var tf=S.folders.filter(function(x){return x.id===targetId})[0]; if(tf) tf.open=true;
+    }
+    fo.parentId=targetId||null;
+    renderFiles();
+  }
   function renderFiles(){ markDirty();
     var wrap=$('#flist'); wrap.innerHTML='';
-    function fileRow(f,indent){
-      var row=document.createElement('div'); row.className='frow'+(f.id===S.selId?' sel':'');
-      if(indent) row.style.marginLeft='16px';
+    function fileRow(f,depth){
+      var row=document.createElement('div'); row.className='frow'+(f.id===S.selId?' sel':'')+(f.source==='library'?' lib':'');
+      if(depth) row.style.marginLeft=(depth*16)+'px';
       var tw=document.createElement('canvas'); tw.className='tw';
       var fr0=f.frames[0]||{sx:0,sy:0,sw:Math.min(f.img.width,32),sh:Math.min(f.img.height,32)};
       drawFrame(tw,f,fr0,1); tw.style.width='26px'; tw.style.height='26px';
@@ -437,23 +423,38 @@
       row.ondragstart=function(e){ e.dataTransfer.setData('text/movefile', String(f.id)); };
       return row;
     }
-    S.files.filter(function(f){return !f.folderId}).forEach(function(f){ wrap.appendChild(fileRow(f,false)); });
-    S.folders.forEach(function(fo){
-      var kids=S.files.filter(function(f){return f.folderId===fo.id});
-      var h=document.createElement('div'); h.className='frow'+(S.curFolder===fo.id?' sel':'');
-      var caret=document.createElement('span'); caret.style.cssText='width:26px;flex:none;text-align:center;color:var(--accent)';
+    function folderRow(fo,depth){
+      var kids=S.files.filter(function(f){return (f.folderId||null)===fo.id});
+      var subCount=S.folders.filter(function(x){return (x.parentId||null)===fo.id}).length;
+      var h=document.createElement('div'); h.className='frow'+(S.curFolder===fo.id?' sel':'')+(fo.fromLibrary?' lib':'');
+      if(depth) h.style.marginLeft=(depth*16)+'px';
+      var caret=document.createElement('span'); caret.style.cssText='width:26px;flex:none;text-align:center;color:'+(fo.fromLibrary?'var(--accent2)':'var(--accent)');
       caret.textContent=fo.open?'▽':'▷';
       var nm2=document.createElement('div'); nm2.className='nm'; nm2.style.fontWeight='bold'; nm2.textContent=fo.name;
-      var meta2=document.createElement('div'); meta2.className='meta'; meta2.textContent=kids.length+' file'+(kids.length===1?'':'s');
+      var parts=[]; if(kids.length) parts.push(kids.length+' file'+(kids.length===1?'':'s')); if(subCount) parts.push(subCount+' folder'+(subCount===1?'':'s'));
+      var meta2=document.createElement('div'); meta2.className='meta'; meta2.textContent=parts.join(', ')||'empty';
       h.appendChild(caret); h.appendChild(nm2); h.appendChild(meta2);
       h.onclick=function(){ fo.open=!fo.open; S.curFolder=fo.id; renderFiles(); };
-      h.ondragover=function(e){ if([].indexOf.call(e.dataTransfer.types,'text/movefile')>=0){ e.preventDefault(); h.style.outline='1px dashed var(--accent)'; } };
+      h.ondragover=function(e){ var t=e.dataTransfer.types;
+        if([].indexOf.call(t,'text/movefile')>=0 || [].indexOf.call(t,'text/movefolder')>=0){ e.preventDefault(); h.style.outline='1px dashed var(--accent)'; } };
       h.ondragleave=function(){ h.style.outline=''; };
       h.ondrop=function(e){ e.preventDefault(); h.style.outline='';
-        var id=+e.dataTransfer.getData('text/movefile'); if(id) moveFile(id, fo.id); };
-      wrap.appendChild(h);
-      if(fo.open) kids.forEach(function(f){ wrap.appendChild(fileRow(f,true)); });
-    });
+        var did=e.dataTransfer.getData('text/movefolder'); var fid=e.dataTransfer.getData('text/movefile');
+        if(did){ moveFolder(+did, fo.id); } else if(fid){ moveFile(+fid, fo.id); } };
+      if(!fo.fromLibrary){
+        h.draggable=true;
+        h.ondragstart=function(e){ e.stopPropagation(); e.dataTransfer.setData('text/movefolder', String(fo.id)); };
+      }
+      return h;
+    }
+    function renderNode(parentId,depth){
+      S.files.filter(function(f){return (f.folderId||null)===parentId}).forEach(function(f){ wrap.appendChild(fileRow(f,depth)); });
+      S.folders.filter(function(fo){return (fo.parentId||null)===parentId}).forEach(function(fo){
+        wrap.appendChild(folderRow(fo,depth));
+        if(fo.open) renderNode(fo.id,depth+1);
+      });
+    }
+    renderNode(null,0);
   }
 
   /* ---------- BROWSER (frames of selected) ---------- */
@@ -817,9 +818,9 @@
         var tx=db.transaction('kv','readonly'), q=tx.objectStore('kv').get(k);
         q.onsuccess=function(){res(q.result);}; q.onerror=function(){rej(q.error);}; }); }); } };
   })();
-  function buildProject(){                                    // KEEPS both original + current(modified) PNG per file
-    return { folders:S.folders.map(function(fo){ return {id:fo.id,name:fo.name,open:fo.open}; }),
-      files:S.files.map(function(f){ return {name:f.name,url:f.url,original:f.original||f.url,modified:!!f.modified,
+  function buildProject(){                                    // KEEPS both original + current(modified) PNG per file — library-sourced items are excluded (re-fetched fresh from manifest.json each load)
+    return { folders:S.folders.filter(function(fo){return !fo.fromLibrary;}).map(function(fo){ return {id:fo.id,name:fo.name,open:fo.open,parentId:fo.parentId||null}; }),
+      files:S.files.filter(function(f){return f.source!=='library';}).map(function(f){ return {name:f.name,url:f.url,original:f.original||f.url,modified:!!f.modified,
         folderId:f.folderId||null,frameW:f.frameW,frameH:f.frameH,sliced:f.frames.length>0}; }),
       timeline:S.timeline.map(function(t){ var f=fileById(t.fileId); return f?{name:f.name,frame:t.frame}:null; }).filter(Boolean),
       settings:{ fps:S.fps, name:S.name, anchor:S.anchor||'middle' } };
@@ -838,7 +839,7 @@
     img.src=f.original; }
   function applyProject(lib){
     if(!lib){ S.ready=true; return; }
-    (lib.folders||[]).forEach(function(fo){ S.folders.push(fo); if(fo.id>uid) uid=fo.id; });
+    (lib.folders||[]).forEach(function(fo){ S.folders.push({id:fo.id,name:fo.name,open:fo.open,parentId:fo.parentId||null}); if(fo.id>uid) uid=fo.id; });
     var chain=Promise.resolve();
     (lib.files||[]).forEach(function(sf){
       chain=chain.then(function(){ return loadImage(sf.url, sf.name).then(function(id){
@@ -987,12 +988,19 @@
     $('#anchorBtn').style.color=(S.anchor==='bottom')?'var(--accent)':'var(--dim)';
     drawPreview();
   };
-  $('#addFolder').onclick=function(){ var n=prompt('Folder name'); if(n){ S.folders.push({id:++uid,name:n,open:true}); S.curFolder=uid; renderFiles(); } };
+  $('#addFolder').onclick=function(){
+    var n=prompt('Folder name'); if(!n) return;
+    var id=++uid; S.folders.push({id:id,name:n,open:true,parentId:S.curFolder||null});
+    S.curFolder=id; renderFiles();
+  };
   $('#gridBtn').style.color='var(--accent)';   // grid on by default
-  var fl=$('#flist');   // drop a file row on the list background → move it back to root
-  fl.addEventListener('dragover',function(e){ if([].indexOf.call(e.dataTransfer.types,'text/movefile')>=0) e.preventDefault(); });
-  fl.addEventListener('drop',function(e){ if([].indexOf.call(e.dataTransfer.types,'text/movefile')<0) return;
-    e.preventDefault(); if(e.target===fl) moveFile(+e.dataTransfer.getData('text/movefile'), null); });
+  var fl=$('#flist');   // drop a row on the list background → move it back to root
+  fl.addEventListener('dragover',function(e){ var t=e.dataTransfer.types;
+    if([].indexOf.call(t,'text/movefile')>=0 || [].indexOf.call(t,'text/movefolder')>=0) e.preventDefault(); });
+  fl.addEventListener('drop',function(e){ if(e.target!==fl) return;
+    var did=e.dataTransfer.getData('text/movefolder'), fid=e.dataTransfer.getData('text/movefile');
+    if(did){ e.preventDefault(); moveFolder(+did, null); }
+    else if(fid){ e.preventDefault(); moveFile(+fid, null); } });
   $('#exportBtn').onclick=doExport;
   window.addEventListener('resize',drawPreview);
   window.addEventListener('keydown',function(e){ if(e.code==='Space' && e.target.tagName!=='INPUT' && S.view!=='editor'){ e.preventDefault(); play(); } });
