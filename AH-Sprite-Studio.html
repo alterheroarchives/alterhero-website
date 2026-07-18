@@ -13,8 +13,8 @@
        display:flex;flex-direction:column;overflow:hidden;user-select:none}
   header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid var(--line);background:#100f15}
   header .hleft{justify-self:start;display:flex;align-items:center;gap:10px;min-width:0}
-  header .htitle{justify-self:center;letter-spacing:2px;font-size:14px;white-space:nowrap;display:flex;align-items:center;gap:8px}
-  header .htitle .logo-mark{height:26px;width:auto;display:block}
+  header .htitle{justify-self:center;letter-spacing:2px;font-size:14px;white-space:nowrap;position:relative;padding-left:64px;display:flex;align-items:center}
+  header .htitle .logo-mark{height:52px;width:auto;display:block;position:absolute;left:0;top:4px;z-index:20;pointer-events:none}
   header .hright{justify-self:end}
   .backlink{color:#fff;text-decoration:none;font-size:11px;letter-spacing:1.5px;font-weight:bold}
   .backlink:hover{color:var(--accent)}
@@ -44,6 +44,7 @@
   #editScroll{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:14px;
     background:#fff}   /* same plain white stage as PREVIEW — grid is drawn to scale by edApplyGrid() */
   #editCanvasWrap{position:relative;flex:none}   /* hugs the canvas exactly → grid background aligns pixel-perfect at any zoom */
+  #edSelBox{position:absolute;left:0;top:0;width:0;height:0;display:none;border:1px dashed var(--accent2);box-shadow:0 0 0 1px #0008;pointer-events:none;z-index:3}
   #editCanvas{image-rendering:pixelated;touch-action:none;cursor:crosshair;box-shadow:0 0 0 1px #0003;flex:none;display:block}
   #editTools{display:flex;gap:4px;align-items:center;padding:5px 7px;border-top:1px solid var(--line);background:#191822;flex-wrap:wrap}
   .etool{width:27px;height:24px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:4px;background:#0e0d13;color:var(--ink);cursor:pointer;font-size:13px;padding:0;line-height:1}
@@ -96,6 +97,8 @@
   .field input{background:#0e0d13;border:1px solid var(--line);color:var(--ink);border-radius:5px;padding:6px 8px;font:inherit;width:100%}
   .field input:focus{outline:0;border-color:var(--accent)}
   .field .unit{color:var(--dim);font-size:10px;flex:none}
+  .stepbtn{flex:none;width:22px;height:26px;background:#0e0d13;border:1px solid var(--line);color:var(--ink);border-radius:4px;font:inherit;font-size:13px;cursor:pointer;line-height:1;padding:0}
+  .stepbtn:hover{border-color:var(--accent);color:var(--accent)}
   .fieldpair{display:flex;gap:10px;margin-bottom:9px}
   .fieldpair .field{flex:1;margin-bottom:0}
   .fieldpair .field label{width:38px}
@@ -161,12 +164,18 @@
   <section class="panel" id="preview">
     <div class="stage"><canvas id="previewCanvas" width="64" height="64"></canvas>
       <div id="editorWrap">
-        <div id="editScroll"><div id="editCanvasWrap"><canvas id="editCanvas" width="32" height="32"></canvas></div></div>
+        <div id="editScroll"><div id="editCanvasWrap"><canvas id="editCanvas" width="32" height="32"></canvas><div id="edSelBox"></div></div></div>
         <div id="editTools">
           <button class="etool on" id="tBrush" title="Pixel brush">✏️</button>
           <button class="etool" id="tEraser" title="Eraser">🧽</button>
           <input type="color" id="editColor" value="#e24b4a" title="Color wheel">
           <button class="etool" id="tEye" title="Eyedropper — tap a pixel to pick its color">🩸</button>
+          <span class="vsep">|</span>
+          <button class="etool" id="tSelect" title="Select a zone, then nudge it with the arrows">▭</button>
+          <button class="etool" id="nLeft" title="Nudge selection left 1px" disabled>◀</button>
+          <button class="etool" id="nUp" title="Nudge selection up 1px" disabled>▲</button>
+          <button class="etool" id="nDown" title="Nudge selection down 1px" disabled>▼</button>
+          <button class="etool" id="nRight" title="Nudge selection right 1px" disabled>▶</button>
           <span class="vsep">|</span>
           <button class="etool" id="tUndo" title="Undo" disabled>↶</button>
           <button class="etool" id="tRedo" title="Redo" disabled>↷</button>
@@ -198,7 +207,12 @@
         <button class="tb" id="tLast"  title="last frame">▶▶|</button>
       </div>
       <div class="fieldpair">
-        <div class="field" title="frames per second"><label>FPS</label><input id="fps" type="number" min="1" max="60" value="12"></div>
+        <div class="field" title="frames per second">
+          <label>FPS</label>
+          <button type="button" class="stepbtn" id="fpsDown">−</button>
+          <input id="fps" type="number" min="1" max="60" value="12">
+          <button type="button" class="stepbtn" id="fpsUp">+</button>
+        </div>
         <div class="field" title="frames on timeline"><label>FRAMES</label><input id="samples" type="number" value="0" readonly></div>
       </div>
       <div class="field" style="margin-bottom:0">
@@ -625,7 +639,7 @@
       var f=fileById(t.fileId); if(!f){return;}
       var slot=document.createElement('div'); slot.className='slot'+(i===S.playhead?' on':''); slot.draggable=true;
       var cv=document.createElement('canvas'); var fr=f.frames[t.frame]; if(!fr){return;}
-      var sc=Math.max(1,Math.round(46/Math.max(fr.sw,fr.sh))); drawFrame(cv,f,fr,sc);
+      var sc=Math.max(1,Math.round(69/Math.max(fr.sw,fr.sh))); drawFrame(cv,f,fr,sc);
       var rm=document.createElement('div'); rm.className='rm'; rm.textContent='×';
       rm.onclick=function(e){ e.stopPropagation(); S.timeline.splice(i,1); if(S.playhead>=S.timeline.length)S.playhead=Math.max(0,S.timeline.length-1); renderTimeline(); };
       var num=document.createElement('div'); num.className='snum'; num.textContent=t.frame+1;
@@ -908,7 +922,7 @@
   /* ---------- PIXEL EDITOR (pointer = works with iPad touch / Apple Pencil) ---------- */
   var ED={ cv:$('#editCanvas'), w:32, h:32, scale:8, tool:'brush', color:'#e24b4a', drawing:false, lastX:-1, lastY:-1, undo:[], redo:[] };
   ED.ctx=ED.cv.getContext('2d');
-  function edApplyZoom(){ ED.cv.style.width=(ED.w*ED.scale)+'px'; ED.cv.style.height=(ED.h*ED.scale)+'px'; edApplyGrid(); }
+  function edApplyZoom(){ ED.cv.style.width=(ED.w*ED.scale)+'px'; ED.cv.style.height=(ED.h*ED.scale)+'px'; edApplyGrid(); edPositionSelBox(); }
   /* pixel grid over the editor canvas — same look/threshold as the PREVIEW's stage grid (drawPreview), cell = 1 sprite pixel */
   function edApplyGrid(){
     var wrap=$('#editCanvasWrap'); if(!wrap) return;
@@ -919,7 +933,7 @@
     } else wrap.style.backgroundImage='none';
   }
   function edNew(w,h){ ED.w=w; ED.h=h; ED.cv.width=w; ED.cv.height=h; ED.ctx=ED.cv.getContext('2d');
-    ED.ctx.imageSmoothingEnabled=false; ED.ctx.clearRect(0,0,w,h); ED.undo=[]; ED.redo=[]; edApplyZoom(); edUpdateUndo(); }
+    ED.ctx.imageSmoothingEnabled=false; ED.ctx.clearRect(0,0,w,h); ED.undo=[]; ED.redo=[]; ED.sel=null; ED.selData=null; edApplyZoom(); edUpdateUndo(); edPositionSelBox(); }
   /* the frame currently shown in PREVIEW (timeline playhead), or the selected file's first frame */
   function currentFrameRef(){ var t=S.timeline[S.playhead]; if(t && fileById(t.fileId)) return {fileId:t.fileId, frame:t.frame};
     var f=fileById(S.selId); if(f && f.frames.length) return {fileId:f.id, frame:0}; return null; }
@@ -958,21 +972,51 @@
     while(true){ edPaint(x0,y0); if(x0===x1&&y0===y1)break; var e2=2*e; if(e2>-dy){e-=dy;x0+=sx;} if(e2<dx){e+=dx;y0+=sy;} } }
   function edSetColor(hex){ ED.color=hex; $('#editColor').value=hex; }
   function edSetTool(t){ ED.tool=t;
-    $('#tBrush').classList.toggle('on',t==='brush'); $('#tEraser').classList.toggle('on',t==='eraser'); $('#tEye').classList.toggle('on',t==='eye'); }
+    $('#tBrush').classList.toggle('on',t==='brush'); $('#tEraser').classList.toggle('on',t==='eraser'); $('#tEye').classList.toggle('on',t==='eye'); $('#tSelect').classList.toggle('on',t==='select'); }
+  function edPositionSelBox(){
+    var box=$('#edSelBox'); if(!box) return;
+    if(!ED.sel){ box.style.display='none'; }
+    else{ box.style.display='block';
+      box.style.left=(ED.sel.x*ED.scale)+'px'; box.style.top=(ED.sel.y*ED.scale)+'px';
+      box.style.width=(ED.sel.w*ED.scale)+'px'; box.style.height=(ED.sel.h*ED.scale)+'px'; }
+    var on=!!ED.sel;
+    ['#nLeft','#nRight','#nUp','#nDown'].forEach(function(s){ var b=$(s); if(b) b.disabled=!on; });
+  }
+  function edNudge(dx,dy){
+    if(!ED.sel) return;
+    edPushUndo();
+    if(!ED.selData) ED.selData=ED.ctx.getImageData(ED.sel.x,ED.sel.y,ED.sel.w,ED.sel.h);
+    ED.ctx.clearRect(ED.sel.x,ED.sel.y,ED.sel.w,ED.sel.h);
+    ED.sel.x=Math.max(0,Math.min(ED.w-ED.sel.w, ED.sel.x+dx));
+    ED.sel.y=Math.max(0,Math.min(ED.h-ED.sel.h, ED.sel.y+dy));
+    ED.ctx.putImageData(ED.selData, ED.sel.x, ED.sel.y);
+    edPositionSelBox();
+  }
   function edEyedrop(px,py){ var d=ED.ctx.getImageData(px,py,1,1).data;
     if(d[3]>0) edSetColor('#'+[d[0],d[1],d[2]].map(function(n){return('0'+n.toString(16)).slice(-2);}).join(''));
     edSetTool('brush'); }
   ED.cv.addEventListener('pointerdown',function(e){ e.preventDefault(); var p=edPixel(e.clientX,e.clientY); if(!p)return;
     if(ED.tool==='eye'){ edEyedrop(p.x,p.y); return; }
+    if(ED.tool==='select'){ ED.sel={x:p.x,y:p.y,w:1,h:1}; ED.selData=null; ED.selecting=true; ED.selX0=p.x; ED.selY0=p.y; edPositionSelBox();
+      try{ ED.cv.setPointerCapture(e.pointerId); }catch(err){} return; }
     edPushUndo(); ED.drawing=true; ED.lastX=p.x; ED.lastY=p.y; edPaint(p.x,p.y);
     try{ ED.cv.setPointerCapture(e.pointerId); }catch(err){} });
-  ED.cv.addEventListener('pointermove',function(e){ if(!ED.drawing)return; e.preventDefault(); var p=edPixel(e.clientX,e.clientY); if(!p)return;
+  ED.cv.addEventListener('pointermove',function(e){
+    if(ED.tool==='select' && ED.selecting){ e.preventDefault(); var p=edPixel(e.clientX,e.clientY); if(!p)return;
+      var x0=Math.min(ED.selX0,p.x), y0=Math.min(ED.selY0,p.y), x1=Math.max(ED.selX0,p.x), y1=Math.max(ED.selY0,p.y);
+      ED.sel={x:x0,y:y0,w:x1-x0+1,h:y1-y0+1}; edPositionSelBox(); return; }
+    if(!ED.drawing)return; e.preventDefault(); var p=edPixel(e.clientX,e.clientY); if(!p)return;
     edLine(ED.lastX,ED.lastY,p.x,p.y); ED.lastX=p.x; ED.lastY=p.y; });
-  function edEnd(){ ED.drawing=false; }
+  function edEnd(){ ED.drawing=false; ED.selecting=false; }
   ED.cv.addEventListener('pointerup',edEnd); ED.cv.addEventListener('pointercancel',edEnd);
   $('#tBrush').onclick=function(){ edSetTool('brush'); };
   $('#tEraser').onclick=function(){ edSetTool('eraser'); };
   $('#tEye').onclick=function(){ edSetTool('eye'); };
+  $('#tSelect').onclick=function(){ edSetTool('select'); };
+  $('#nLeft').onclick=function(){ edNudge(-1,0); };
+  $('#nRight').onclick=function(){ edNudge(1,0); };
+  $('#nUp').onclick=function(){ edNudge(0,-1); };
+  $('#nDown').onclick=function(){ edNudge(0,1); };
   $('#editColor').oninput=function(e){ edSetColor(e.target.value); if(ED.tool==='eraser') edSetTool('brush'); };
   $('#tUndo').onclick=edUndo; $('#tRedo').onclick=edRedo;
   $('#editZoom').onchange=function(e){ ED.scale=+e.target.value; edApplyZoom(); };
@@ -1002,6 +1046,9 @@
   $('#tNext').onclick=function(){ setPlayhead((S.playhead+1)%(S.timeline.length||1)); };
   $('#scrub').oninput=function(e){ setPlayhead(+e.target.value); };
   $('#fps').oninput=function(e){ S.fps=Math.max(1,Math.min(60,+e.target.value||12)); };
+  function stepFps(d){ S.fps=Math.max(1,Math.min(60,(S.fps||12)+d)); $('#fps').value=S.fps; }
+  $('#fpsDown').onclick=function(){ stepFps(-1); };
+  $('#fpsUp').onclick=function(){ stepFps(1); };
   $('#animName').oninput=function(e){ S.name=e.target.value||'animation'; };
   $('#zoom').onchange=function(e){ S.zoom=e.target.value; drawPreview(); };
   $('#gridBtn').onclick=function(){ S.grid=!S.grid; $('#gridBtn').style.color=S.grid?'var(--accent)':'var(--dim)'; drawPreview(); };
