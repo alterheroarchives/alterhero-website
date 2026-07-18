@@ -16,10 +16,10 @@
   header .htitle{justify-self:center;letter-spacing:2px;font-size:14px;white-space:nowrap}
   header .htitle span{color:var(--accent)}
   header .hright{justify-self:end}
+  .backlink{color:#fff;text-decoration:none;font-size:11px;letter-spacing:1.5px;font-weight:bold}
+  .backlink:hover{color:var(--accent)}
   header .hint{color:var(--dim);font-size:11px}
-  .row{display:flex;min-height:0}
-  .top{height:76%;border-bottom:1px solid var(--line)}   /* taller → fits ×8 zoom on tall sprites like 32×64 without scrolling; freed further by moving tabs into the header and removing the ANIMATION title bar */
-  .bottom{flex:1}
+  .row{display:flex;min-height:0;flex:1}   /* single full-height row — TIMELINE now aligns with PROJECT/BROWSER */
   .panel{border-right:1px solid var(--line);display:flex;flex-direction:column;min-width:0;min-height:0}
   .panel:last-child{border-right:0}
   .ptitle{padding:6px 10px;font-size:11px;letter-spacing:1.5px;color:var(--dim);border-bottom:1px solid var(--line);
@@ -81,10 +81,10 @@
   .fr .fi{font-size:9px;color:var(--accent);background:#0008;border:1px solid var(--line);border-radius:8px;min-width:16px;text-align:center;line-height:14px}
   .fr .chk{position:absolute;top:2px;left:2px;width:12px;height:12px;accent-color:var(--accent)}
   .muted{color:var(--dim);font-size:11px}
-  /* ANIMATION */
-  #anim{flex:.9}
+  /* ANIMATION (now a bar docked under the PREVIEW/EDITOR stage) */
+  #animBar{border-top:1px solid var(--line);padding:8px 10px;flex:none;background:#191822}
   .transport{display:flex;gap:6px;margin-bottom:12px}
-  .tb{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:8px 0;font-size:15px;cursor:pointer}
+  .tb{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:6px 0;font-size:15px;cursor:pointer}   /* height trimmed ~20% */
   .tb:hover{border-color:var(--accent);color:var(--accent)}
   .tb.play{background:var(--accent);color:#111;border-color:var(--accent)}
   .field{display:flex;align-items:center;gap:8px;margin-bottom:9px}
@@ -150,10 +150,10 @@
 <header>
   <div class="hleft"><span class="vtabs"><span class="vtab on" id="tabPreview">PREVIEW</span><span class="vsep">·</span><span class="vtab" id="tabEditor">EDITOR</span></span> <span id="pvinfo" class="muted"></span></div>
   <b class="htitle">AH<span>!</span> SPRITE STUDIO</b>
-  <div class="hright"></div>
+  <a class="hright backlink" href="/" title="Back to alterhero.xyz">← BACK</a>
 </header>
 
-<div class="row top">
+<div class="row">
   <section class="panel" id="preview">
     <div class="stage"><canvas id="previewCanvas" width="64" height="64"></canvas>
       <div id="editorWrap">
@@ -185,6 +185,23 @@
       <button id="gridBtn" title="pixel grid" style="background:#0e0d13;color:var(--dim);border:1px solid var(--line);border-radius:4px;font:inherit;padding:2px 8px;cursor:pointer">grid</button>
       <button id="anchorBtn" title="sprite position in the preview" style="background:#0e0d13;color:var(--dim);border:1px solid var(--line);border-radius:4px;font:inherit;padding:2px 8px;cursor:pointer">◎ middle</button>
     </div>
+    <div id="animBar">
+      <div class="transport">
+        <button class="tb" id="tFirst" title="first frame">|◀</button>
+        <button class="tb" id="tPrev"  title="step back">◀</button>
+        <button class="tb play" id="tPlay" title="play / pause">▶</button>
+        <button class="tb" id="tNext"  title="step forward">▶|</button>
+        <button class="tb" id="tLast"  title="last frame">▶▶|</button>
+      </div>
+      <div class="fieldpair">
+        <div class="field" title="frames per second"><label>FPS</label><input id="fps" type="number" min="1" max="60" value="12"></div>
+        <div class="field" title="frames on timeline"><label>FRAMES</label><input id="samples" type="number" value="0" readonly></div>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>NAME</label><input id="animName" type="text" value="animation">
+        <button id="exportBtn">EXPORT ▸</button>
+      </div>
+    </div>
   </section>
 
   <section class="panel" id="project">
@@ -203,28 +220,6 @@
     <div class="ptitle">FILE · FRAMES</div>
     <div class="pbody" id="browserBody">
       <div class="muted">Select a PNG on the left. Then <b>Slice</b> it into frames.</div>
-    </div>
-  </section>
-</div>
-
-<div class="row bottom">
-  <section class="panel" id="anim">
-    <div class="pbody">
-      <div class="transport">
-        <button class="tb" id="tFirst" title="first frame">|◀</button>
-        <button class="tb" id="tPrev"  title="step back">◀</button>
-        <button class="tb play" id="tPlay" title="play / pause">▶</button>
-        <button class="tb" id="tNext"  title="step forward">▶|</button>
-        <button class="tb" id="tLast"  title="last frame">▶▶|</button>
-      </div>
-      <div class="fieldpair">
-        <div class="field" title="frames per second"><label>FPS</label><input id="fps" type="number" min="1" max="60" value="12"></div>
-        <div class="field" title="frames on timeline"><label>FRAMES</label><input id="samples" type="number" value="0" readonly></div>
-      </div>
-      <div class="field" style="margin-bottom:0">
-        <label>NAME</label><input id="animName" type="text" value="animation">
-        <button id="exportBtn">EXPORT ▸</button>
-      </div>
     </div>
   </section>
 
@@ -615,7 +610,7 @@
       stage.style.backgroundPosition=left+'px '+top+'px';
     } else stage.style.backgroundImage='none';
     $('#pvframe').textContent='frame '+(S.playhead+1)+'/'+S.timeline.length+' (n°'+(t.frame+1)+')';
-    $('#pvinfo').textContent=tr.w+'×'+tr.h+' of '+fr.sw+'×'+fr.sh+' ×'+sc;
+    $('#pvinfo').textContent=fr.sw+'×'+fr.sh;
   }
   var acc=0,lastT=0;
   function loop(ts){
