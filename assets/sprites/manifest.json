@@ -1,7 +1,8 @@
 {
   "Characters": {
     "Giant": [
-      "GIANT-sheet.png"
+      "GIANT-sheet.png",
+      "GIANT-idle.png"
     ]
   }
 }
