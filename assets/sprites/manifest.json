@@ -4,5 +4,14 @@
       "GIANT-sheet.png",
       "GIANT-idle.png"
     ]
+  },
+  "AH!ssets": {
+    "Giant": [
+      {
+        "file": "GIANT-idle.png",
+        "frameW": 32,
+        "frameH": 64
+      }
+    ]
   }
 }
