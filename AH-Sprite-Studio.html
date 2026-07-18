@@ -39,10 +39,9 @@
   #preview.editing #editorWrap{display:flex}
   #preview.editing .previewbar{display:none}
   #editScroll{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:14px;
-    background-color:#fff;
-    background-image:linear-gradient(45deg,#0000 25%,#0000000d 0 75%,#0000 0),linear-gradient(45deg,#0000 25%,#0000000d 0 75%,#0000 0);
-    background-size:16px 16px;background-position:0 0,8px 8px}
-  #editCanvas{image-rendering:pixelated;touch-action:none;cursor:crosshair;box-shadow:0 0 0 1px #0003;flex:none}
+    background:#fff}   /* same plain white stage as PREVIEW — grid is drawn to scale by edApplyGrid() */
+  #editCanvasWrap{position:relative;flex:none}   /* hugs the canvas exactly → grid background aligns pixel-perfect at any zoom */
+  #editCanvas{image-rendering:pixelated;touch-action:none;cursor:crosshair;box-shadow:0 0 0 1px #0003;flex:none;display:block}
   #editTools{display:flex;gap:4px;align-items:center;padding:5px 7px;border-top:1px solid var(--line);background:#191822;flex-wrap:wrap}
   .etool{width:27px;height:24px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:4px;background:#0e0d13;color:var(--ink);cursor:pointer;font-size:13px;padding:0;line-height:1}
   .etool.on{border-color:var(--accent);color:var(--accent);background:#ffb0381a}
@@ -151,7 +150,7 @@
     <div class="ptitle"><span class="vtabs"><span class="vtab on" id="tabPreview">PREVIEW</span><span class="vsep">·</span><span class="vtab" id="tabEditor">EDITOR</span></span> <span id="pvinfo" class="muted"></span></div>
     <div class="stage"><canvas id="previewCanvas" width="64" height="64"></canvas>
       <div id="editorWrap">
-        <div id="editScroll"><canvas id="editCanvas" width="32" height="32"></canvas></div>
+        <div id="editScroll"><div id="editCanvasWrap"><canvas id="editCanvas" width="32" height="32"></canvas></div></div>
         <div id="editTools">
           <button class="etool on" id="tBrush" title="Pixel brush">✏️</button>
           <button class="etool" id="tEraser" title="Eraser">🧽</button>
@@ -162,7 +161,7 @@
           <button class="etool" id="tRedo" title="Redo" disabled>↷</button>
           <span class="vsep">|</span>
           <select id="editZoom" title="Zoom">
-            <option value="1">100%</option><option value="4">400%</option><option value="8" selected>800%</option><option value="16">1600%</option>
+            <option value="1">×1</option><option value="2">×2</option><option value="4">×4</option><option value="8" selected>×8</option>
           </select>
           <button class="ebtn" id="editNew">New</button>
           <button class="ebtn" id="editSave">Save to library ▸</button>
@@ -810,7 +809,16 @@
   /* ---------- PIXEL EDITOR (pointer = works with iPad touch / Apple Pencil) ---------- */
   var ED={ cv:$('#editCanvas'), w:32, h:32, scale:8, tool:'brush', color:'#e24b4a', drawing:false, lastX:-1, lastY:-1, undo:[], redo:[] };
   ED.ctx=ED.cv.getContext('2d');
-  function edApplyZoom(){ ED.cv.style.width=(ED.w*ED.scale)+'px'; ED.cv.style.height=(ED.h*ED.scale)+'px'; }
+  function edApplyZoom(){ ED.cv.style.width=(ED.w*ED.scale)+'px'; ED.cv.style.height=(ED.h*ED.scale)+'px'; edApplyGrid(); }
+  /* pixel grid over the editor canvas — same look/threshold as the PREVIEW's stage grid (drawPreview), cell = 1 sprite pixel */
+  function edApplyGrid(){
+    var wrap=$('#editCanvasWrap'); if(!wrap) return;
+    if(ED.scale>=3){
+      wrap.style.backgroundImage='linear-gradient(to right, rgba(0,0,0,.10) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,.10) 1px, transparent 1px)';
+      wrap.style.backgroundSize=ED.scale+'px '+ED.scale+'px';
+      wrap.style.backgroundPosition='0 0';
+    } else wrap.style.backgroundImage='none';
+  }
   function edNew(w,h){ ED.w=w; ED.h=h; ED.cv.width=w; ED.cv.height=h; ED.ctx=ED.cv.getContext('2d');
     ED.ctx.imageSmoothingEnabled=false; ED.ctx.clearRect(0,0,w,h); ED.undo=[]; ED.redo=[]; edApplyZoom(); edUpdateUndo(); }
   /* the frame currently shown in PREVIEW (timeline playhead), or the selected file's first frame */
