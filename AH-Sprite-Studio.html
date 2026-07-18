@@ -66,6 +66,12 @@
   .frow .meta{color:var(--dim);font-size:10px;flex:none}
   .frow .x{color:var(--dim);flex:none;padding:0 4px;border-radius:3px}
   .frow .x:hover{color:var(--danger);background:#fff1}
+  .frow .dl{color:var(--dim);flex:none;padding:0 4px;border-radius:3px}
+  .frow .dl:hover{color:var(--accent2);background:#fff1}
+  .libsection{margin-top:14px;padding-top:10px;border-top:1px dashed var(--line)}
+  .libhead{font-size:10px;letter-spacing:1.5px;color:var(--dim);margin-bottom:6px}
+  .frow.lib{cursor:pointer}
+  .frow.lib .nm{color:var(--accent2)}
   /* BROWSER / frames of selected */
   #browser{flex:1.2}
   .bhead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
@@ -211,10 +217,14 @@
     <div class="pbody">
       <div style="display:flex;gap:6px">
         <div class="addbtn" id="addFolder" style="flex:1">+ FOLDER</div>
-        <div class="addbtn" id="addbtn" style="flex:2">+ ADD PNG<br><span style="font-size:10px">click or drop files</span></div>
+        <div class="addbtn" id="addbtn" style="flex:2">+ IMPORT<br><span style="font-size:10px">click or drop files</span></div>
       </div>
       <input type="file" id="fileInput" accept="image/png,image/*" multiple>
       <div class="flist" id="flist"></div>
+      <div class="libsection">
+        <div class="libhead">📚 LIBRARY</div>
+        <div class="flist" id="libList"><div class="muted" style="font-size:10px">loading…</div></div>
+      </div>
     </div>
   </section>
 
@@ -311,6 +321,56 @@
     });
   }
 
+  /* ---------- LIBRARY (assets/sprites/, read from manifest.json — never uploaded) ---------- */
+  var LIB_ROOT='assets/sprites/';
+  var libOpen={};
+  function loadLibraryManifest(){
+    fetch(LIB_ROOT+'manifest.json').then(function(r){ if(!r.ok) throw 0; return r.json(); })
+      .then(renderLibrary)
+      .catch(function(){ var el=$('#libList'); if(el) el.innerHTML='<div class="muted" style="font-size:10px">no library yet</div>'; });
+  }
+  function renderLibrary(manifest){
+    var wrap=$('#libList'); if(!wrap) return; wrap.innerHTML='';
+    var cats=Object.keys(manifest||{});
+    if(!cats.length){ wrap.innerHTML='<div class="muted" style="font-size:10px">no library yet</div>'; return; }
+    cats.forEach(function(cat){
+      var chars=manifest[cat]||{}, names=Object.keys(chars);
+      var key='cat:'+cat;
+      var catRow=document.createElement('div'); catRow.className='frow lib';
+      var caret=document.createElement('span'); caret.style.cssText='width:20px;flex:none;text-align:center;color:var(--accent2)';
+      caret.textContent=libOpen[key]?'▽':'▷';
+      var nm=document.createElement('div'); nm.className='nm'; nm.style.fontWeight='bold'; nm.textContent=cat;
+      var meta=document.createElement('div'); meta.className='meta'; meta.textContent=names.length+(names.length===1?' item':' items');
+      catRow.appendChild(caret); catRow.appendChild(nm); catRow.appendChild(meta);
+      catRow.onclick=function(){ libOpen[key]=!libOpen[key]; renderLibrary(manifest); };
+      wrap.appendChild(catRow);
+      if(!libOpen[key]) return;
+      names.forEach(function(name){
+        var files=chars[name]||[], subKey=key+'>'+name;
+        var row=document.createElement('div'); row.className='frow lib'; row.style.marginLeft='16px';
+        var c2=document.createElement('span'); c2.style.cssText='width:20px;flex:none;text-align:center;color:var(--accent2)';
+        c2.textContent=libOpen[subKey]?'▽':'▷';
+        var nm2=document.createElement('div'); nm2.className='nm'; nm2.textContent=name;
+        var meta2=document.createElement('div'); meta2.className='meta'; meta2.textContent=files.length+'fr';
+        row.appendChild(c2); row.appendChild(nm2); row.appendChild(meta2);
+        row.onclick=function(){ libOpen[subKey]=!libOpen[subKey]; renderLibrary(manifest); };
+        wrap.appendChild(row);
+        if(!libOpen[subKey]) return;
+        files.forEach(function(fn){
+          var frow=document.createElement('div'); frow.className='frow lib'; frow.style.marginLeft='32px';
+          var nm3=document.createElement('div'); nm3.className='nm'; nm3.textContent=fn;
+          frow.appendChild(nm3);
+          frow.onclick=function(e){ e.stopPropagation(); importLibraryFile(cat,name,fn); };
+          wrap.appendChild(frow);
+        });
+      });
+    });
+  }
+  function importLibraryFile(cat,charName,fileName){
+    var url=LIB_ROOT+encodeURIComponent(cat)+'/'+encodeURIComponent(charName)+'/'+encodeURIComponent(fileName);
+    loadImage(url, fileName);
+  }
+
   /* ---------- slicing ---------- */
   function sliceFile(f,fw,fh){
     f.frameW=fw; f.frameH=fh; f.frames=[];
@@ -341,6 +401,10 @@
     x.drawImage(f.img,fr.sx,fr.sy,fr.sw,fr.sh,0,0,cv.width,cv.height);
   }
   function fileById(id){ return S.files.filter(function(f){return f.id===id})[0]; }
+  function downloadFilePng(f){
+    var a=document.createElement('a');
+    a.href=f.url; a.download=/\.png$/i.test(f.name)?f.name:(f.name+'.png'); a.click();
+  }
 
   /* ---------- PROJECT list ---------- */
   function moveFile(fileId, folderId){
@@ -365,7 +429,9 @@
         S.timeline=S.timeline.filter(function(t){return t.fileId!==f.id});
         if(S.selId===f.id) S.selId=S.files[0]?S.files[0].id:null;
         renderFiles(); renderBrowser(); renderTimeline(); };
-      row.appendChild(tw); row.appendChild(nm); row.appendChild(meta); row.appendChild(x);
+      var dl=document.createElement('div'); dl.className='dl'; dl.textContent='⭳'; dl.title='Download this PNG — to add it to assets/sprites/ yourself';
+      dl.onclick=function(e){ e.stopPropagation(); downloadFilePng(f); };
+      row.appendChild(tw); row.appendChild(nm); row.appendChild(meta); row.appendChild(dl); row.appendChild(x);
       row.onclick=function(){ S.selId=f.id; S.curFolder=f.folderId||null; renderFiles(); renderBrowser(); };
       row.draggable=true;
       row.ondragstart=function(e){ e.dataTransfer.setData('text/movefile', String(f.id)); };
@@ -802,6 +868,7 @@
   window.addEventListener('pagehide',function(){ if(S.ready) IDB.set('project',buildProject()).catch(function(){}); });
   document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='hidden'&&S.ready) IDB.set('project',buildProject()).catch(function(){}); });
   restoreLibrary();
+  loadLibraryManifest();
 
   /* ---------- PREVIEW / EDITOR view toggle ---------- */
   function setView(v){ S.view=v;
