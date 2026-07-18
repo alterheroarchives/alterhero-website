@@ -19,14 +19,15 @@
   .backlink{color:#fff;text-decoration:none;font-size:11px;letter-spacing:1.5px;font-weight:bold}
   .backlink:hover{color:var(--accent)}
   header .hint{color:var(--dim);font-size:11px}
-  .row{display:flex;min-height:0;flex:1}   /* single full-height row — TIMELINE now aligns with PROJECT/BROWSER */
+  .row{display:grid;grid-template-columns:1.35fr 2.05fr;grid-template-rows:70% 30%;flex:1;min-height:0}   /* left: PREVIEW full height — right: PROJECT+BROWSER on top, TIMELINE full-width below */
+  .rightTop{grid-column:2;grid-row:1;display:flex;min-height:0}
   .panel{border-right:1px solid var(--line);display:flex;flex-direction:column;min-width:0;min-height:0}
   .panel:last-child{border-right:0}
   .ptitle{padding:6px 10px;font-size:11px;letter-spacing:1.5px;color:var(--dim);border-bottom:1px solid var(--line);
           display:flex;justify-content:space-between;align-items:center;background:#191822;flex:none}
   .pbody{flex:1;overflow:auto;padding:10px;min-height:0}
   /* PREVIEW */
-  #preview{flex:1.35}
+  #preview{grid-column:1;grid-row:1/3}
   .stage{flex:1;display:flex;align-items:center;justify-content:center;
     background:#fff;overflow:hidden;position:relative}
   #previewCanvas{image-rendering:pixelated;position:absolute}   /* positioned at INTEGER coords by drawPreview — no half-pixel blur */
@@ -99,7 +100,7 @@
   #exportBtn{flex:none;background:var(--accent2);color:#062;border:0;border-radius:6px;padding:8px 16px;font:inherit;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer}
   #exportBtn:hover{filter:brightness(1.06)}
   /* TIMELINE */
-  #timeline{flex:1.7}
+  #timeline{grid-column:1/3;grid-row:2;border-top:1px solid var(--line)}
   .tlwrap{flex:1;display:flex;flex-direction:column;min-height:0}
   .ruler{height:22px;position:relative;border-bottom:1px solid var(--line);flex:none;color:var(--dim);font-size:9px}
   .ruler .tick{position:absolute;top:0;bottom:0;border-left:1px solid var(--line)}
@@ -204,6 +205,7 @@
     </div>
   </section>
 
+  <div class="rightTop">
   <section class="panel" id="project">
     <div class="ptitle">PROJECT · FOLDER LIST <span id="saveLib" title="save the PNG library in this browser" style="cursor:pointer;color:var(--accent)">💾 save</span></div>
     <div class="pbody">
@@ -222,6 +224,7 @@
       <div class="muted">Select a PNG on the left. Then <b>Slice</b> it into frames.</div>
     </div>
   </section>
+  </div>
 
   <section class="panel" id="timeline">
     <div class="ptitle"><span>TIMELINE <span class="muted">— drag frames here to build the animation</span></span><button id="saveProject" class="ebtn" title="Save this project (library + timeline + settings) in the browser">💾 SAVE PROJECT</button></div>
