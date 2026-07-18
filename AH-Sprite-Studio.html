@@ -13,8 +13,8 @@
        display:flex;flex-direction:column;overflow:hidden;user-select:none}
   header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid var(--line);background:#100f15}
   header .hleft{justify-self:start;display:flex;align-items:center;gap:10px;min-width:0}
-  header .htitle{justify-self:center;letter-spacing:2px;font-size:14px;white-space:nowrap}
-  header .htitle span{color:var(--accent)}
+  header .htitle{justify-self:center;letter-spacing:2px;font-size:14px;white-space:nowrap;display:flex;align-items:center;gap:8px}
+  header .htitle .logo-mark{height:26px;width:auto;display:block}
   header .hright{justify-self:end}
   .backlink{color:#fff;text-decoration:none;font-size:11px;letter-spacing:1.5px;font-weight:bold}
   .backlink:hover{color:var(--accent)}
@@ -153,7 +153,7 @@
 
 <header>
   <div class="hleft"><span class="vtabs"><span class="vtab on" id="tabPreview">PREVIEW</span><span class="vsep">·</span><span class="vtab" id="tabEditor">EDITOR</span></span> <span id="pvinfo" class="muted"></span></div>
-  <b class="htitle">AH<span>!</span> SPRITE STUDIO</b>
+  <b class="htitle"><img src="assets/AH!logo.png" alt="AH!" class="logo-mark"> STUDIO</b>
   <a class="hright backlink" href="/" title="Back to alterhero.xyz">← BACK</a>
 </header>
 
