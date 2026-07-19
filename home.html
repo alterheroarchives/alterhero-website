@@ -106,7 +106,7 @@
   #clouds{ position:fixed; height:0; z-index:2; pointer-events:none; transform:translateX(-50%);
     opacity:0; transition:opacity .3s ease; }
   #clouds img{ position:absolute; bottom:0; left:50%; width:100%; height:auto; image-rendering:pixelated;
-    transform:translateX(-50%); will-change:transform; }
+    transform:translate3d(-50%,0,0); will-change:transform; backface-visibility:hidden; }   /* translate3d, not translateX — forces its own GPU layer with sub-pixel-smooth compositing (fixes juddery motion at very slow speeds) */
   #clouds .back{  opacity:.9; }
   #clouds .front{ z-index:2; }                                    /* darker cloud in FRONT */
   /* reflection: a vertically-mirrored, faded copy hanging BELOW the soil line; its imgs share the drift animation */
@@ -117,12 +117,13 @@
   body.clouds-in #clouds{ opacity:1; }
   /* blow in from the right at the SAME entrance pace, then once it has crossed the GIANT go SLOW-MOTION and hold that
      constant slow drift left (no settle, no sway). FRONT (darker) cloud runs just 2% quicker → edges ahead (parallax). */
-  body.clouds-in #clouds .back{  animation:cloud-blow 58s linear forwards; }
-  body.clouds-in #clouds .front{ animation:cloud-blow 56.9s linear forwards; }   /* 58 / 1.02 ≈ 2% faster */
+  body.clouds-in #clouds .back{  animation:cloud-blow var(--cloud-back-dur,58s) linear forwards; }
+  body.clouds-in #clouds .front{ animation:cloud-blow var(--cloud-front-dur,56.9s) linear forwards; }   /* front (darker) runs faster — parallax; ratio + all numbers below come from config.js */
+  /* fallback keyframes (used only until the JS below generates the real ones from config.js — same shape, same defaults) */
   @keyframes cloud-blow{
-    0%{   transform:translateX(calc(-50% + 150px)); animation-timing-function:cubic-bezier(.12,.7,.25,1); }  /* fast entrance (unchanged pace) */
-    12%{  transform:translateX(calc(-50% + 0px));   animation-timing-function:linear; }                       /* crossed the GIANT → slow-motion, constant */
-    100%{ transform:translateX(calc(-50% - 120px)); } }
+    0%{   transform:translate3d(calc(-50% + 150px),0,0); animation-timing-function:cubic-bezier(.12,.7,.25,1); }  /* fast entrance (unchanged pace) */
+    12%{  transform:translate3d(calc(-50% + 0px),0,0);   animation-timing-function:linear; }                       /* crossed the GIANT → slow-motion, constant */
+    100%{ transform:translate3d(calc(-50% - 120px),0,0); } }
 
   /* ---- the moon DROPS FROM THE SKY when the WalkBoy is HOVERED (body.moon-in): it falls past the logo (which
      occludes it, z3<z5) and lands at --moon-land (= the mid spot, set by layout), bouncing with real physics.
@@ -143,7 +144,7 @@
   .carref img.body{ -webkit-mask-image:linear-gradient(to top, #000 22%, transparent 84%);
     mask-image:linear-gradient(to top, #000 22%, transparent 84%); }
   body.car-in #car{ opacity:1; }
-  body.car-in #car img.body{ animation:car-drive 1.5s cubic-bezier(.12,.6,.25,1) forwards; }   /* drives in from the LEFT, brakes to a stop */
+  body.car-in #car img.body{ animation:car-drive var(--car-dur,1.5s) cubic-bezier(.12,.6,.25,1) forwards; }   /* drives in from the LEFT, brakes to a stop — duration from config.js */
   @keyframes car-drive{
     from{ transform:translateX(calc(-50% + var(--car-start,-800px))); }   /* off-screen left */
     to{   transform:translateX(-50%); }                                   /* rest behind littleMF (unchanged spot) */
@@ -638,6 +639,31 @@
   }
   applyParams();
 
+  /* ===== CLOUDS + CAR entrance — same idea as applyParams() above, but these are CSS @keyframes animations
+     rather than plain properties, so most numbers go through CSS custom properties, and the ONE number that
+     has to live inside the keyframe rule itself (the clouds' entrance→cruise handoff point) gets its own
+     freshly-generated <style> block, computed straight from config.js. ===== */
+  function applyCloudCar(){
+    var C=P.clouds||{}, CAR=P.car||{};
+    var enterDur=num(C.enterDuration,7), cruiseDur=num(C.cruiseDuration,15);
+    var total=enterDur+cruiseDur, enterPct = total>0 ? (enterDur/total*100) : 12;
+    var startOff=num(C.startOffset,150), driftDist=num(C.driftDistance,120);
+    var boost=num(C.frontSpeedBoost,0.02);
+    var css='@keyframes cloud-blow{'+
+      '0%{ transform:translate3d(calc(-50% + '+startOff+'px),0,0); animation-timing-function:cubic-bezier(.12,.7,.25,1); }'+
+      enterPct.toFixed(3)+'%{ transform:translate3d(calc(-50% + 0px),0,0); animation-timing-function:linear; }'+
+      '100%{ transform:translate3d(calc(-50% - '+driftDist+'px),0,0); }'+
+    '}';
+    var styleEl=document.getElementById('cloudKeyframes');
+    if(!styleEl){ styleEl=document.createElement('style'); styleEl.id='cloudKeyframes'; document.head.appendChild(styleEl); }
+    styleEl.textContent=css;
+    var root=document.documentElement.style;
+    root.setProperty('--cloud-back-dur', total+'s');
+    root.setProperty('--cloud-front-dur', (total/(1+boost))+'s');   // front runs faster — shorter duration covers the same keyframes quicker
+    root.setProperty('--car-dur', num(CAR.duration,1.5)+'s');
+  }
+  applyCloudCar();
+
   // size the hero DOMINANT: reserve the logo at the top, and the icon-row + AFR line at the bottom
   function sizeHero(){
     var W=innerWidth,H=innerHeight;
@@ -701,13 +727,13 @@
     // the logo baseline (keeps her body hidden while peeking); the window runs tall enough that she's
     // never clipped at the drop point.
     var mp=document.getElementById('moonPeek');
-    if(mp){ var lg=document.getElementById('logo');
+    if(mp){ var lg=document.getElementById('logo'), MP2=P.moon||{};
       var lr=(lg && lg.offsetParent!==null) ? lg.getBoundingClientRect() : document.getElementById('top').getBoundingClientRect();
       var heroBottom=lr.top + lr.height*0.655;                       // real SOLID bottom of the graffiti at centre (measured; the lower third of the PNG is only a faint shadow)
       var rs=matchMedia('(max-width:640px)').matches?0.687:1;
       var wbTop=soilY - 28*3*rs;                                     // WalkBoy's real head-top: his art fills only the bottom 28 of his 64px frame (head at row 36) × scale 3 × rs
-      var floor1=Math.round(heroBottom-8);                          // phase-1 bounce floor: moon CENTRE right under the logo (eyes peek below)
-      var floor2=Math.round(heroBottom + (wbTop-heroBottom)/3);     // phase-2 bounce floor: ~1/3 down logo→WalkBoy
+      var floor1=Math.round(heroBottom + num(MP2.floor1Offset,-8));     // px nudge from the logo's measured bottom — negative = up, positive = down
+      var floor2=Math.round(heroBottom + (wbTop-heroBottom)*num(MP2.floor2Fraction,1/3));   // how far along the logo→WalkBoy gap, 0–1
       mp.style.left=Math.round(lr.left+lr.width/2)+'px';
       mp.style.top='0px';                                           // window spans from the top of the screen (the sky)…
       mp.style.height=(floor2+100)+'px';                           // …down past the lower bounce
@@ -974,28 +1000,89 @@
     })();
   })();
 
-  /* ---- the moon: a JS sim. On WalkBoy hover it DESCENDS from the sky under gravity (unchanged fall), then
-     instead of bouncing it gently LEVITATES — a slow, subtle up/down hover right under the logo (eyes peeking).
-     config.js → moon.gravity (descent speed) · moon.floatSpeed (bob speed) · moon.floatHeight (bob amplitude). ---- */
+  /* ---- the moon: a JS sim. On WalkBoy hover it DESCENDS from the sky (3-stage gravity) to
+     FLOOR 1, right behind the logo, and plays its own first-swing / second-swing / steady-float rhythm
+     there. After floor1's bounce count it HOPS DOWN to FLOOR 2 (further toward WalkBoy) at its OWN
+     constant staged speed — then plays FLOOR 2's own entirely independent first-swing / second-swing /
+     steady-float rhythm (its own speeds AND heights). After floor2's bounce count it RISES back up to
+     floor1 at a constant staged speed and the whole cycle repeats, alternating for as long as WalkBoy
+     stays hovered.
+     config.js → moon.descentGravity1/2/3 (sky→floor1) · moon.firstMoveSpeed / firstCycleSpeed /
+     floatSpeed / floatHeight / bounceCount (FLOOR 1's rhythm) · moon.toFloor2Speed1/2/3 (the hop DOWN,
+     constant speed per stage) · moon.floor2MoveSpeed/Height, floor2CycleSpeed/Height, floor2FloatSpeed/Height,
+     floor2BounceCount (FLOOR 2's own independent rhythm) · moon.ascentSpeed1/2/3 (the RISE back up to floor1). ---- */
   (function(){
     var mp=document.getElementById('moonPeek'), img=mp && mp.querySelector('img'); if(!img) return;
     var MP=P.moon||{}, mnum=function(v,d){ return (typeof v==='number'&&isFinite(v))?v:d; };
-    var GRAV=mnum(MP.gravity,700);                                          // moon.gravity in config.js → DESCENT speed (unchanged fall)
-    var FSPD=mnum(MP.floatSpeed,1), FAMP=mnum(MP.floatHeight,6);            // moon.floatSpeed / floatHeight in config.js → levitation bob
-    var y=0, v=0, running=false, landed=false, landT=0, last=0, raf=0;
+    var G1=mnum(MP.descentGravity1,700);
+    var G2=mnum(MP.descentGravity2,G1);
+    var G3=mnum(MP.descentGravity3,G2);
+    var GW1=mnum(MP.descentStage1,0.25), GW2=mnum(MP.descentStage2,0.50), GW3=mnum(MP.descentStage3,0.25);   // WIDTH (share) of each of the 3 stages — they don't need to sum to 1, normalized automatically
+    var GWSUM=(GW1+GW2+GW3)||1, G_SPLIT1=GW1/GWSUM, G_SPLIT2=(GW1+GW2)/GWSUM;
+    // FLOOR 1 (behind the logo) — first stop, keeps ONE shared height across all its swings
+    var F1_MOVE_S=mnum(MP.firstMoveSpeed,1), F1_CYCLE_S=mnum(MP.firstCycleSpeed,F1_MOVE_S);
+    var F1_FLOAT_S=mnum(MP.floatSpeed,1), F1_H=mnum(MP.floatHeight,6);
+    var F1_BOUNCES=Math.max(1,mnum(MP.bounceCount,4));
+    // hop DOWN to floor2 — constant speed per stage, same mechanics as the ascent (NOT accelerating gravity)
+    var TF2_S1=mnum(MP.toFloor2Speed1,250);
+    var TF2_S2=mnum(MP.toFloor2Speed2,TF2_S1);
+    var TF2_S3=mnum(MP.toFloor2Speed3,TF2_S2);
+    var TF2_BREAK1=mnum(MP.toFloor2Break1,15), TF2_BREAK2=mnum(MP.toFloor2Break2,30);   // FIXED px into the hop where it switches speed1→speed2→speed3
+    // FLOOR 2 (second position) — fully independent speeds AND heights per swing
+    var F2_MOVE_S=mnum(MP.floor2MoveSpeed,F1_MOVE_S),   F2_MOVE_H=mnum(MP.floor2MoveHeight,F1_H);
+    var F2_CYCLE_S=mnum(MP.floor2CycleSpeed,F1_CYCLE_S), F2_CYCLE_H=mnum(MP.floor2CycleHeight,F1_H);
+    var F2_FLOAT_S=mnum(MP.floor2FloatSpeed,F1_FLOAT_S), F2_FLOAT_H=mnum(MP.floor2FloatHeight,F1_H);
+    var F2_BOUNCES=Math.max(1,mnum(MP.floor2BounceCount,F1_BOUNCES));
+    // RISE back up to floor1 — also constant speed per stage, staged by FIXED px into the rise
+    var AS1=mnum(MP.ascentSpeed1,120), AS2=mnum(MP.ascentSpeed2,AS1), AS3=mnum(MP.ascentSpeed3,AS2);
+    var AS_BREAK1=mnum(MP.ascentBreak1,15), AS_BREAK2=mnum(MP.ascentBreak2,30);   // FIXED px into the rise where it switches speed1→speed2→speed3
+
+    var y=0, v=0, running=false, phase='fall', last=0, raf=0, floorKey='floor1', cycles=0, ph=0, stage='v1', halfN=0, skyY=0, travelDir='down', hopY=0;
     function num(k,d){ var n=parseFloat(mp.dataset[k]); return isFinite(n)?n:d; }
+    function profile(){
+      return floorKey==='floor1'
+        ? {moveS:F1_MOVE_S, moveH:F1_H, cycleS:F1_CYCLE_S, cycleH:F1_H, floatS:F1_FLOAT_S, floatH:F1_H, bounces:F1_BOUNCES}
+        : {moveS:F2_MOVE_S, moveH:F2_MOVE_H, cycleS:F2_CYCLE_S, cycleH:F2_CYCLE_H, floatS:F2_FLOAT_S, floatH:F2_FLOAT_H, bounces:F2_BOUNCES};
+    }
     function frame(t){
       if(!running) return;
       if(!last){ last=t; raf=requestAnimationFrame(frame); return; }
       var dt=Math.min((t-last)/1000, 0.05); last=t;
-      var floor=num('floor1',0);                                              // settle spot: right under the logo (eyes peeking)
-      if(!landed){                                                            // ── DESCENT: the SAME gravity fall as before ──
-        v += GRAV*dt; y += v*dt;
-        if(y>=floor){ y=floor; landed=true; landT=t; }                        // touch down → begin levitating (no bounce)
-      } else {                                                                // ── LEVITATE: gentle sine hover around floor1 ──
-        var el=(t-landT)/1000;
-        var amp=FAMP*Math.min(1, el/1.2);                                      // ease amplitude in over 1.2s → soft settle
-        y=floor - amp*Math.sin(el*FSPD*2.0);                                   // floats up first, then bobs ±amp (dreamy)
+      var floor=num(floorKey,0);
+      if(phase==='fall'){                                                     // ── initial DESCENT from the sky — gravity steps down in 3 stages by % fallen ──
+        var total=floor-skyY, prog=total!==0 ? Math.min(1,Math.max(0,(y-skyY)/total)) : 1;
+        var g = prog<G_SPLIT1 ? G1 : prog<G_SPLIT2 ? G2 : G3;
+        v += g*dt; y += v*dt;
+        if(y>=floor){ y=floor; phase='float'; cycles=0; ph=0; stage='v1'; halfN=0; }
+      } else if(phase==='float'){                                             // ── FLOAT: dips DOWN first, then bobs ── speeds/heights depend on WHICH floor ──
+        var pr=profile();
+        var curSpeed = stage==='v1' ? pr.moveS : stage==='v2' ? pr.cycleS : pr.floatS;
+        var curH     = stage==='v1' ? pr.moveH : stage==='v2' ? pr.cycleH : pr.floatH;
+        ph += curSpeed*2.0*dt;
+        var amp=curH*Math.min(1, ph/(Math.PI/2));                             // ramps in fully by the BOTTOM of the first dip — tied to phase, not the clock, so it scales WITH speed
+        y=floor + amp*Math.sin(ph);
+        var hn=Math.floor(ph/Math.PI);                                       // counts HALF-periods (each down-up swing back to floor)
+        if(hn>halfN){ halfN=hn; if(stage==='v1') stage='v2'; else if(stage==='v2') stage='normal'; }
+        var n=Math.floor(ph/(2*Math.PI));                                    // counts FULL periods (against THIS floor's bounce count)
+        if(n>cycles){ cycles=n;
+          if(cycles>=pr.bounces){
+            var goingDown=(floorKey==='floor1');
+            floorKey=goingDown?'floor2':'floor1';
+            travelDir=goingDown?'down':'up';
+            hopY=y; v=0; phase='travel';
+          } }
+      } else if(phase==='travel'){                                            // ── TRAVEL: DOWN to floor2 or UP back to floor1, both constant speed staged by FIXED px ──
+        if(travelDir==='down'){
+          var distH=y-hopY;
+          var sH = distH<TF2_BREAK1 ? TF2_S1 : distH<TF2_BREAK2 ? TF2_S2 : TF2_S3;
+          y += sH*dt;
+          if(y>=floor){ y=floor; phase='float'; cycles=0; ph=0; stage='v1'; halfN=0; }
+        } else {
+          var distR=hopY-y;
+          var aS = distR<AS_BREAK1 ? AS1 : distR<AS_BREAK2 ? AS2 : AS3;
+          y -= aS*dt;
+          if(y<=floor){ y=floor; phase='float'; cycles=0; ph=0; stage='v1'; halfN=0; }
+        }
       }
       img.style.transform='translateY('+(y-48)+'px)';                         // img 96 tall → centre = y
       raf=requestAnimationFrame(frame);
@@ -1003,7 +1090,8 @@
     function start(){ if(document.body.classList.contains('opening')) return;
       img.style.transition='none';                                            // the sim sets transform every frame
       if(reduced){ img.style.transform='translateY('+(num('floor1',0)-48)+'px)'; return; }   // static peek, no motion
-      y=num('sky',-80); v=0; landed=false; last=0; running=true; cancelAnimationFrame(raf); raf=requestAnimationFrame(frame); }
+      skyY=num('sky',-80); y=skyY; v=0; phase='fall'; floorKey='floor1'; cycles=0; ph=0; stage='v1'; halfN=0; last=0; running=true;
+      cancelAnimationFrame(raf); raf=requestAnimationFrame(frame); }
     function stop(){ running=false; cancelAnimationFrame(raf); img.style.transition=''; img.style.transform=''; }   // → CSS base (flies back up to the sky)
     var oBk=document.getElementById('oBook');
     if(oBk){ oBk.addEventListener('pointerenter', start); oBk.addEventListener('pointerleave', stop); }

@@ -54,11 +54,69 @@ window.AH_PARAMS = {
     over: { x: 0, y: 0, scale: 3.18, fps: 11.4 },
   },
 
-  /* ───────────── MOON BOUNCE  (drops from the sky when WalkBoy is hovered / tapped) ───────────── */
+  /* ───────────── CLOUDS  (blow in from the right when GIANT is hovered / tapped) ───────────── */
+  clouds: {
+    enterDuration:  7,      // seconds for the fast blow-in from off-screen right                        (default 7)
+    cruiseDuration: 15,     // seconds for the slow drift afterward, once it settles — was 51, sped up because that pace was too slow to render smoothly (default 51)
+    startOffset:    150,    // how far right (px) it starts, past its resting spot                        (default 150)
+    driftDistance:  120,    // how far left (px) it drifts during the slow cruise                         (default 120)
+    frontSpeedBoost: 0.02,  // the front (darker) cloud runs this much faster — parallax edge              (default 0.02 = 2%)
+  },
+
+  /* ───────────── CAR / VAN  (drives in from the left when littleMF is hovered / tapped) ───────────── */
+  car: {
+    duration: 1.5,   // seconds for the drive-in, braking to a stop                                       (default 1.5)
+  },
+
+  /* ───────────── MOON BOUNCE  (drops from the sky when WalkBoy is hovered / tapped) ─────────────
+     Falls from the sky (3-stage gravity) to FLOOR 1 behind the logo, plays its own bounce rhythm there,
+     hops DOWN to FLOOR 2 (closer to WalkBoy) with its own independent rhythm, then RISES back up to
+     floor1 at a constant staged speed — repeating for as long as WalkBoy stays hovered. */
   moon: {
-    gravity:     225,   // speed of the DESCENT from the sky — higher = drops faster                (beach-ball drift; was 700)
-    floatSpeed:  0.85,  // levitation bob speed once it settles — lower = slower & dreamier          (0.85 ≈ ~3.7s float)
-    floatHeight: 4.5,   // how far it drifts up & down while floating, in px — small = subtle        (default 6)
+    /* the TWO landing positions */
+    floor1Offset: -8,      // px nudge from the logo's measured bottom — negative = up, positive = down       (default -8)
+    floor2Fraction: 0.444, // how far along the gap between the logo and WalkBoy's head floor2 sits, 0–1      (default 0.333 ≈ 1/3)
+
+    /* sky → floor1: 3-stage gravity, staged by SHARE of the fall (not raw %) */
+    descentGravity1: 900,  // fall speed for the FIRST portion of the sky→floor1 descent                    (default 700)
+    descentGravity2: 425,  // fall speed for the MIDDLE portion                                            (default = same as descentGravity1)
+    descentGravity3: 225,  // fall speed for the LAST portion — lower = smoother landing                   (default = same as descentGravity2)
+    descentStage1: 0.30,   // SHARE of the fall using descentGravity1                                      (default 0.25)
+    descentStage2: 0.30,   // SHARE using descentGravity2                                                  (default 0.50)
+    descentStage3: 0.40,   // SHARE using descentGravity3 — don't need to add to 1, auto-normalized        (default 0.25)
+
+    /* FLOOR 1 (behind the logo) — first stop, one shared height across all its swings */
+    firstMoveSpeed: 1.8,   // speed of the VERY FIRST down-up swing, right after it lands                 (default = same as firstCycleSpeed)
+    firstCycleSpeed: 1.4,  // speed of the SECOND down-up swing                                           (default = same as floatSpeed)
+    floatSpeed:  1.2,      // dip+bob speed for every swing after the first two — lower = slower, dreamier (default 1)
+    floatHeight: 5,        // how far it dips down / drifts while floating, in px — shared by all floor1 swings (default 6)
+    bounceCount: 4,        // how many float cycles at FLOOR 1 before it hops down to floor2               (default 4)
+
+    /* the HOP down to floor2 — constant speed per stage (not accelerating gravity — over a short hop,
+       momentum from stage 1 would drown out stages 2/3), staged by FIXED PIXEL distance into the hop */
+    toFloor2Speed1: 150,   // speed for the FIRST portion of the hop down (see toFloor2Break1/2 below)     (default = same as ascentSpeed1)
+    toFloor2Speed2: 200,   // speed for the MIDDLE portion                                                (default = same as toFloor2Speed1)
+    toFloor2Speed3: 300,   // speed for the LAST portion — lower = smoother arrival at floor2             (default = same as toFloor2Speed2)
+    toFloor2Break1: 15,    // px INTO the hop where it switches from speed1→speed2                        (default 15)
+    toFloor2Break2: 30,    // px INTO the hop where it switches from speed2→speed3                        (default 30)
+
+    /* FLOOR 2 (second position, closer to WalkBoy) — fully independent from floor1: own speed AND height
+       for each swing */
+    floor2MoveSpeed: 1.5,    // speed of floor2's VERY FIRST down-up swing after arriving                 (default = same as floor1's)
+    floor2MoveHeight: 7,     // height of that first swing, in px                                         (default = same as floor1's)
+    floor2CycleSpeed: 1.5,   // speed of floor2's SECOND down-up swing                                    (default = same as floor1's)
+    floor2CycleHeight: 5,    // height of that second swing, in px                                        (default = same as floor1's)
+    floor2FloatSpeed: 1.3,   // speed of every floor2 swing after the first two                           (default = same as floor1's)
+    floor2FloatHeight: 6,    // height of those steady swings, in px                                      (default = same as floor1's)
+    floor2BounceCount: 5,    // how many float cycles at FLOOR 2 before it rises back up to floor1        (default = same as floor1's)
+
+    /* the RISE back up to floor1 — a constant-speed climb (not gravity, nothing pulls it up), staged by
+       FIXED PIXEL distance into the rise, same idea as the hop above */
+    ascentSpeed1: 80,    // speed for the FIRST portion of the rise (see ascentBreak1/2 below)             (default 120)
+    ascentSpeed2: 250,   // speed for the MIDDLE portion                                                  (default = same as ascentSpeed1)
+    ascentSpeed3: 180,   // speed for the LAST portion                                                    (default = same as ascentSpeed2)
+    ascentBreak1: 15,    // px INTO the rise where it switches from speed1→speed2                        (default 15)
+    ascentBreak2: 30,    // px INTO the rise where it switches from speed2→speed3                        (default 30)
   },
 
   /* ───────────── SOUNDTRACK  (littleMF's world — the BEAH!TS player) ─────────────
