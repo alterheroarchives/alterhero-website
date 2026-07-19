@@ -117,8 +117,10 @@
   .slot canvas{display:block;image-rendering:pixelated}
   .slot .rm{position:absolute;top:-7px;right:-7px;width:16px;height:16px;border-radius:50%;background:var(--danger);color:#fff;
      font-size:11px;line-height:16px;text-align:center;display:none;cursor:pointer}
+  .slot .dup{position:absolute;top:-7px;left:-7px;width:16px;height:16px;border-radius:50%;background:var(--accent2);color:#063;
+     font-size:10px;line-height:16px;text-align:center;display:none;cursor:pointer}
   .slot .snum{position:absolute;bottom:1px;left:1px;font-size:9px;color:var(--accent);background:#000c;border-radius:5px;padding:0 4px;pointer-events:none}
-  .slot:hover .rm{display:block}
+  .slot:hover .rm,.slot:hover .dup,.slot.on .rm,.slot.on .dup{display:block}   /* tap a slot (→.on) reveals its controls on iPad (no hover) */
   .slot.on{box-shadow:0 0 0 2px var(--accent)}
   .playhead{position:absolute;top:-4px;width:2px;background:var(--accent);pointer-events:none;transition:left .04s linear}
   .playhead:before{content:"◆";position:absolute;top:-14px;left:-6px;color:var(--accent);font-size:12px}
@@ -642,8 +644,10 @@
       var sc=Math.max(1,Math.round(69/Math.max(fr.sw,fr.sh))); drawFrame(cv,f,fr,sc);
       var rm=document.createElement('div'); rm.className='rm'; rm.textContent='×';
       rm.onclick=function(e){ e.stopPropagation(); S.timeline.splice(i,1); if(S.playhead>=S.timeline.length)S.playhead=Math.max(0,S.timeline.length-1); renderTimeline(); };
+      var dup=document.createElement('div'); dup.className='dup'; dup.textContent='⧉'; dup.title='duplicate this frame next to it';
+      dup.onclick=function(e){ e.stopPropagation(); S.timeline.splice(i+1,0,{fileId:t.fileId,frame:t.frame}); setPlayhead(i+1); renderTimeline(); };
       var num=document.createElement('div'); num.className='snum'; num.textContent=t.frame+1;
-      slot.appendChild(cv); slot.appendChild(rm); slot.appendChild(num);
+      slot.appendChild(cv); slot.appendChild(rm); slot.appendChild(dup); slot.appendChild(num);
       slot.onclick=function(){ setPlayhead(i); };
       slot.ondragstart=function(e){ e.dataTransfer.setData('text/reorder',i); };
       track.appendChild(slot);
@@ -743,7 +747,15 @@
       x.drawImage(f.img,fr.sx,fr.sy,fr.sw,fr.sh,0,0,fw,fh); cvs.push(c); }
     return cvs;
   }
-  function downloadBlob(fn,blob){ var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fn; a.click(); }
+  function dataURLtoBlob(d){ var b=atob(d.split(',')[1]), a=new Uint8Array(b.length);
+    for(var i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return new Blob([a],{type:'image/png'}); }
+  function anchorDownload(fn,blob){ var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fn;
+    document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1000); }
+  function downloadBlob(fn,blob){                      // iPad Safari ignores <a download> + errors on blob: nav ("network issue") → use the Share sheet
+    var file=null; try{ file=new File([blob],fn,{type:blob.type||'image/png'}); }catch(e){}
+    if(file && navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:fn}).catch(function(err){ if(!err || err.name!=='AbortError') anchorDownload(fn,blob); });
+    } else anchorDownload(fn,blob); }
   function exportSheet(){
     var cvs=timelineCanvases(); if(!cvs){ alert('All timeline frames must be the same pixel size for PNG export.'); return; }
     if(!cvs.length) return;
@@ -751,7 +763,7 @@
     out.width=w*cvs.length; out.height=h;
     var x=out.getContext('2d'); x.imageSmoothingEnabled=false;
     cvs.forEach(function(c,i){ x.drawImage(c,i*w,0); });
-    out.toBlob(function(b){ downloadBlob(S.name+'-sheet.png', b); },'image/png');
+    downloadBlob(S.name+'-sheet.png', dataURLtoBlob(out.toDataURL('image/png')));   // sync (async toBlob would break iOS share gesture)
   }
   /* minimal APNG encoder — all frames same size, full-frame replace, infinite loop */
   var CRC_T=(function(){ var t=[],c,n,k; for(n=0;n<256;n++){ c=n; for(k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; } return t; })();
@@ -946,15 +958,29 @@
     ED.ctx.drawImage(f.img, fr.sx,fr.sy,fr.sw,fr.sh, 0,0,fr.sw,fr.sh);       // draw the frame in
     ED.undo=[]; ED.redo=[]; edUpdateUndo(); updateSaveLabel(); return true;
   }
-  /* write the edited pixels BACK into the sheet at the frame's spot, update the file */
+  function cloneFile(src,newName){                     // a fresh library entry, pixels identical to src (the untouched original)
+    var f={ id:++uid, name:newName, url:src.url, img:src.img, original:src.original||src.url, modified:false,
+      folderId:src.folderId||null, frameW:src.frameW, frameH:src.frameH, frames:[], open:true };
+    S.files.push(f); sliceFile(f,f.frameW,f.frameH); return f;
+  }
+  /* save edits into a SEPARATE "·edit" copy — the ORIGINAL png is never overwritten; the timeline slot moves to the edit */
   function edSaveToFrame(){
     var t=ED.target; if(!t) return false;
-    var f=fileById(t.fileId), fr=f&&f.frames[t.frame]; if(!fr) return false;
-    var sc=document.createElement('canvas'); sc.width=f.img.width; sc.height=f.img.height;
+    var src=fileById(t.fileId), fr=src&&src.frames[t.frame]; if(!fr) return false;
+    var isEdit = src.editOf || / ·edit\.png$/i.test(src.name);       // already an edit copy? keep editing it (survives reload)
+    var editName = isEdit ? src.name : src.name.replace(/(\.png)?$/i,'')+' ·edit.png';
+    var copy = isEdit ? src : ((src.editCopyId && fileById(src.editCopyId)) || S.files.filter(function(g){return g.name===editName;})[0]);
+    if(!copy){ copy=cloneFile(src,editName); src.editCopyId=copy.id; copy.editOf=src.id; }
+    var cfr=copy.frames[t.frame]; if(!cfr) return false;
+    var sc=document.createElement('canvas'); sc.width=copy.img.width; sc.height=copy.img.height;
     var x=sc.getContext('2d'); x.imageSmoothingEnabled=false;
-    x.drawImage(f.img,0,0); x.clearRect(fr.sx,fr.sy,fr.sw,fr.sh); x.drawImage(ED.cv,fr.sx,fr.sy);
+    x.drawImage(copy.img,0,0); x.clearRect(cfr.sx,cfr.sy,cfr.sw,cfr.sh); x.drawImage(ED.cv,cfr.sx,cfr.sy);
     var url=sc.toDataURL('image/png'), img=new Image();
-    img.onload=function(){ f.img=img; f.url=url; f.modified=true; sliceFile(f,f.frameW,f.frameH); renderFiles(); renderBrowser(); drawPreview(); markDirty(); };
+    img.onload=function(){ copy.img=img; copy.url=url; copy.modified=true; sliceFile(copy,copy.frameW,copy.frameH);
+      var slot=S.timeline[S.playhead];                              // repoint the current timeline slot at the edited copy
+      if(slot && slot.fileId===src.id && slot.frame===t.frame) slot.fileId=copy.id;
+      ED.target={fileId:copy.id, frame:t.frame}; S.selId=copy.id;
+      renderFiles(); renderBrowser(); renderTimeline(); drawPreview(); markDirty(); };
     img.src=url; return true;
   }
   function updateSaveLabel(){ var b=$('#editSave'); if(b) b.textContent = ED.target ? 'Save frame ▸' : 'Save to library ▸'; }
