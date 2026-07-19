@@ -26,3 +26,6 @@ home.checkpoint-*.html
 # reference screenshots with spaces in names (break netlify deploy; local-only)
 assets/Screenshot*.png
 assets/* *.png
+
+# unrelated Electron project living in this folder — its node_modules once broke a push (141MB file, GitHub's 100MB limit)
+TAH!PES/

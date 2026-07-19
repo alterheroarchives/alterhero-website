@@ -46,7 +46,8 @@
   #editCanvasWrap{position:relative;flex:none}   /* hugs the canvas exactly → grid background aligns pixel-perfect at any zoom */
   #edSelBox{position:absolute;left:0;top:0;width:0;height:0;display:none;border:1px dashed var(--accent2);box-shadow:0 0 0 1px #0008;pointer-events:none;z-index:3}
   #editCanvas{image-rendering:pixelated;touch-action:none;cursor:crosshair;box-shadow:0 0 0 1px #0003;flex:none;display:block}
-  #editTools{display:flex;gap:4px;align-items:center;padding:5px 7px;border-top:1px solid var(--line);background:#191822;flex-wrap:wrap}
+  #editTools{display:flex;flex-direction:column;gap:5px;padding:5px 7px;border-top:1px solid var(--line);background:#191822}
+  .etoolsRow{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
   .etool{width:27px;height:24px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:4px;background:#0e0d13;color:var(--ink);cursor:pointer;font-size:13px;padding:0;line-height:1}
   .etool.on{border-color:var(--accent);color:var(--accent);background:#ffb0381a}
   .etool:disabled{opacity:.3;cursor:default}
@@ -56,7 +57,7 @@
   .ebtn:hover{border-color:var(--accent);color:var(--accent)}
   /* PROJECT / files */
   #project{flex:.85}
-  .addbtn{border:1px dashed var(--line);border-radius:6px;padding:14px;text-align:center;color:var(--dim);cursor:pointer;transition:.15s}
+  .addbtn{border:1px dashed var(--line);border-radius:6px;padding:4px;text-align:center;color:var(--dim);cursor:pointer;transition:.15s}
   .addbtn:hover,.addbtn.drag{border-color:var(--accent);color:var(--accent);background:#ffb0380d}
   .flist{margin-top:10px;display:flex;flex-direction:column;gap:4px}
   .frow{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;cursor:pointer;border:1px solid transparent}
@@ -89,12 +90,12 @@
   /* ANIMATION (now a bar docked under the PREVIEW/EDITOR stage) */
   #animBar{border-top:1px solid var(--line);padding:8px 10px;flex:none;background:#191822}
   .transport{display:flex;gap:6px;margin-bottom:12px}
-  .tb{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:6px 0;font-size:15px;cursor:pointer}   /* height trimmed ~20% */
+  .tb{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:2px 0;font-size:15px;cursor:pointer}   /* height trimmed ~20% */
   .tb:hover{border-color:var(--accent);color:var(--accent)}
   .tb.play{background:var(--accent);color:#111;border-color:var(--accent)}
   .field{display:flex;align-items:center;gap:8px;margin-bottom:9px}
   .field label{width:74px;color:var(--dim);font-size:11px;letter-spacing:1px}
-  .field input{background:#0e0d13;border:1px solid var(--line);color:var(--ink);border-radius:5px;padding:6px 8px;font:inherit;width:100%}
+  .field input{background:#0e0d13;border:1px solid var(--line);color:var(--ink);border-radius:5px;padding:3px 4px;font:inherit;width:20%}
   .field input:focus{outline:0;border-color:var(--accent)}
   .field .unit{color:var(--dim);font-size:10px;flex:none}
   .stepbtn{flex:none;width:22px;height:26px;background:#0e0d13;border:1px solid var(--line);color:var(--ink);border-radius:4px;font:inherit;font-size:13px;cursor:pointer;line-height:1;padding:0}
@@ -111,7 +112,7 @@
   .ruler{height:22px;position:relative;border-bottom:1px solid var(--line);flex:none;color:var(--dim);font-size:9px}
   .ruler .tick{position:absolute;top:0;bottom:0;border-left:1px solid var(--line)}
   .ruler .tick span{position:absolute;top:2px;left:3px}
-  .track{flex:1;display:flex;align-items:center;gap:0;padding:10px 0;overflow-x:auto;overflow-y:hidden;min-height:0;position:relative}
+  .track{flex:1;display:flex;align-items:center;gap:0;padding:10px 14px;overflow-x:auto;overflow-y:hidden;min-height:0;position:relative}
   .track.drag{background:#57d6c40d;box-shadow:inset 0 0 0 2px var(--accent2)}
   .slot{position:relative;flex:none;border:1px solid var(--line);border-radius:4px;margin:0 3px;background:#0005;cursor:grab;image-rendering:pixelated}
   .slot canvas{display:block;image-rendering:pixelated}
@@ -157,36 +158,40 @@
 </style>
 
 <header>
-  <div class="hleft"><span class="vtabs"><span class="vtab on" id="tabPreview">PREVIEW</span><span class="vsep">·</span><span class="vtab" id="tabEditor">EDITOR</span></span> <span id="pvinfo" class="muted"></span></div>
+  <div class="hleft"></div>
   <b class="htitle"><img src="assets/AH!logo.png" alt="AH!" class="logo-mark"> STUDIO</b>
-  <a class="hright backlink" href="/" title="Back to alterhero.xyz">← BACK</a>
+  <a class="hright backlink" href="home.html" title="Back to alterhero.xyz">← BACK</a>
 </header>
 
 <div class="row">
   <section class="panel" id="preview">
+    <div class="ptitle"><span class="vtabs"><span class="vtab on" id="tabPreview">PREVIEW</span><span class="vsep">·</span><span class="vtab" id="tabEditor">EDITOR</span></span><span id="pvinfo" class="muted"></span></div>
     <div class="stage"><canvas id="previewCanvas" width="64" height="64"></canvas>
       <div id="editorWrap">
         <div id="editScroll"><div id="editCanvasWrap"><canvas id="editCanvas" width="32" height="32"></canvas><div id="edSelBox"></div></div></div>
         <div id="editTools">
-          <button class="etool on" id="tBrush" title="Pixel brush">✏️</button>
-          <button class="etool" id="tEraser" title="Eraser">🧽</button>
-          <input type="color" id="editColor" value="#e24b4a" title="Color wheel">
-          <button class="etool" id="tEye" title="Eyedropper — tap a pixel to pick its color">🩸</button>
-          <span class="vsep">|</span>
-          <button class="etool" id="tSelect" title="Select a zone, then nudge it with the arrows">▭</button>
-          <button class="etool" id="nLeft" title="Nudge selection left 1px" disabled>◀</button>
-          <button class="etool" id="nUp" title="Nudge selection up 1px" disabled>▲</button>
-          <button class="etool" id="nDown" title="Nudge selection down 1px" disabled>▼</button>
-          <button class="etool" id="nRight" title="Nudge selection right 1px" disabled>▶</button>
-          <span class="vsep">|</span>
-          <button class="etool" id="tUndo" title="Undo" disabled>↶</button>
-          <button class="etool" id="tRedo" title="Redo" disabled>↷</button>
-          <span class="vsep">|</span>
-          <select id="editZoom" title="Zoom">
-            <option value="1">×1</option><option value="2">×2</option><option value="4">×4</option><option value="8" selected>×8</option>
-          </select>
-          <button class="ebtn" id="editNew">New</button>
-          <button class="ebtn" id="editSave">Save to library ▸</button>
+          <div class="etoolsRow">
+            <button class="etool on" id="tBrush" title="Pixel brush">✎</button>
+            <button class="etool" id="tEraser" title="Eraser">⌫</button>
+            <input type="color" id="editColor" value="#e24b4a" title="Color wheel">
+            <button class="etool" id="tEye" title="Eyedropper — tap a pixel to pick its color">◉</button>
+            <span class="vsep">|</span>
+            <button class="etool" id="tSelect" title="Select a zone, then nudge it with the arrows">▭</button>
+            <button class="etool" id="nLeft" title="Nudge selection left 1px" disabled>◀</button>
+            <button class="etool" id="nUp" title="Nudge selection up 1px" disabled>▲</button>
+            <button class="etool" id="nDown" title="Nudge selection down 1px" disabled>▼</button>
+            <button class="etool" id="nRight" title="Nudge selection right 1px" disabled>▶</button>
+            <span class="vsep">|</span>
+            <button class="etool" id="tUndo" title="Undo" disabled>↶</button>
+            <button class="etool" id="tRedo" title="Redo" disabled>↷</button>
+          </div>
+          <div class="etoolsRow">
+            <select id="editZoom" title="Zoom">
+              <option value="1">×1</option><option value="2">×2</option><option value="4">×4</option><option value="8" selected>×8</option>
+            </select>
+            <button class="ebtn" id="editNew">New</button>
+            <button class="ebtn" id="editSave">Save to library ▸</button>
+          </div>
         </div>
       </div>
     </div>
@@ -208,7 +213,7 @@
         <button class="tb" id="tNext"  title="step forward">▶|</button>
         <button class="tb" id="tLast"  title="last frame">▶▶|</button>
       </div>
-      <div class="fieldpair">
+      <div class="fieldpair" style="margin-bottom:0">
         <div class="field" title="frames per second">
           <label>FPS</label>
           <button type="button" class="stepbtn" id="fpsDown">−</button>
@@ -216,21 +221,19 @@
           <button type="button" class="stepbtn" id="fpsUp">+</button>
         </div>
         <div class="field" title="frames on timeline"><label>FRAMES</label><input id="samples" type="number" value="0" readonly></div>
-      </div>
-      <div class="field" style="margin-bottom:0">
-        <label>NAME</label><input id="animName" type="text" value="animation">
         <button id="exportBtn">EXPORT ▸</button>
       </div>
+      <div style="display:none"><input id="animName" type="text" value="animation"></div>
     </div>
   </section>
 
   <div class="rightTop">
   <section class="panel" id="project">
-    <div class="ptitle">LIBRARY <span id="saveLib" title="save this session in this browser" style="cursor:pointer;color:var(--accent)">💾 save</span></div>
+    <div class="ptitle"><span id="saveLib" title="save this session in this browser" style="cursor:pointer;color:var(--accent);margin-left:auto">💾 save</span></div>
     <div class="pbody">
       <div style="display:flex;gap:6px">
         <div class="addbtn" id="addFolder" style="flex:1">+ FOLDER</div>
-        <div class="addbtn" id="addbtn" style="flex:2">+ IMPORT<br><span style="font-size:10px">click or drop files</span></div>
+        <div class="addbtn" id="addbtn" style="flex:2">+ IMPORT PNG</div>
       </div>
       <input type="file" id="fileInput" accept="image/png,image/*" multiple>
       <div class="flist" id="flist"></div>
@@ -238,7 +241,7 @@
   </section>
 
   <section class="panel" id="browser">
-    <div class="ptitle">FILE · FRAMES</div>
+    <div class="ptitle">FRAMES</div>
     <div class="pbody" id="browserBody">
       <div class="muted">Select a PNG on the left. Then <b>Slice</b> it into frames.</div>
     </div>
@@ -246,7 +249,7 @@
   </div>
 
   <section class="panel" id="timeline">
-    <div class="ptitle"><span>TIMELINE <span class="muted">— drag frames here to build the animation</span></span><button id="saveProject" class="ebtn" title="Save this project (library + timeline + settings) in the browser">💾 SAVE PROJECT</button></div>
+    <div class="ptitle"><span>TIMELINE</span><div id="tlSlots" style="display:flex;gap:4px;align-items:center"></div></div>
     <div class="pbody" style="display:flex;padding:0">
       <div class="tlwrap">
         <div class="ruler" id="ruler"></div>
@@ -303,6 +306,55 @@
   var $=function(s){return document.querySelector(s)};
   var uid=0;
   var S={ files:[], folders:[], curFolder:null, selId:null, timeline:[], fps:12, name:'animation', playhead:0, playing:false, zoom:'auto', grid:true };
+  S.slots=[{timeline:S.timeline}]; S.curSlotIdx=0;   // TIMELINE slots — slot #1's array IS S.timeline (same reference), so anything that mutates S.timeline (push/splice) stays in sync automatically
+  function renderSlots(){
+    var wrap=$('#tlSlots'); if(!wrap) return;
+    wrap.innerHTML='';
+    S.slots.forEach(function(sl,i){
+      var on=(i===S.curSlotIdx);
+      var item=document.createElement('span'); item.className='ebtn';
+      item.style.cssText='display:inline-flex;align-items:center;gap:5px;padding:3px 6px 3px 8px'+(on?';border-color:var(--accent);color:var(--accent)':'');
+      var num=document.createElement('span'); num.textContent='#'+(i+1); num.style.cursor='pointer';
+      num.onclick=function(){ switchSlot(i); };
+      item.appendChild(num);
+      if(S.slots.length>1){                                        // every slot gets its own × — no need to select it first
+        var x=document.createElement('span'); x.textContent='×'; x.title='delete this timeline';
+        x.style.cssText='cursor:pointer;opacity:.55;font-size:13px;line-height:1';
+        x.onmouseenter=function(){ x.style.opacity='1'; x.style.color='var(--danger)'; };
+        x.onmouseleave=function(){ x.style.opacity='.55'; x.style.color=''; };
+        x.onclick=function(e){ e.stopPropagation(); deleteSlot(i); };
+        item.appendChild(x);
+      }
+      wrap.appendChild(item);
+    });
+    var add=document.createElement('button'); add.className='ebtn'; add.textContent='+'; add.title='new timeline slot';
+    add.onclick=function(){
+      S.slots.push({timeline:[]});
+      switchSlot(S.slots.length-1);
+    };
+    wrap.appendChild(add);
+  }
+  function switchSlot(i){
+    if(i===S.curSlotIdx) return;
+    S.slots[S.curSlotIdx].timeline=S.timeline;   // stash current slot's array reference (defensive — normally already the same object)
+    S.curSlotIdx=i; S.timeline=S.slots[i].timeline; S.playhead=0;
+    renderSlots(); renderTimeline();
+  }
+  function deleteSlot(i){
+    if(S.slots.length<=1) return;                                  // always keep at least one timeline
+    var sl=S.slots[i], n=(sl.timeline||[]).length;
+    if(n>0 && !confirm('Delete timeline #'+(i+1)+'? It has '+n+' frame'+(n===1?'':'s')+' — this can\'t be undone.')) return;
+    var wasActive=(S.curSlotIdx===i);
+    S.slots.splice(i,1);
+    if(wasActive){
+      var next=Math.min(i, S.slots.length-1);
+      S.curSlotIdx=-1;                                             // force switchSlot() to actually apply (its guard skips a no-op index change)
+      switchSlot(next);
+    } else {
+      if(S.curSlotIdx>i) S.curSlotIdx--;                           // shift index down — a slot BEFORE the active one was removed
+      renderSlots();
+    }
+  }
 
   /* ---------- load PNGs ---------- */
   function loadImage(dataURL,name,opts){
@@ -312,7 +364,8 @@
       img.onload=function(){
         var f={id:++uid, name:name||('sheet'+uid+'.png'), url:dataURL, original:dataURL, modified:false, img:img,
                folderId:(opts.folderId!==undefined?opts.folderId:S.curFolder), source:opts.source||'local',
-               frameW:guessSize(img.width), frameH:guessSize(img.height), frames:[], open:true};
+               frameW:(typeof opts.frameW==='number'?opts.frameW:guessSize(img.width)),
+               frameH:(typeof opts.frameH==='number'?opts.frameH:guessSize(img.height)), frames:[], open:true};
         S.files.push(f);
         if(!opts.silent){ S.selId=f.id; renderFiles(); renderBrowser(); }
         res(f.id);
@@ -338,7 +391,7 @@
   /* ---------- LIBRARY (assets/sprites/, read from manifest.json) — ingested as real folders+files, merged into the SAME tree ---------- */
   var LIB_ROOT='assets/sprites/';
   function loadLibraryManifest(){
-    fetch(LIB_ROOT+'manifest.json').then(function(r){ if(!r.ok) throw 0; return r.json(); })
+    fetch(LIB_ROOT+'manifest.json', {cache:'no-store'}).then(function(r){ if(!r.ok) throw 0; return r.json(); })
       .then(ingestLibrary)
       .catch(function(){});
   }
@@ -352,9 +405,13 @@
       Object.keys(chars).forEach(function(charName){
         var charId='lib:'+cat+'/'+charName;
         if(!S.folders.some(function(x){return x.id===charId;})) S.folders.push({id:charId,name:charName,open:false,parentId:catId,fromLibrary:true});
-        (chars[charName]||[]).forEach(function(fn){
+        (chars[charName]||[]).forEach(function(entry){
+          var isObj = entry && typeof entry==='object';        // manifest entries can be a plain "file.png" string, or {file,frameW,frameH}
+          var fn = isObj ? entry.file : entry;
+          if(!fn) return;
           var url=LIB_ROOT+encodeURIComponent(cat)+'/'+encodeURIComponent(charName)+'/'+encodeURIComponent(fn);
-          chain=chain.then(function(){ return loadImage(url, fn, {folderId:charId, source:'library', silent:true}); });
+          chain=chain.then(function(){ return loadImage(url, fn, {folderId:charId, source:'library', silent:true,
+            frameW:isObj?entry.frameW:undefined, frameH:isObj?entry.frameH:undefined}); });
         });
       });
     });
@@ -660,8 +717,10 @@
     var slots=$('#track').querySelectorAll('.slot');
     slots.forEach(function(el,i){
       var d=document.createElement('div');
-      d.style.cssText='position:absolute;top:4px;left:'+(el.offsetLeft+el.offsetWidth/2-4)+'px;color:var(--accent2);font-size:9px';
-      d.textContent='◆'; ruler.appendChild(d);
+      d.style.cssText='position:absolute;top:1px;left:'+(el.offsetLeft+el.offsetWidth/2)+'px;transform:translateX(-50%);color:#fff;font-size:16px;line-height:1;cursor:pointer';
+      d.textContent='◇'; d.title='jump to frame '+(i+1);           // hollow diamond, white outline only — bigger + clickable
+      d.onclick=function(){ setPlayhead(i); };                        // same jump-and-highlight as clicking the frame itself
+      ruler.appendChild(d);
       if(i%5===0){ var t=document.createElement('div'); t.className='tick'; t.style.left=el.offsetLeft+'px';
         var s=document.createElement('span'); s.textContent=i+1; t.appendChild(s); ruler.appendChild(t); }
     });
@@ -914,9 +973,9 @@
     }).catch(function(){ S.ready=true; });
   }
   $('#saveLib').onclick=saveLibrary;
-  $('#saveProject').onclick=saveLibrary;
   window.addEventListener('pagehide',function(){ if(S.ready) IDB.set('project',buildProject()).catch(function(){}); });
   document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='hidden'&&S.ready) IDB.set('project',buildProject()).catch(function(){}); });
+  renderSlots();
   restoreLibrary();
   loadLibraryManifest();
 
