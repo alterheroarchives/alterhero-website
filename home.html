@@ -328,6 +328,36 @@
   /* music = vinyl dark */
   #wMusic, #reveal.toMusic{ background:#0d0b12; }
   #wMusic{ color:#efe7f6; } #wMusic .btn{ color:#e08a63; } #wMusic .card{ border-color:rgba(255,255,255,.12); }
+  /* littleMF soundtrack player — vinyl-dark, warm accent #e08a63 (matches the world) */
+  .mfplayer{ margin-top:26px; }
+  .mf-now{ display:flex; gap:20px; align-items:center; border:1.5px solid rgba(255,255,255,.12); padding:22px; }
+  .mf-disc{ width:96px; height:96px; flex:none; border-radius:50%; position:relative;
+    background:radial-gradient(circle at 50% 50%, #2a2431 0 21%, #e08a63 22% 24%, #16121d 25% 27%, #0d0b12 28%);
+    box-shadow:0 0 0 2px rgba(255,255,255,.06) inset, 0 6px 20px rgba(0,0,0,.5); }
+  .mf-disc span{ position:absolute; inset:44%; border-radius:50%; background:#0d0b12; box-shadow:0 0 0 3px #e08a63; }
+  .mf-disc.spin{ animation:mfspin 3.4s linear infinite; }
+  @keyframes mfspin{ to{ transform:rotate(360deg); } }
+  .mf-meta{ flex:1; min-width:0; }
+  .mf-title{ font-family:var(--mono); font-weight:800; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mf-sub{ font-size:10.5px; letter-spacing:.2em; text-transform:uppercase; opacity:.5; margin:3px 0 12px; }
+  .mf-seek{ display:flex; align-items:center; gap:10px; font-family:var(--mono); font-size:11px; opacity:.85; }
+  .mf-seek input{ flex:1; accent-color:#e08a63; height:3px; cursor:pointer; }
+  .mf-transport{ display:flex; gap:10px; margin-top:14px; }
+  .mf-transport button{ font-family:var(--mono); font-size:14px; color:#efe7f6; background:transparent;
+    border:1.5px solid rgba(255,255,255,.16); width:46px; height:38px; cursor:pointer; transition:.15s; }
+  .mf-transport button:hover{ border-color:#e08a63; color:#e08a63; }
+  .mf-transport #mfPlay{ background:#e08a63; color:#0d0b12; border-color:#e08a63; }
+  .mf-list{ margin-top:12px; }
+  .mf-row{ display:flex; align-items:center; gap:14px; padding:14px 18px; border:1.5px solid rgba(255,255,255,.12);
+    margin:10px 0; cursor:pointer; transition:.15s; }
+  .mf-row:hover{ border-color:rgba(224,138,99,.55); }
+  .mf-row.on{ border-color:#e08a63; background:rgba(224,138,99,.08); }
+  .mf-row .idx{ font-family:var(--mono); font-size:12px; opacity:.5; width:22px; flex:none; }
+  .mf-row .rt{ flex:1; font-family:var(--mono); font-weight:700; font-size:13px; }
+  .mf-row .rd{ font-family:var(--mono); font-size:11px; opacity:.5; flex:none; }
+  .mf-row.mfsoon{ opacity:.5; cursor:default; }
+  .mf-row.mfsoon:hover{ border-color:rgba(255,255,255,.12); }
+  .mf-row.mfsoon .rd{ color:#e08a63; opacity:.85; }
 
   /* the descent: the home plunges away as you fall past it into the world */
   body.opening #stage{ transform:translateY(-7vh) scale(1.07); opacity:.10;
@@ -440,10 +470,20 @@
     <div class="wrap">
       <div class="eyebrow">BEAH!TS</div>
       <h1>The sound<br>of the alters.</h1>
-      <p>The score to the descent — the tracks the hero fell through. Streaming links and the full record, soon.</p>
-      <span class="soon">First drop · coming soon</span>
-      <div class="card">◈ Side A — the ascent</div>
-      <div class="card">◈ Side B — the archive</div>
+      <p>The score to the descent — the tracks the hero fell through.</p>
+      <div class="mfplayer">
+        <div class="mf-now">
+          <div class="mf-disc" id="mfDisc"><span></span></div>
+          <div class="mf-meta">
+            <div class="mf-title" id="mfTitle">— select a track —</div>
+            <div class="mf-sub">BEAH!TS · the record</div>
+            <div class="mf-seek"><span id="mfCur">0:00</span><input type="range" id="mfSeek" min="0" max="1000" value="0" aria-label="seek"><span id="mfDur">0:00</span></div>
+            <div class="mf-transport"><button id="mfPrev" aria-label="previous">⏮</button><button id="mfPlay" aria-label="play">▶</button><button id="mfNext" aria-label="next">⏭</button></div>
+          </div>
+        </div>
+        <div class="mf-list" id="mfList"></div>
+      </div>
+      <audio id="mfAudio" preload="none"></audio>
     </div>
   </section>
 
@@ -968,6 +1008,53 @@
     var oBk=document.getElementById('oBook');
     if(oBk){ oBk.addEventListener('pointerenter', start); oBk.addEventListener('pointerleave', stop); }
   })();
+})();
+</script>
+
+<script>
+/* ---- littleMF soundtrack player (BEAH!TS). Tracks come from config.js → music.tracks.
+       Reuses the world overlay + vinyl aesthetic; audio stops when the world closes. ---- */
+(function(){
+  var P=window.AH_PARAMS||{}, tracks=(P.music&&P.music.tracks)||[];
+  var audio=document.getElementById('mfAudio'); if(!audio) return;
+  var listEl=document.getElementById('mfList'), titleEl=document.getElementById('mfTitle'),
+      playBtn=document.getElementById('mfPlay'), disc=document.getElementById('mfDisc'),
+      seek=document.getElementById('mfSeek'), curEl=document.getElementById('mfCur'), durEl=document.getElementById('mfDur');
+  var cur=-1;
+  function fmt(s){ s=Math.floor(s||0); return Math.floor(s/60)+':'+('0'+(s%60)).slice(-2); }
+  function nextWithSrc(from){ for(var i=0;i<tracks.length;i++){ var j=((from+i)%tracks.length+tracks.length)%tracks.length; if(tracks[j]&&tracks[j].src) return j; } return -1; }
+  function prevWithSrc(from){ for(var i=0;i<tracks.length;i++){ var j=((from-i)%tracks.length+tracks.length)%tracks.length; if(tracks[j]&&tracks[j].src) return j; } return -1; }
+  function render(){
+    listEl.innerHTML='';
+    if(!tracks.length){ listEl.innerHTML='<div class="mf-row mfsoon"><span class="rt">Add tracks in config.js → music.tracks</span></div>'; return; }
+    tracks.forEach(function(t,i){
+      var row=document.createElement('div'); row.className='mf-row'+(i===cur?' on':'')+(t.src?'':' mfsoon');
+      var idx=document.createElement('span'); idx.className='idx'; idx.textContent=('0'+(i+1)).slice(-2);
+      var rt=document.createElement('span'); rt.className='rt'; rt.textContent=t.title||'Untitled';
+      var rd=document.createElement('span'); rd.className='rd'; rd.textContent=t.src?(i===cur&&!audio.paused?'▮ playing':'▶'):'soon';
+      row.appendChild(idx); row.appendChild(rt); row.appendChild(rd);
+      if(t.src) row.onclick=function(){ playTrack(i); };
+      listEl.appendChild(row);
+    });
+  }
+  function playTrack(i){ var t=tracks[i]; if(!t||!t.src) return;
+    if(i!==cur){ cur=i; audio.src=t.src; titleEl.textContent=t.title||'Untitled'; }
+    audio.play().catch(function(){}); render(); }
+  function toggle(){ if(cur<0){ var f=nextWithSrc(0); if(f>=0) playTrack(f); return; }
+    if(audio.paused) audio.play().catch(function(){}); else audio.pause(); }
+  playBtn.onclick=toggle;
+  document.getElementById('mfNext').onclick=function(){ var n=nextWithSrc(cur+1); if(n>=0) playTrack(n); };
+  document.getElementById('mfPrev').onclick=function(){ var n=prevWithSrc(cur-1); if(n>=0) playTrack(n); };
+  audio.addEventListener('play', function(){ playBtn.textContent='❚❚'; disc.classList.add('spin'); render(); });
+  audio.addEventListener('pause', function(){ playBtn.textContent='▶'; disc.classList.remove('spin'); render(); });
+  audio.addEventListener('timeupdate', function(){ if(audio.duration){ seek.value=Math.round(audio.currentTime/audio.duration*1000); curEl.textContent=fmt(audio.currentTime); durEl.textContent=fmt(audio.duration); } });
+  audio.addEventListener('loadedmetadata', function(){ durEl.textContent=fmt(audio.duration); });
+  audio.addEventListener('ended', function(){ var n=nextWithSrc(cur+1); if(n>=0&&n!==cur) playTrack(n); });
+  audio.addEventListener('error', function(){ if(tracks[cur]) tracks[cur].src=''; titleEl.textContent='— file not found —'; render(); });
+  seek.addEventListener('input', function(){ if(audio.duration) audio.currentTime=seek.value/1000*audio.duration; });
+  var w=document.getElementById('wMusic');                          // stop playback when the music world is closed
+  if(w && window.MutationObserver){ new MutationObserver(function(){ if(!w.classList.contains('show')) audio.pause(); }).observe(w,{attributes:true,attributeFilter:['class']}); }
+  render();
 })();
 </script>
 </body>

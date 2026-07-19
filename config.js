@@ -61,4 +61,15 @@ window.AH_PARAMS = {
     floatHeight: 4.5,   // how far it drifts up & down while floating, in px — small = subtle        (default 6)
   },
 
+  /* ───────────── SOUNDTRACK  (littleMF's world — the BEAH!TS player) ─────────────
+     Drop your audio files in assets/ (or an assets/tracks/ folder) and list them below.
+     Each track: { title: "name shown", src: "assets/your-file.mp3" }  · order = play order.
+     Leave src "" and the track shows as "soon" (greyed) until you add the file. */
+  music: {
+    tracks: [
+      { title: "Side A — the ascent",  src: "" },   // ← e.g. "assets/tracks/side-a.mp3"
+      { title: "Side B — the archive", src: "" },
+    ],
+  },
+
 };
