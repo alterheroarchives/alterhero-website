@@ -75,7 +75,7 @@
     0%{ transform:skewX(-2deg); }   14%{ transform:skewX(2deg); }   28%{ transform:skewX(-1.6deg); }
     38%{ transform:skewX(0deg); }   56%{ transform:skewX(0deg); }   /* ← still-water pause */
     70%{ transform:skewX(2deg); }   85%{ transform:skewX(-2deg); }  100%{ transform:skewX(-2deg); } }
-  .orb:hover .chip, .orb.revealed .chip{ transform:translate(var(--onx,0px),var(--ony,0px)) scale(var(--ogrow,1.06)); } /* over-state pos+scale from config.js (.revealed = tap-opened on touch) */
+  .orb:hover .chip, .orb.revealed .chip{ transform:translate(var(--onx,0px),var(--ony,0px)) scale(var(--ogrow,1.04)); } /* over-state pos+scale from config.js (.revealed = tap-opened on touch) */
   /* FADE WHEN NOT OVER (fadeWhenNotOver in config.js): every character rests faded; the hovered / tapped one lights up */
   .orb{ opacity:var(--dim-op,.28); }
   .orb:hover, .orb.revealed, .orb.chosen{ opacity:1; }
@@ -204,7 +204,7 @@
   /* pixel-RPG dialogue box — hidden until the cursor is on that character */
   /* pixel dialogue bubble — an EMPTY pre-rendered frame (framebubble1.png, 2 blink frames of 111×32);
      the two lines of text are LIVE DOM, typed on hover (line 1 letter-by-letter, line 2 opens on dwell). */
-  .orb .think{ position:absolute; z-index:7; width:var(--bub-w,222px); height:var(--bub-h,64px);   /* size = bubble.scale in config.js (native 111×32 × scale) */
+  .orb .think{ position:absolute; z-index:16; width:var(--bub-w,222px); height:var(--bub-h,64px);   /* size = bubble.scale in config.js (native 111×32 × scale); z-index above #mfDock (15) so it never gets covered by the music player */
     background-repeat:no-repeat; background-size:200% 100%; background-position-x:0;
     image-rendering:pixelated; image-rendering:crisp-edges;
     opacity:0; pointer-events:none; transition:opacity .12s steps(2), transform .18s steps(3); }
@@ -235,14 +235,99 @@
   #reveal{ position:fixed; inset:0; z-index:20; pointer-events:none;
     clip-path:circle(0% at var(--rx,50%) var(--ry,50%)); transition:clip-path .7s cubic-bezier(.7,0,.3,1); }
   body.opening #reveal{ clip-path:circle(150% at var(--rx,50%) var(--ry,50%)); pointer-events:auto; }
-  /* the descent: a fall through the abyss of the universe into the AH! matrix */
-  #descent{ position:fixed; inset:0; z-index:19; opacity:0; pointer-events:none; background:#03040a;
-    transition:opacity .6s ease; }
+
+  /* ---- ALL THREE characters (GIANT → AH!rchives, WalkBoy → PHENOMENAH, littleMF → BEAH!TS): a two-stage
+     transition instead of the circle-bloom.
+     STAGE 1 (fast, ~0.5s): the logo + floor line + footer quietly disappear — clears the ambient UI first.
+     STAGE 2 (5s): a TELEPORT — whichever character was picked stays roughly in place while a tunnel of
+     light rings pulses outward around them and VHS scan-lines flicker with increasing intensity, building
+     to a bright flash that vanishes them — no downward travel, no sliding off-screen. Targets .orb.chosen
+     generically, so the same effect works for any character without any character-specific CSS. ---- */
+  body.sink-music #top, body.sink-music #soil, body.sink-music #foot{
+    opacity:0; transition:opacity .5s ease; }
+  @keyframes teleport-char{
+    0%{   transform:scale(1); filter:brightness(1) saturate(1); opacity:1; }
+    70%{  transform:scale(1); filter:brightness(1.1) saturate(1); opacity:1; }
+    88%{  transform:scale(1); filter:brightness(1.7) saturate(1.4); opacity:1; }
+    94%{  transform:scale(1); filter:brightness(3) saturate(.3); opacity:.7; }
+    100%{ transform:scale(1); filter:brightness(5) saturate(0); opacity:0; }
+  }
+  @keyframes tunnel-ring{
+    0%{   transform:translate(-50%,-50%) scale(.25); opacity:0; border-width:2px; }
+    10%{  opacity:.5; }
+    65%{  opacity:.12; }
+    100%{ transform:translate(-50%,-50%) scale(3.4); opacity:0; border-width:.5px; }
+  }
+  @keyframes vhs-flicker{
+    0%,100%{ opacity:0; }
+    15%{ opacity:.3; }  16%{ opacity:0; }
+    32%{ opacity:.3; }  33%{ opacity:0; }
+    50%{ opacity:.35; } 51%{ opacity:0; }
+    65%{ opacity:.4; }  66%{ opacity:0; }
+    78%{ opacity:.5; }  79%{ opacity:0; }
+    86%{ opacity:.65; } 87%{ opacity:0; }
+    91%{ opacity:.8; }  92%{ opacity:0; }
+    95%{ opacity:1; }   96%{ opacity:0; }
+  }
+  body.vacuum .orb.chosen .chip{ animation:teleport-char 3s cubic-bezier(.4,0,.7,1) forwards !important; }   /* !important: overrides the hover-state chip transform still active mid-click */
+  body.vacuum .orb.chosen .chip::before{ content:''; position:absolute; left:50%; top:50%; width:140px; height:140px;
+    border-radius:50%; border:2px solid rgba(124,199,255,.7); pointer-events:none; z-index:1;
+    animation:tunnel-ring 1.05s ease-out infinite; }
+  body.vacuum .orb.chosen .chip::after{ content:''; position:absolute; inset:-16px -30px; pointer-events:none; z-index:2;
+    background:repeating-linear-gradient(0deg, rgba(124,199,255,0) 0 3px, rgba(124,199,255,.4) 3px 4px, rgba(124,199,255,0) 4px 7px);
+    mix-blend-mode:screen; animation:vhs-flicker 3s steps(1) forwards; }
+  body.sink-music #reveal{ display:none; }
+
+  /* ---- littleMF variant: skip stage 1 + the tunnel-ring circles entirely, go straight into a LONGER
+     glitch — real chromatic aberration traced along his own silhouette (drop-shadow follows the sprite's
+     alpha channel = his actual outline, not an overlay), with jittery position shifts, building to the
+     same brightness-flash vanish. No scan-line bars anymore — it's entirely ON the character. ---- */
+  @keyframes teleport-char-mf{
+    0%{   filter:none; opacity:1; }
+    6%{   filter:drop-shadow(2px 0 0 rgba(255,20,60,.55)) drop-shadow(-2px 0 0 rgba(20,255,220,.55)); opacity:1; }
+    7%{   filter:none; opacity:1; }
+    18%{  filter:drop-shadow(1px 0 0 rgba(255,20,60,.4)) drop-shadow(-1px 0 0 rgba(20,255,220,.4)); opacity:1; }
+    19%{  filter:none; opacity:1; }
+    32%{  filter:drop-shadow(3px 0 0 rgba(255,20,60,.6)) drop-shadow(-3px 0 0 rgba(20,255,220,.6)) drop-shadow(0 -2px 0 rgba(255,220,40,.4)); opacity:1; }
+    33%{  filter:none; opacity:1; }
+    46%{  filter:drop-shadow(2px 0 0 rgba(255,20,60,.5)) drop-shadow(-2px 0 0 rgba(20,255,220,.5)); opacity:1; }
+    47%{  filter:none; opacity:1; }
+    58%{  filter:drop-shadow(4px 0 0 rgba(255,20,60,.65)) drop-shadow(-4px 0 0 rgba(20,255,220,.65)) drop-shadow(0 2px 0 rgba(255,220,40,.45)); opacity:1; }
+    59%{  filter:none; opacity:1; }
+    70%{  filter:drop-shadow(3px 0 0 rgba(255,20,60,.6)) drop-shadow(-3px 0 0 rgba(20,255,220,.6)); opacity:1; }
+    71%{  filter:none; opacity:1; }
+    80%{  filter:drop-shadow(5px 0 0 rgba(255,20,60,.75)) drop-shadow(-5px 0 0 rgba(20,255,220,.75)) drop-shadow(0 -2px 0 rgba(255,220,40,.5)); opacity:1; }
+    88%{  filter:drop-shadow(7px 0 0 rgba(255,20,60,.85)) drop-shadow(-7px 0 0 rgba(20,255,220,.85)) brightness(1.8) saturate(1.4); opacity:1; }
+    93%{  filter:drop-shadow(9px 0 0 rgba(255,20,60,.9)) drop-shadow(-9px 0 0 rgba(20,255,220,.9)) brightness(3) saturate(.4); opacity:.7; }
+    100%{ filter:brightness(5) saturate(0); opacity:0; }
+  }
+  body.vacuum-mf .orb.chosen .chip{ animation:teleport-char-mf 4.5s steps(1) forwards !important; }
+
+  /* BEAH!TS player dock — floats directly above littleMF's head (position set dynamically in layout()/JS,
+     matching how the other atmosphere elements track his position). Toggled by clicking him — that's also
+     how it closes, so no separate close button is needed. Doesn't hide anything else — GIANT/WalkBoy stay
+     fully visible and hoverable while this is open. */
+  #mfDock{ position:fixed; z-index:15; display:none; transform:translate(-50%,-100%); }
+  #mfDock.show{ display:block; }
+
+  /* top-right nav: the back button + speaker sit together as a group */
+  .topnav{ position:fixed; top:18px; right:16px; z-index:22; display:flex; align-items:flex-end; gap:0px; }
+  .spk-btn{ position:static; background:none; border:0; cursor:pointer; padding:0; margin-left:-4px;   /* ← this is the working version of what gap:-4px was trying to do — gap can't go negative, margin can */
+    display:flex; align-items:center; justify-content:center; opacity:.8; transition:opacity .15s; }
+  .spk-btn img{ width:20px; height:20px; object-fit:contain; display:block; }
+  .spk-btn:hover{ opacity:1; }
+  .spk-btn.on{ opacity:1; }
 
   /* ---- world overlays (scrollable) ---- */
   .world{ position:fixed; inset:0; z-index:21; overflow-y:auto; overflow-x:hidden; opacity:0; pointer-events:none;
     transition:opacity .5s ease; -webkit-overflow-scrolling:touch; }
   .world.show{ opacity:1; pointer-events:auto; }
+  /* belt-and-suspenders: some elements inside a world set their OWN pointer-events override (e.g. .mfp-tbtn
+     needs pointer-events:all to be clickable at all, since its parent #transport is pointer-events:none by
+     design). Those per-element overrides win over the parent's none — which means a CLOSED world's buttons
+     can stay genuinely clickable, sitting invisibly at a fixed screen position. This rule kills that dead:
+     nothing inside a non-.show world can receive clicks, full stop, no matter what any child sets. */
+  .world:not(.show) *{ pointer-events:none !important; }
   .world .wrap{ min-height:100%; padding:96px 24px 120px; max-width:820px; margin:0 auto; }
   .world .eyebrow{ font-size:11px; letter-spacing:.34em; text-transform:uppercase; opacity:.7; }
   .world h1{ font-size:clamp(34px,8vw,72px); font-weight:900; letter-spacing:-.02em; line-height:.92; margin:10px 0 18px; text-transform:uppercase; }
@@ -254,7 +339,7 @@
   .world .soon{ display:inline-block; margin-top:24px; padding:8px 16px; border:2px dashed currentColor; opacity:.7;
     font-size:12px; letter-spacing:.16em; text-transform:uppercase; }
   .world .card{ border:1.5px solid rgba(0,0,0,.14); padding:22px; margin:14px 0; }
-  .world .back{ position:fixed; top:18px; left:18px; z-index:22; font-family:var(--mono); font-weight:800; font-size:12px;
+  .world .back{ position:static; z-index:22; font-family:var(--mono); font-weight:800; font-size:12px;
     letter-spacing:.1em; text-transform:uppercase; background:none; border:0; cursor:pointer; color:inherit; opacity:.8; }
   .world .back:hover{ opacity:1; }
 
@@ -279,32 +364,12 @@
   #arcLayers .layer iframe{ width:100%; height:100%; border:0; display:block; background:#05060a; pointer-events:none; }
   #arcLayers .layer.active{ opacity:1; visibility:visible; pointer-events:auto; z-index:2; }
   #arcLayers .layer.active iframe{ pointer-events:auto; }         /* the focused page is fully interactive */
-  /* envelope unfold of the incoming page — a flap opening from the top */
-  #arcLayers .layer.enter{ animation:arcEnv .62s cubic-bezier(.7,0,.3,1) both; }
-  @keyframes arcEnv{
-    0%{   opacity:.15; transform:rotateX(-14deg) translateY(-7%) scale(.985); clip-path:inset(0 0 100% 0); }
-    45%{  opacity:1; }
-    100%{ opacity:1; transform:rotateX(0) translateY(0) scale(1); clip-path:inset(0 0 0 0); } }
-
-  /* ---- VHS colour-line glitch segue (covers the page swap) ---- */
-  #arcGlitch{ position:fixed; inset:0; z-index:6; pointer-events:none; opacity:0; overflow:hidden; }
-  #arcGlitch.play{ animation:arcVHS .52s ease both; }
-  @keyframes arcVHS{ 0%{opacity:0} 6%{opacity:1} 68%{opacity:1} 100%{opacity:0} }
-  #arcGlitch .scan{ position:absolute; inset:-10% 0; mix-blend-mode:screen;
-    background:
-      repeating-linear-gradient(0deg, rgba(255,40,90,.16) 0 1px, transparent 1px 3px),
-      repeating-linear-gradient(0deg, rgba(40,255,225,.13) 0 1px, transparent 1px 4px),
-      repeating-linear-gradient(0deg, rgba(255,255,255,.05) 0 1px, transparent 1px 2px); }
-  #arcGlitch.play .scan{ animation:arcScanJit .52s steps(1) both; }
-  @keyframes arcScanJit{ 0%{transform:translateY(0)} 20%{transform:translateY(-7px)} 40%{transform:translateY(5px)}
-    60%{transform:translateY(-3px)} 80%{transform:translateY(9px)} 100%{transform:translateY(0)} }
-  #arcGlitch .bars{ position:absolute; inset:0; mix-blend-mode:screen; }
-  #arcGlitch .bar{ position:absolute; left:0; right:0; mix-blend-mode:screen; }
-  #arcGlitch .tear{ position:absolute; left:0; right:0; height:34%; top:33%; mix-blend-mode:screen; opacity:.5;
-    background:linear-gradient(90deg, rgba(255,0,80,0), rgba(255,0,80,.35) 20%, rgba(0,240,255,.35) 55%, rgba(255,0,80,0)); }
-  #arcGlitch.play .tear{ animation:arcTear .52s steps(2) both; }
-  @keyframes arcTear{ 0%{transform:translateX(-6%) scaleY(.3);opacity:0} 25%{transform:translateX(5%) scaleY(1);opacity:.6}
-    55%{transform:translateX(-4%) scaleY(.5);opacity:.5} 100%{transform:translateX(3%) scaleY(.1);opacity:0} }
+  /* incoming page just appears once the black fade has covered the swap — no flip/unfold anymore */
+  #arcLayers .layer.active{ opacity:1; }
+  /* ---- fade-to-black-and-back segue (covers the page swap) ---- */
+  #arcFade{ position:fixed; inset:0; z-index:6; pointer-events:none; opacity:0; background:#000; }
+  #arcFade.play{ animation:arcFadeBlack .7s ease both; }
+  @keyframes arcFadeBlack{ 0%{opacity:0} 45%{opacity:1} 55%{opacity:1} 100%{opacity:0} }
 
   /* ---- page nav (dots + chevrons) — kept above the live page ---- */
   #arcNav{ position:fixed; right:20px; top:50%; transform:translateY(-50%); z-index:8; display:flex; flex-direction:column;
@@ -326,39 +391,104 @@
   /* book = warm paper */
   #wBook, #reveal.toBook{ background:#f3ead6; }
   #wBook{ color:#2a2016; } #wBook .card{ border-color:rgba(42,32,22,.18); background:rgba(255,255,255,.4); }
+  #wBook .wrap{ position:relative; }   /* plain positioning context now — .hub-row/.hub-launch/.hub-brand are all independently absolute, so none can push another around */
+  /* PHENOMENAH hub — a terminal launcher for BOOKmaker/Sprite Studio, plus a gallery of real book pages
+     (thumbnails at assets/thumbnails/PHE/, full-res read view at assets/originals/PHE/, both mirroring
+     BOOKmaker's own on-disk folder structure exactly). BOOKmaker itself can't be launched from a webpage
+     (browsers can't launch native apps) — copy-paste is the honest, working middle ground. The launcher
+     stays hidden by default; clicking the pencil (matching BOOKmaker's own per-chapter icon) reveals it. */
+  .hub-brand{ position:absolute; left:50%; top:90%; transform:translateX(-50%); width:192px; height:auto; }   /* taken OUT of flow — fixed spot regardless of whether hub-launch is open/closed above it */
+  .hub-row{ position:absolute; left:50%; top:40%; transform:translate(-50%,-50%); width:min(1066px,94vw); }   /* fixed % position — opening the launcher below can never move this */
+  .hub-pencil{ position:absolute; left:-52px; top:50%; transform:translateY(-50%); width:34px; height:auto; cursor:pointer; filter:drop-shadow(0 2px 4px rgba(20,16,10,.2)); transition:transform .15s; }
+  .hub-pencil:hover{ transform:translateY(-50%) scale(1.08) rotate(-4deg); }
+  .hub-launch{ position:absolute; left:50%; top:78%; transform:translateX(-50%); z-index:5;
+    display:none; flex-wrap:wrap; justify-content:center; gap:18px; align-items:center; width:max-content; max-width:90vw; }   /* independently fixed % position — can't shift .hub-row or .hub-brand */
+  .hub-launch.open{ display:flex; }
+  .hub-term{ width:100%; max-width:600px; background:rgba(243,234,214,.9); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); border-radius:8px; overflow:hidden; box-shadow:0 10px 30px rgba(20,16,10,.15); border:1px solid rgba(42,32,22,.15); text-align:left; }
+  .hub-term-bar{ display:flex; align-items:center; gap:6px; padding:9px 12px; background:rgba(42,32,22,.06); }
+  .hub-dot{ width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .hub-dot.r{ background:#ff5f57; } .hub-dot.y{ background:#febc2e; } .hub-dot.g{ background:#28c840; }
+  .hub-term-body{ display:flex; align-items:center; gap:10px; padding:16px 14px; }
+  .hub-term-body code{ flex:1; font-family:var(--mono); font-size:12.5px; color:#2a2016; white-space:nowrap; }
+  .hub-copy{ flex:none; font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+    color:#a0632a; background:transparent; border:1px solid rgba(42,32,22,.3); border-radius:4px; padding:6px 10px; cursor:pointer; }
+  .hub-copy:hover{ background:#a0632a; color:#fff; }
+  .hub-copy.copied{ color:#3a7d4f; border-color:#3a7d4f; }
+  .hub-tool{ align-self:center; font-family:var(--mono); font-size:12.5px; font-weight:700; letter-spacing:.04em;
+    color:#2a2016; text-decoration:none; border-bottom:2px solid currentColor; padding-bottom:2px; }
+  .hub-tool:hover{ color:#a0632a; }
+  .hub-pages{ display:flex; overflow-x:auto; gap:14px; width:100%; padding:0 12px 20px; -webkit-overflow-scrolling:touch; }
+  .hub-page{ flex:none; width:250px; cursor:pointer; background:transparent; transition:transform .15s; }
+  .hub-page:hover{ transform:translateY(-3px); }
+  .hub-page img{ width:100%; display:block; }
+  .hub-page .n{ font-family:var(--mono); font-size:10px; color:#a0632a; text-align:center; margin-top:5px; letter-spacing:.08em; }
+  .hub-reader{ position:fixed; inset:0; z-index:30; background:#e4d9bf; display:none; align-items:center; justify-content:center; }
+  .hub-reader.show{ display:flex; }
+  .hr-topbar{ position:fixed; top:20px; right:24px; display:flex; gap:10px; align-items:center; z-index:2; }
+  .hr-icon{ background:none; border:0; cursor:pointer; padding:6px 10px; display:flex; align-items:center; justify-content:center; opacity:.8; transition:opacity .15s; }
+  .hr-icon:hover{ opacity:1; }
+  #hrToggle{ gap:4px; color:#a0632a; }
+  .hr-box{ width:13px; height:18px; border:2.5px solid currentColor; border-radius:3px; display:inline-block; }
+  #hubReaderClose{ color:#171016; font-size:23px; font-weight:700; }
+  .hr-nav{ background:none; border:0; color:#2a2016; font-size:38px; cursor:pointer; opacity:.5; padding:20px; flex:none; }
+  .hr-nav:hover{ opacity:1; }
+  .hr-body{ display:flex; align-items:center; justify-content:center; gap:14px; width:100%; }
+  .hr-spread{ display:flex; gap:36px; align-items:flex-start; max-width:100%; }
+  .hr-page{ display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .hr-page img{ max-width:min(42vw,462px); max-height:84vh; box-shadow:0 12px 34px rgba(20,16,10,.28); background:#fff; border:1px solid rgba(42,32,22,.15); }
+  .hr-page .cap{ font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#8a7355; }
+  .hr-page .cap b{ color:#a0632a; margin-right:8px; font-weight:700; }
   /* music = vinyl dark */
   #wMusic, #reveal.toMusic{ background:#0d0b12; }
   #wMusic{ color:#efe7f6; } #wMusic .btn{ color:#e08a63; } #wMusic .card{ border-color:rgba(255,255,255,.12); }
-  /* littleMF soundtrack player — vinyl-dark, warm accent #e08a63 (matches the world) */
-  .mfplayer{ margin-top:26px; }
-  .mf-now{ display:flex; gap:20px; align-items:center; border:1.5px solid rgba(255,255,255,.12); padding:22px; }
-  .mf-disc{ width:96px; height:96px; flex:none; border-radius:50%; position:relative;
-    background:radial-gradient(circle at 50% 50%, #2a2431 0 21%, #e08a63 22% 24%, #16121d 25% 27%, #0d0b12 28%);
-    box-shadow:0 0 0 2px rgba(255,255,255,.06) inset, 0 6px 20px rgba(0,0,0,.5); }
-  .mf-disc span{ position:absolute; inset:44%; border-radius:50%; background:#0d0b12; box-shadow:0 0 0 3px #e08a63; }
-  .mf-disc.spin{ animation:mfspin 3.4s linear infinite; }
-  @keyframes mfspin{ to{ transform:rotate(360deg); } }
-  .mf-meta{ flex:1; min-width:0; }
-  .mf-title{ font-family:var(--mono); font-weight:800; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .mf-sub{ font-size:10.5px; letter-spacing:.2em; text-transform:uppercase; opacity:.5; margin:3px 0 12px; }
-  .mf-seek{ display:flex; align-items:center; gap:10px; font-family:var(--mono); font-size:11px; opacity:.85; }
-  .mf-seek input{ flex:1; accent-color:#e08a63; height:3px; cursor:pointer; }
-  .mf-transport{ display:flex; gap:10px; margin-top:14px; }
-  .mf-transport button{ font-family:var(--mono); font-size:14px; color:#efe7f6; background:transparent;
-    border:1.5px solid rgba(255,255,255,.16); width:46px; height:38px; cursor:pointer; transition:.15s; }
-  .mf-transport button:hover{ border-color:#e08a63; color:#e08a63; }
-  .mf-transport #mfPlay{ background:#e08a63; color:#0d0b12; border-color:#e08a63; }
-  .mf-list{ margin-top:12px; }
-  .mf-row{ display:flex; align-items:center; gap:14px; padding:14px 18px; border:1.5px solid rgba(255,255,255,.12);
-    margin:10px 0; cursor:pointer; transition:.15s; }
-  .mf-row:hover{ border-color:rgba(224,138,99,.55); }
-  .mf-row.on{ border-color:#e08a63; background:rgba(224,138,99,.08); }
-  .mf-row .idx{ font-family:var(--mono); font-size:12px; opacity:.5; width:22px; flex:none; }
-  .mf-row .rt{ flex:1; font-family:var(--mono); font-weight:700; font-size:13px; }
-  .mf-row .rd{ font-family:var(--mono); font-size:11px; opacity:.5; flex:none; }
-  .mf-row.mfsoon{ opacity:.5; cursor:default; }
-  .mf-row.mfsoon:hover{ border-color:rgba(255,255,255,.12); }
-  .mf-row.mfsoon .rd{ color:#e08a63; opacity:.85; }
+  #wMusic .wrap{ display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100%; }   /* centre the eyebrow + player, both axes */
+  #wMusic .mfplayer{ margin-top:14px; }
+  /* littleMF soundtrack player (BEAH!TS) — faithful port of TAH!PES's actual app.html UI: the real cassette
+     panel art, the Web Audio visualizer floating above it, two toggleable pixel-sprite characters (OG/MF)
+     standing on the tape, scrolling marquee track name, and an A-side/B-side playlist. EQ + cover/tag editing
+     (both Node/Electron-only, and EQ was decorative even in the real app) are intentionally left out. */
+  @font-face{ font-family:'TrackFont'; src:url('assets/StarShieldV2-9M52K.ttf') format('truetype'); }
+  @font-face{ font-family:'TimeFont';  src:url('assets/RetroblazeRegular-g7JP.ttf') format('truetype'); }
+  .mfplayer{ --gold:#c8a84b; --gold-bright:#f0cc6a; --gold-dim:#7a6020; width:399px; position:relative; margin-top:26px; }
+  #mainPanel{ width:399px; height:255px; position:relative; background-image:url('assets/MAIN_PANEL.png'); background-size:399px 255px; background-repeat:no-repeat; }
+  #waveZone{ position:absolute; top:0; left:14px; width:373px; height:0px; overflow:visible; cursor:crosshair; z-index:1; }
+  #waveCanvas{ display:block; width:346px; height:53px; position:absolute; bottom:0; left:27px; }
+  #spriteOg{ position:absolute; top:92px; left:22px; width:32px; height:64px; z-index:2; image-rendering:pixelated; pointer-events:none; display:none; }
+  #spriteOg.visible{ display:block; }
+  #spriteMf{ position:absolute; top:-30px; left:333px; width:32px; height:32px; z-index:2; image-rendering:pixelated; pointer-events:none; display:none; }
+  #spriteMf.visible{ display:block; }
+  #panelPills{ position:absolute; top:26px; left:31px; display:flex; gap:2px; z-index:10; }
+  .mfp-pill{ background:none; border:0; color:#000; font-size:10px; padding:2px 5px; cursor:pointer; font-family:'TrackFont',monospace; letter-spacing:1px; font-weight:bold; opacity:1; transition:opacity .15s; }
+  .mfp-pill:hover{ opacity:.65; }
+  .mfp-pill.off{ opacity:.35; }
+  #marqueeWrap{ position:absolute; bottom:34px; left:34px; width:170px; height:84px; overflow:hidden; }
+  #marqueeTrack{ position:absolute; top:0; left:0; height:64px; line-height:64px; white-space:nowrap; font-family:'TrackFont',monospace; font-size:26px; color:#000; letter-spacing:1px; }
+  #timeDisplay{ position:absolute; bottom:100px; left:325px; height:21px; line-height:21px; font-family:'TimeFont',monospace; font-size:14px; color:var(--gold-bright); letter-spacing:1.5px; text-shadow:0 0 5px var(--gold); white-space:nowrap; }
+  #transport{ position:absolute; top:0; left:0; width:399px; height:255px; pointer-events:none; }
+  .mfp-tbtn{ position:absolute; width:24px; height:24px; background:transparent; border:none; color:#1a1000; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-family:'Courier New',monospace; pointer-events:all; padding:0; }
+  .mfp-tbtn:hover{ color:#000; }
+  .mfp-tbtn:active{ opacity:.5; }
+  #tbtnPrev{ top:209px; left:146px; }
+  #tbtnStop{ top:210px; left:173px; }
+  #tbtnPlay{ top:209px; left:200px; font-size:13px; }
+  #tbtnNext{ top:209px; left:226px; }
+  #seekBarWrap{ position:absolute; bottom:58px; left:75px; right:79px; height:7px; cursor:pointer; }
+  #seekTrack{ position:absolute; top:50%; transform:translateY(-50%); width:100%; height:2px; background:var(--gold-dim); }
+  #seekFill{ position:absolute; top:50%; transform:translateY(-50%); height:2px; width:0%; background:var(--gold-bright); box-shadow:0 0 4px var(--gold); }
+  #seekThumb{ position:absolute; top:50%; transform:translate(-50%,-50%); left:0%; width:7px; height:7px; background:var(--gold-bright); box-shadow:0 0 4px var(--gold); }
+  .mfp-sub{ width:399px; background:#0d0d00; }
+  .mfp-bar{ background:transparent; color:var(--gold); height:14px; padding:0 6px; display:flex; align-items:center; justify-content:flex-end; font-size:7px; letter-spacing:2px; font-weight:bold; font-family:'Courier New',monospace; border-bottom:1px solid #332200; }
+  .mfp-close{ background:transparent; color:var(--gold-dim); border:none; font-size:9px; cursor:pointer; line-height:1; }
+  .mfp-close:hover{ color:#ff4400; }
+  #plPanel{ display:none; width:399px; min-height:60px; max-height:180px; position:relative; background:#151200; overflow:hidden; }
+  #plPanel.visible{ display:block; }
+  #plTracks{ position:relative; display:flex; }
+  .mfp-side{ flex:1; overflow:hidden; padding:2px 0; }
+  .mfp-item{ padding:2px 5px; font-size:10px; letter-spacing:.3px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--gold-dim); display:flex; align-items:center; gap:3px; font-family:'TrackFont',monospace; background:transparent; height:15px; }
+  .mfp-item:hover{ background:rgba(255,180,0,.06); }
+  .mfp-item.on{ color:#000!important; font-weight:bold; background:rgba(255,200,0,.18); }
+  .mfp-num{ font-size:6px; color:inherit; min-width:14px; flex-shrink:0; }
+  #plEmpty{ padding:8px 5px; font-size:7px; color:#443300; font-family:'Courier New',monospace; letter-spacing:1px; }
 
   /* the descent: the home plunges away as you fall past it into the world */
   body.opening #stage{ transform:translateY(-7vh) scale(1.07); opacity:.10;
@@ -378,9 +508,31 @@
 
   @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
   @media (max-width:640px){ .orb, .orb .chip{ width:88px; } .orb .chip{ height:88px; } .orb{ --rs:.687; } }
+
+  /* ---- rotate-to-landscape gate: phones only (iPads/tablets are unaffected). Pure CSS — the
+     orientation media query reacts automatically the instant the device physically rotates, no JS needed.
+     Hard block: this overlay sits above everything (z-index:999) with an opaque background, so nothing
+     behind it is visible or clickable until the visitor actually turns their phone to landscape. ---- */
+  #rotatePrompt{ display:none; position:fixed; inset:0; z-index:999; background:#111014;
+    flex-direction:column; align-items:center; justify-content:center; gap:26px; color:#fff;
+    font-family:var(--mono); text-align:center; padding:24px; }
+  @media (max-width:600px) and (orientation:portrait){ #rotatePrompt{ display:flex; } }
+  .rot-phone{ width:50px; height:86px; border:3px solid #fff; border-radius:10px; position:relative; flex:none;
+    animation:rot-turn 1.8s ease-in-out infinite; }
+  .rot-phone::after{ content:''; position:absolute; top:7px; left:50%; transform:translateX(-50%);
+    width:16px; height:3px; background:#fff; border-radius:2px; }
+  @keyframes rot-turn{ 0%,15%{ transform:rotate(0deg); } 45%,60%{ transform:rotate(90deg); } 85%,100%{ transform:rotate(0deg); } }
+  .rot-text{ font-size:13px; letter-spacing:.12em; text-transform:uppercase; opacity:.85; line-height:1.7; max-width:26ch; }
+  @media (prefers-reduced-motion:reduce){ .rot-phone{ animation:none; } }
 </style>
 </head>
 <body>
+  <!-- rotate-to-landscape gate — phones in portrait only; see the CSS block for how it's triggered -->
+  <div id="rotatePrompt" aria-hidden="true">
+    <div class="rot-phone"></div>
+    <div class="rot-text">Turn your phone sideways<br>to explore Alter Hero</div>
+  </div>
+
   <!-- hover backdrops: each character's world in a soft masked channel behind them -->
   <div id="backSun" class="backdrop" aria-hidden="true"><div class="bd"></div><div class="bdref"></div></div>
   <div id="backMoon" class="backdrop" aria-hidden="true"><div class="bd"></div><div class="bdref"></div></div>
@@ -429,23 +581,68 @@
     <div class="think" role="img" aria-label="tape is ready — listen to the beAH!ts"></div>
   </a>
 
+  <audio id="mfAudio" preload="none"></audio>
+
+  <!-- BEAH!TS player — lives on the homepage itself, toggled by clicking littleMF. Stays open (and playing)
+       while you hover/explore the other characters — it's not tied to any world, so nothing else is hidden. -->
+  <div id="mfDock" aria-hidden="true">
+    <div class="mfplayer" id="mfPlayerDock">
+      <div id="mainPanel">
+        <div id="waveZone"><canvas id="waveCanvas"></canvas></div>
+        <canvas id="spriteOg"></canvas>
+        <canvas id="spriteMf"></canvas>
+        <div id="panelPills">
+          <button class="mfp-pill off" id="pillPl">PL</button>
+          <button class="mfp-pill off" id="pillOg">OG</button>
+          <button class="mfp-pill off" id="pillMf">MF</button>
+        </div>
+        <div id="marqueeWrap"><div id="marqueeTrack">  </div></div>
+        <div id="timeDisplay">00:00</div>
+        <div id="transport">
+          <button class="mfp-tbtn" id="tbtnPrev">|◀</button>
+          <button class="mfp-tbtn" id="tbtnStop">■</button>
+          <button class="mfp-tbtn" id="tbtnPlay">▶</button>
+          <button class="mfp-tbtn" id="tbtnNext">▶|</button>
+        </div>
+        <div id="seekBarWrap">
+          <div id="seekTrack"></div>
+          <div id="seekFill"></div>
+          <div id="seekThumb"></div>
+        </div>
+      </div>
+      <div class="mfp-sub" id="plPanel">
+        <div class="mfp-bar"><button class="mfp-close" id="plClose">✕</button></div>
+        <div id="plTracks">
+          <div class="mfp-side" id="plSideA"></div>
+          <div class="mfp-side" id="plSideB"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <footer id="foot"><a id="studioLink" href="AH-Sprite-Studio.html">AH! Studio</a><div id="tag">All Frequencies Reserved</div></footer>
 
   <!-- reveal veil + worlds -->
   <div id="reveal" aria-hidden="true"></div>
-  <canvas id="descent" aria-hidden="true"></canvas>
 
   <section class="world" id="wArchives" aria-hidden="true">
-    <button class="back" data-close>← home</button>
+    <div class="topnav">
+      <button class="back" data-close>← AH!</button>
+      <button class="spk-btn" id="spkArchives" data-speaker title="toggle music"><img src="assets/speaker.png" alt=""></button>
+    </div>
     <!-- the built pages, waiting as layers; each snaps in as a live, interactive page -->
     <div id="arcLayers">
-      <div class="layer" data-src="unity.html?bg" data-title="The Universe"><iframe title="The Universe"></iframe></div>
+      <!-- Origins panel — temporarily taken out of rotation per the artist's request. Nothing was deleted:
+           the galaxy fly-through code (index.html's #origins hash route + all its JS/CSS) is completely
+           untouched and still fully functional. To restore it: uncomment this block and move it back to
+           be the FIRST child of #arcLayers (before Mosaic). No other code needs to change — the nav dots,
+           chevrons, and arcGo() all size themselves automatically off however many .layer elements exist.
       <div class="layer" data-src="index.html#origins" data-title="Origins"><iframe title="Origins"></iframe></div>
+      -->
       <div class="layer" data-src="index.html#mosaic" data-title="The Mosaic"><iframe title="The Mosaic"></iframe></div>
-      <div class="layer" data-src="explorer.html" data-title="The Explorer"><iframe title="Explorer"></iframe></div>
+      <div class="layer" data-src="explorer.html" data-title="MARKET"><iframe title="Market"></iframe></div>
     </div>
-    <!-- VHS colour-line glitch segue between pages -->
-    <div id="arcGlitch" aria-hidden="true"><div class="scan"></div><div class="bars"></div><div class="tear"></div></div>
+    <div id="arcFade" aria-hidden="true"></div>
     <!-- paged navigation (kept above the live page) -->
     <nav id="arcNav" aria-label="Archives pages"></nav>
     <button class="arc-chev up" id="arcUp" aria-label="Previous page" hidden>▲</button>
@@ -454,41 +651,79 @@
   </section>
 
   <section class="world" id="wBook" aria-hidden="true">
-    <button class="back" data-close>← home</button>
-    <div class="wrap">
-      <div class="eyebrow">PHENOMENAH!</div>
-      <h1>The story<br>of the fall.</h1>
-      <p>The alterhero myth, page by page — how nine hundred and ninety-nine alters came to be, and the one hero behind them all.</p>
-      <span class="soon">Chapter one · coming soon</span>
-      <div class="card"><b>I.</b> He stepped into the archives —</div>
-      <div class="card"><b>II.</b> and offered them art, and music, to escape the confines of earth.</div>
-      <div class="card"><b>III.</b> and that, as he recalls, was one of his finest hours.</div>
+    <div class="topnav">
+      <button class="back" data-close>← AH!</button>
+      <button class="spk-btn" id="spkBook" data-speaker title="toggle music"><img src="assets/speaker.png" alt=""></button>
     </div>
-  </section>
-
-  <section class="world" id="wMusic" aria-hidden="true">
-    <button class="back" data-close>← home</button>
     <div class="wrap">
-      <div class="eyebrow">BEAH!TS</div>
-      <h1>The sound<br>of the alters.</h1>
-      <p>The score to the descent — the tracks the hero fell through.</p>
-      <div class="mfplayer">
-        <div class="mf-now">
-          <div class="mf-disc" id="mfDisc"><span></span></div>
-          <div class="mf-meta">
-            <div class="mf-title" id="mfTitle">— select a track —</div>
-            <div class="mf-sub">BEAH!TS · the record</div>
-            <div class="mf-seek"><span id="mfCur">0:00</span><input type="range" id="mfSeek" min="0" max="1000" value="0" aria-label="seek"><span id="mfDur">0:00</span></div>
-            <div class="mf-transport"><button id="mfPrev" aria-label="previous">⏮</button><button id="mfPlay" aria-label="play">▶</button><button id="mfNext" aria-label="next">⏭</button></div>
+      <div class="hub-row">
+        <img class="hub-pencil" id="hubPencil" src="assets/pencil.png" alt="" title="click to reveal the launch command">
+        <div class="hub-pages" id="hubPages"></div>
+      </div>
+      <div class="hub-launch" id="hubLaunch">
+        <div class="hub-term">
+          <div class="hub-term-bar"><span class="hub-dot r"></span><span class="hub-dot y"></span><span class="hub-dot g"></span></div>
+          <div class="hub-term-body">
+            <code id="hubCmd">cd /Users/ah/Documents/BOOKmaker &amp;&amp; npm start</code>
+            <button class="hub-copy" id="hubCopyBtn" title="copy to clipboard">copy</button>
           </div>
         </div>
-        <div class="mf-list" id="mfList"></div>
       </div>
-      <audio id="mfAudio" preload="none"></audio>
+      <img class="hub-brand" src="assets/Title-Icon.png" alt="PHENOMENAH">
+    </div>
+    <div class="hub-reader" id="hubReader" aria-hidden="true">
+      <div class="hr-topbar">
+        <button class="hr-icon" id="hrToggle" title="toggle spread / single page view"><span class="hr-box"></span><span class="hr-box"></span></button>
+        <button class="hr-icon" id="hubReaderClose">✕</button>
+      </div>
+      <div class="hr-body">
+        <button class="hr-nav prev" id="hubPrev">‹</button>
+        <div class="hr-spread" id="hrSpread"></div>
+        <button class="hr-nav next" id="hubNext">›</button>
+      </div>
     </div>
   </section>
 
-<script src="config.js"></script>   <!-- ← ARTIST CONTROLS live in config.js: edit numbers there, then refresh -->
+  <section class="world" id="wMusicOLD" style="display:none" aria-hidden="true">
+    <button class="back" data-close>← AH!</button>
+    <div class="wrap">
+      <div class="eyebrow">BEAH!TS</div>
+      <div class="mfplayer" id="mfPlayerOLD">
+        <div id="mainPanelOLD">
+          <div id="waveZoneOLD"><canvas id="waveCanvasOLD"></canvas></div>
+          <canvas id="spriteOgOLD" class="visible"></canvas>
+          <canvas id="spriteMfOLD" class="visible"></canvas>
+          <div id="panelPillsOLD">
+            <button class="mfp-pill off" id="pillPlOLD">PL</button>
+            <button class="mfp-pill" id="pillOgOLD">OG</button>
+            <button class="mfp-pill" id="pillMfOLD">MF</button>
+          </div>
+          <div id="marqueeWrapOLD"><div id="marqueeTrackOLD">  </div></div>
+          <div id="timeDisplayOLD">00:00</div>
+          <div id="transportOLD">
+            <button class="mfp-tbtn" id="tbtnPrevOLD">|◀</button>
+            <button class="mfp-tbtn" id="tbtnStopOLD">■</button>
+            <button class="mfp-tbtn" id="tbtnPlayOLD">▶</button>
+            <button class="mfp-tbtn" id="tbtnNextOLD">▶|</button>
+          </div>
+          <div id="seekBarWrapOLD">
+            <div id="seekTrackOLD"></div>
+            <div id="seekFillOLD"></div>
+            <div id="seekThumbOLD"></div>
+          </div>
+        </div>
+        <div class="mfp-sub" id="plPanelOLD">
+          <div class="mfp-bar"><button class="mfp-close" id="plCloseOLD">✕</button></div>
+          <div id="plTracksOLD">
+            <div class="mfp-side" id="plSideAOLD"></div>
+            <div class="mfp-side" id="plSideBOLD"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+<script>document.write('<script src="config.js?t='+Date.now()+'"><\/script>');</script>   <!-- ← ARTIST CONTROLS live in config.js: edit numbers there, then refresh. Cache-busted (Date.now()) so edits always show up, no need to disable cache for this file specifically. -->
 <script>
 (function(){
   "use strict";
@@ -704,6 +939,10 @@
     // the two spot-lights sit at the GIANT (right icon, cx+sp), behind him; the slime sits just RIGHT of the WalkBoy
     var gl=document.getElementById('giantLights');
     if(gl){ gl.style.left=Math.round(cx+sp)+'px'; gl.style.top=soilY+'px'; }
+    // the BEAH!TS dock floats directly above littleMF's own head, tracking his position (nudged 10% of the
+    // viewport width to the left of centre-on-him, per the artist's request)
+    var mfO=orbs.filter(function(o){ return o.key==='music'; })[0], mfDock=document.getElementById('mfDock');
+    if(mfDock && mfO){ mfDock.style.left=Math.round(mfO.cur.x - W*0.02)+'px'; mfDock.style.top=Math.round(mfO.cur.y-30)+'px'; }
     var slime=document.getElementById('slime'), rs2=matchMedia('(max-width:640px)').matches?0.687:1;
     if(slime){ var slScale=3, wbHalf=Math.round(48*rs2), slDisp=16*slScale;   // 16×16 sprite ×3 = 48px
       slime.style.setProperty('--sl-scale', slScale);
@@ -758,7 +997,7 @@
     orbs.forEach(function(x){ var on=(x===o); x.el.classList.toggle('dim',!on); x.el.classList.toggle('revealed',on); });
     var atmo={ archives:'clouds-in', book:'moon-in', music:'car-in' }[o.key];
     if(atmo) document.body.classList.add(atmo);
-    if(o.world==='Archives' && !reduced){ arcLoad(); dLoadHeads(); }                // preload archives on first tap, like hover does
+    if(o.world==='Archives' && !reduced){ arcLoad(); }                // preload archives on first tap, like hover does
     bubStart(o);
     revealedOrb=o;
   }
@@ -774,13 +1013,14 @@
 
   orbs.forEach(function(o){
     o.el.addEventListener('click', function(e){ e.preventDefault();
+      if(o.key==='music'){ toggleMfDock(); return; }                            // littleMF: no teleport/world — just toggle the player panel on the homepage
       if(noHover && revealedOrb!==o){ revealOrb(o); return; }                       // 1st tap (touch) = reveal, hold off on diving
       var r=o.el.getBoundingClientRect(); enter(o, r.left+r.width/2, r.top+r.height/2); });   // click / 2nd tap = descend
     o.el.addEventListener('pointerenter', function(){ if(noHover||document.body.classList.contains('opening')) return;
       orbs.forEach(function(x){ x.el.classList.toggle('dim', x!==o); }); });                  // hover → dim the other two
     o.el.addEventListener('pointerleave', function(){ if(noHover||document.body.classList.contains('opening')) return;
       orbs.forEach(function(x){ x.el.classList.remove('dim'); }); });
-    if(o.world==='Archives') o.el.addEventListener('pointerenter', function(){ if(!noHover && !reduced){ arcLoad(); dLoadHeads(); } });  // preload on hover → AH! shows instantly
+    if(o.world==='Archives') o.el.addEventListener('pointerenter', function(){ if(!noHover && !reduced){ arcLoad(); } });  // preload on hover → AH! shows instantly
     var atmo={ archives:'clouds-in', book:'moon-in', music:'car-in' }[o.key];    // GIANT → clouds · WalkBoy → moon · littleMF → the van drops
     if(atmo){
       o.el.addEventListener('pointerenter', function(){ if(!noHover && !document.body.classList.contains('opening')) document.body.classList.add(atmo); });
@@ -796,12 +1036,16 @@
   // archives = a layered descent: the built pages wait as iframes and cross-fade on scroll
   var arcWorld=document.getElementById('wArchives'), arcLoaded=false;
   var arcLayers=[].slice.call(document.querySelectorAll('#arcLayers .layer'));
-  var arcGlitch=document.getElementById('arcGlitch'), arcBars=arcGlitch.querySelector('.bars');
   var arcNav=document.getElementById('arcNav'), arcUp=document.getElementById('arcUp'),
-      arcDown=document.getElementById('arcDown'), arcLabel=document.getElementById('arcLabel');
+      arcDown=document.getElementById('arcDown'), arcLabel=document.getElementById('arcLabel'), arcFade=document.getElementById('arcFade');
   var arcIdx=0, arcBusy=false, arcLabelT=0;
   function arcLoadOne(i){ var L=arcLayers[i]; if(!L) return;          // lazy-load a single layer's iframe on first need
-    var f=L.querySelector('iframe'); if(!f.getAttribute('src')) f.src=L.getAttribute('data-src'); }
+    var f=L.querySelector('iframe'); if(!f.getAttribute('src')){
+      var src=L.getAttribute('data-src');
+      var hashIdx=src.indexOf('#'), base=hashIdx>=0?src.slice(0,hashIdx):src, hash=hashIdx>=0?src.slice(hashIdx):'';
+      var sep=base.indexOf('?')>=0?'&':'?';
+      f.src=base+sep+'t='+Date.now()+hash;                            // cache-bust BEFORE the #hash, not after — appending after it corrupts the fragment (#origins?t=... ≠ #origins), breaking the page's own hash-based routing
+    } }
   function arcLoad(){ if(arcLoaded) return; arcLoaded=true; arcLoadOne(0); }   // eagerly load ONLY the light landing zone; heavy pages (index galaxies) load when scrolled to
 
   // build the nav dots (one per page)
@@ -810,87 +1054,39 @@
     b.addEventListener('click', function(){ arcGo(i); }); arcNav.appendChild(b); });
   var arcDots=[].slice.call(arcNav.children);
 
-  // VHS colour-line burst: scatter random bright scanline bars, then flash the overlay
-  function arcGlitchBurst(){
-    var cols=['rgba(255,40,90,.55)','rgba(40,255,225,.5)','rgba(255,255,255,.6)','rgba(120,120,255,.5)','rgba(255,210,60,.5)'];
-    var html='', n=12+(Math.random()*9|0);
-    for(var i=0;i<n;i++){ var top=(Math.random()*100).toFixed(1), h=(1+Math.random()*13).toFixed(1),
-      c=cols[Math.random()*cols.length|0], tx=((Math.random()-0.5)*14).toFixed(1), op=(0.35+Math.random()*0.5).toFixed(2);
-      html+='<div class="bar" style="top:'+top+'%;height:'+h+'px;background:'+c+';transform:translateX('+tx+'%);opacity:'+op+'"></div>'; }
-    arcBars.innerHTML=html;
-    arcGlitch.classList.remove('play'); void arcGlitch.offsetWidth; arcGlitch.classList.add('play');
-  }
-
   function arcApply(i, animate){                                      // snap page i live; others hidden
     arcIdx=i; arcLoadOne(i);                                          // load the heavy page only when it's actually visited
     if(i+1<arcLayers.length) setTimeout(function(){ arcLoadOne(i+1); }, 1200);   // then quietly prefetch the next one
-    arcLayers.forEach(function(L,k){ var on=(k===i); L.classList.toggle('active', on);
-      if(on && animate){ L.classList.remove('enter'); void L.offsetWidth; L.classList.add('enter'); }
-      else if(!on) L.classList.remove('enter'); });
+    arcLayers.forEach(function(L,k){ L.classList.toggle('active', k===i); });
     arcDots.forEach(function(d,k){ d.classList.toggle('on', k===i); });
     arcUp.hidden=(i===0); arcDown.hidden=(i===arcLayers.length-1);
     arcLabel.textContent=arcLayers[i].getAttribute('data-title')||''; arcLabel.classList.add('in');
     clearTimeout(arcLabelT); arcLabelT=setTimeout(function(){ arcLabel.classList.remove('in'); }, 1600);
   }
-  function arcGo(i){                                                  // envelope + glitch segue to page i
+  function arcGo(i){                                                  // fade-to-black-and-back segue to page i
     i=Math.max(0,Math.min(arcLayers.length-1,i));
     if(arcBusy || i===arcIdx) return;
-    arcBusy=true; arcGlitchBurst();
-    setTimeout(function(){ arcApply(i,true); }, 120);                 // swap under the glitch cover
-    setTimeout(function(){ arcBusy=false; }, 560);
+    arcBusy=true;
+    arcFade.classList.remove('play'); void arcFade.offsetWidth; arcFade.classList.add('play');
+    setTimeout(function(){ arcApply(i,false); }, 315);                 // swap while fully covered in black (45% of .7s)
+    setTimeout(function(){ arcBusy=false; }, 700);
   }
   arcUp.addEventListener('click', function(){ arcGo(arcIdx-1); });
   arcDown.addEventListener('click', function(){ arcGo(arcIdx+1); });
   addEventListener('keydown', function(e){ if(!arcWorld.classList.contains('show')) return;
     if(e.key==='ArrowDown'||e.key==='ArrowRight'||e.key==='PageDown'){ e.preventDefault(); arcGo(arcIdx+1); }
     else if(e.key==='ArrowUp'||e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); arcGo(arcIdx-1); } });
+  // scroll wheel / trackpad also pages between the archive panels, one panel per gesture
+  var arcWheelLock=false;
+  addEventListener('wheel', function(e){ if(!arcWorld.classList.contains('show')) return;
+    e.preventDefault();
+    if(arcWheelLock || Math.abs(e.deltaY)<12) return;
+    arcWheelLock=true; setTimeout(function(){ arcWheelLock=false; }, 700);
+    if(e.deltaY>0) arcGo(arcIdx+1); else arcGo(arcIdx-1);
+  }, {passive:false});
 
   function showWorld(world, isArc){ world.classList.add('show'); world.setAttribute('aria-hidden','false'); world.scrollTop=0;
     if(isArc) arcApply(0,false); }
-
-  // the abyss-fall: a hyperspeed stream of ALTER HEADS plunging DOWN the vertical axis,
-  // accelerating then decelerating so it settles into the landing zone's gentle vertical drift.
-  var dcv=document.getElementById('descent'), dctx=dcv.getContext('2d'), dRAF=0;
-  var dImgs=[], dHeads=[];
-  function dBake(im){                                                                 // pre-clip each head into a circle ONCE → no per-frame clip/gradient (smooth at high counts)
-    var S=52, c=document.createElement('canvas'); c.width=c.height=S; var x=c.getContext('2d');
-    x.beginPath(); x.arc(S/2,S/2,S/2,0,6.283); x.closePath(); x.clip(); x.drawImage(im,0,0,S,S); return c; }
-  function dLoadHeads(){ if(dImgs.length) return;                                     // preload a spread of heads (on hover / entry)
-    for(var i=0;i<120;i++){ (function(){ var slot={c:null}, im=new Image();
-      im.onload=function(){ try{ slot.c=dBake(im); }catch(e){} };
-      im.src='thumbs/'+(1+((Math.random()*999)|0))+'.jpg'; dImgs.push(slot); })(); } }
-  function dMake(top){ return {                                                       // one head: horizontal offset, vertical phase, depth
-    hx:(Math.random()*2-1), y: top ? (-0.2-Math.random()*0.45) : (Math.random()*1.45-0.2),
-    z: 0.10+Math.random()*0.90, slot: dImgs[(Math.random()*dImgs.length)|0], sp:0 }; }
-  function startDescent(done){
-    var DPR2=Math.min(devicePixelRatio||1,1.5), W=dcv.width=innerWidth*DPR2, H=dcv.height=innerHeight*DPR2, cx=W/2;   // 1.5× is plenty for fast-moving heads → half the fill cost
-    dLoadHeads(); dHeads=[]; for(var i=0;i<360;i++) dHeads.push(dMake(false));        // a dense field of DISTANT heads (many, small, cheap)
-    dctx.fillStyle='#03040a'; dctx.fillRect(0,0,W,H);
-    dcv.style.transition='opacity .6s ease'; dcv.style.opacity=0;                     // fade the warp IN from the home — no dry cut
-    requestAnimationFrame(function(){ dcv.style.opacity=1; });
-    var start=performance.now(), fired=false, D=4300;                                 // a touch shorter
-    function finish(){ if(fired) return; fired=true; if(done) done();                 // arrive: hand off to the landing zone
-      dcv.style.transition='opacity .85s ease'; dcv.style.opacity=0; }
-    setTimeout(finish, D+180);                                                        // fallback if rAF is throttled
-    (function frame(t){
-      var el=Math.min(1,(t-start)/D), env, FLOOR=0.028;                               // envelope: accelerate → decelerate → HOLD at the landing's drift speed
-      if(el<0.45){ var a=el/0.45; env=0.10+(a*a)*(1-0.10); }                          // ramp up HARD to peak (real acceleration)
-      else if(el<0.85){ var b=(el-0.45)/0.40; b=b*b*(3-2*b); env=1+(FLOOR-1)*b; }     // ease down to the drift (real deceleration)
-      else { env=FLOOR; }                                                             // coast at landing speed → the crossfade looks like we glide right in
-      dctx.fillStyle='rgba(3,4,10,'+(0.26+0.26*Math.min(1,el*2.2))+')'; dctx.fillRect(0,0,W,H);   // motion-blur trails (persistence)
-      for(var i=0;i<dHeads.length;i++){ var s=dHeads[i];
-        s.sp = env*(0.011+(1-s.z)*0.062); s.y += s.sp;                                // nearer heads fall faster — higher peak = stronger whoosh
-        var cc=s.slot&&s.slot.c; if(!cc){ if(s.y>1.3) dHeads[i]=dMake(true); continue; }
-        var sz=(4+(1-s.z)*15)*DPR2, py=s.y*H,                                         // heads stay as small as the landing zone's (~4–19px)
-            px=cx + s.hx*(W*0.52)*(0.26+(1-s.z)*0.95);                                // perspective fan from the vertical column
-        dctx.globalAlpha=0.22+(1-s.z)*0.9>1?1:0.22+(1-s.z)*0.9;
-        dctx.drawImage(cc, px-sz/2, py-sz/2, sz, sz);
-        if(s.y>1.3){ dHeads[i]=dMake(true); }                                         // recycle above the top
-      }
-      dctx.globalAlpha=1;
-      if(el<1) dRAF=requestAnimationFrame(frame); else finish();
-    })(performance.now());
-  }
 
   function enter(o, sx, sy){
     if(document.body.classList.contains('opening')) return;
@@ -899,9 +1095,14 @@
     orbs.forEach(function(x){ x.el.classList.toggle('chosen', x===o); });   // picked icon holds centre (+3%); others fade
     document.body.classList.remove('clouds-in','moon-in','car-in');         // drop the atmosphere as we descend
     document.body.classList.add('opening');
-    if(o.world==='Archives'){ arcLoad();
-      if(reduced) showWorld(world,true);
-      else startDescent(function(){ showWorld(world,true); });
+    if(o.world==='Archives' || o.world==='Book'){
+      if(o.world==='Archives') arcLoad();
+      if(reduced){ showWorld(world, o.world==='Archives'); return; }
+      document.body.classList.add('sink-music');                      // stage 1: logo + floor line + footer fade (~0.5s)
+      setTimeout(function(){
+        document.body.classList.add('vacuum');                        // stage 2: 3s teleport (tunnel of light + VHS flicker)
+        setTimeout(function(){ showWorld(world, o.world==='Archives'); }, reduced?0:3000);
+      }, reduced?0:500);
     } else {
       reveal.className=''; reveal.classList.add('to'+o.world);
       reveal.style.setProperty('--rx',(sx/innerWidth*100)+'%');
@@ -909,16 +1110,32 @@
       setTimeout(function(){ showWorld(world,false); }, reduced?0:520);
     }
   }
+  // littleMF: toggle the BEAH!TS player dock on the homepage — no world, no teleport, everything else stays visible/hoverable
+  function toggleMfDock(){
+    var dock=document.getElementById('mfDock'); if(!dock) return;
+    dock.classList.toggle('show');
+  }
   function close(){ if(!openWorld) return; var w=openWorld;
     w.classList.remove('show'); w.setAttribute('aria-hidden','true');
     arcLayers.forEach(function(L){ L.classList.remove('active','enter'); }); arcIdx=0;   // reset paged state
-    if(dRAF) cancelAnimationFrame(dRAF); dcv.style.transition='opacity .3s ease'; dcv.style.opacity=0;
-    setTimeout(function(){ document.body.classList.remove('opening'); openWorld=null; revealedOrb=null;
+    setTimeout(function(){ document.body.classList.remove('opening','sink-music','vacuum','vacuum-mf'); openWorld=null; revealedOrb=null;
       orbs.forEach(function(x){ x.el.classList.remove('chosen','dim','revealed'); }); }, reduced?0:120);   // restore all icons (+ reset touch reveal)
   }
   [].forEach.call(document.querySelectorAll('[data-close]'), function(b){ b.addEventListener('click', close); });
   addEventListener('keydown', function(e){ if(e.key==='Escape') close(); });
   // links inside worlds (archives → index/explorer) navigate normally — they are real <a href>.
+
+  // speaker buttons (one on every panel) — plain play/pause toggle on the SAME shared <audio>
+  // the BEAH!TS dock uses, so turning it on/off here is in sync no matter which panel you're on.
+  // speaker.png is a single "on" glyph; muted state is shown via reduced opacity instead of a second image.
+  (function(){
+    var mfAudio=document.getElementById('mfAudio'), spkBtns=[].slice.call(document.querySelectorAll('[data-speaker]'));
+    if(!mfAudio || !spkBtns.length) return;
+    function paint(){ var on=!mfAudio.paused; spkBtns.forEach(function(b){ b.classList.toggle('on',on); b.style.opacity=on?'1':'.55'; }); }
+    spkBtns.forEach(function(b){ b.addEventListener('click', function(e){ e.stopPropagation();
+      if(mfAudio.paused){ if(mfAudio.src) mfAudio.play().catch(function(){}); } else { mfAudio.pause(); } }); });
+    mfAudio.addEventListener('play', paint); mfAudio.addEventListener('pause', paint); paint();
+  })();
 
   /* ---- dialogue bubble: the artist ships each character's animation as TWO 2-frame sheets
          (X1 = frames 1–2, X2 = frames 3–4). We stitch them into ONE 4-frame sheet at load
@@ -1100,49 +1317,263 @@
 </script>
 
 <script>
-/* ---- littleMF soundtrack player (BEAH!TS). Tracks come from config.js → music.tracks.
-       Reuses the world overlay + vinyl aesthetic; audio stops when the world closes. ---- */
+/* ---- littleMF soundtrack player (BEAH!TS) — faithful port of TAH!PES's real app.html + main.js.
+       Tracks come from config.js → music.tracks instead of native file dialogs (no local file access on
+       the web); everything else — visualizer, OG/MF sprites, marquee, transport, seek, A/B playlist —
+       is the same portable web tech the original app already used. ---- */
 (function(){
   var P=window.AH_PARAMS||{}, tracks=(P.music&&P.music.tracks)||[];
   var audio=document.getElementById('mfAudio'); if(!audio) return;
-  var listEl=document.getElementById('mfList'), titleEl=document.getElementById('mfTitle'),
-      playBtn=document.getElementById('mfPlay'), disc=document.getElementById('mfDisc'),
-      seek=document.getElementById('mfSeek'), curEl=document.getElementById('mfCur'), durEl=document.getElementById('mfDur');
-  var cur=-1;
-  function fmt(s){ s=Math.floor(s||0); return Math.floor(s/60)+':'+('0'+(s%60)).slice(-2); }
+  var cur=-1, isPlaying=false;
+  var sprites={og:false,mf:false};
+  audio.volume=0.8;
+
+  // ── visualizer: draws to BOTH the full player's canvas AND the mini-preview's canvas, from the same data ──
+  var waveCanvas=document.getElementById('waveCanvas'), waveCtx=waveCanvas.getContext('2d');
+  var W=260,H=50; waveCanvas.width=W; waveCanvas.height=H;
+  var miniCanvas=document.getElementById('miniViz'), miniCtx=miniCanvas && miniCanvas.getContext('2d');
+  var MW=190, MH=26; if(miniCanvas){ miniCanvas.width=MW; miniCanvas.height=MH; }
+  var fakePhase=0, audioCtx, analyser, sourceNode, dataArray, vizReady=false;
+  function initAudio(){
+    if(audioCtx){ audioCtx.resume(); return; }                     // AudioContext needs a user gesture — called only from play actions
+    try{
+      audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      analyser=audioCtx.createAnalyser(); analyser.fftSize=256; analyser.smoothingTimeConstant=0.82;
+      dataArray=new Uint8Array(analyser.frequencyBinCount);
+      sourceNode=audioCtx.createMediaElementSource(audio);          // can only be created ONCE per <audio> element
+      sourceNode.connect(analyser); analyser.connect(audioCtx.destination);
+      vizReady=true;
+    }catch(e){ vizReady=false; }
+  }
+  function bellCurve(i,total){ return Math.sin(Math.PI*i/(total-1)); }
+  function paintWave(ctx,w,h,bars){
+    ctx.clearRect(0,0,w,h);
+    if(!isPlaying && !vizReady) return;
+    var bw=w/bars;
+    if(vizReady && analyser){
+      var sig=false;
+      for(var i=0;i<bars;i++){ var v=dataArray[Math.floor(i*dataArray.length/bars)]/255*bellCurve(i,bars);
+        if(v<0.02) continue; sig=true;
+        var bh=v*h; ctx.fillStyle='rgba('+Math.round(160+v*95)+','+Math.round(80+v*120)+',0,0.92)';
+        ctx.fillRect(i*bw,h-bh,bw-1,bh); }
+      if(!sig) ctx.clearRect(0,0,w,h);
+    } else if(isPlaying){
+      for(var i=0;i<bars;i++){ var v=(Math.abs(Math.sin(fakePhase+i*0.3))*0.5+Math.random()*0.18)*bellCurve(i,bars);
+        if(v<0.03) continue;
+        var bh=v*h; ctx.fillStyle='rgba('+Math.round(160+v*95)+','+Math.round(80+v*120)+',0,0.88)';
+        ctx.fillRect(i*bw,h-bh,bw-1,bh); }
+    }
+  }
+  function drawWave(){
+    requestAnimationFrame(drawWave);
+    if(vizReady && analyser) analyser.getByteFrequencyData(dataArray);   // read ONCE per frame, shared by both canvases
+    if(isPlaying) fakePhase+=0.07;
+    paintWave(waveCtx, W, H, 52);
+    if(miniCtx) paintWave(miniCtx, MW, MH, 32);
+  }
+  drawWave();
+  document.getElementById('waveZone').addEventListener('click', function(e){
+    if(!audio.duration) return;
+    var r=this.getBoundingClientRect();
+    audio.currentTime=((e.clientX-r.left)/r.width)*audio.duration;
+  });
+
+  // ── OG / MF toggleable pixel sprites (walking + idle animation strips) ──
+  var ogCanvas=document.getElementById('spriteOg'); ogCanvas.width=32; ogCanvas.height=64;
+  var ogCtx=ogCanvas.getContext('2d'); ogCtx.imageSmoothingEnabled=false;
+  var ogImg=new Image(); ogImg.src='assets/OG.png';
+  var mfCanvas=document.getElementById('spriteMf'); mfCanvas.width=32; mfCanvas.height=32;
+  var mfCtx=mfCanvas.getContext('2d'); mfCtx.imageSmoothingEnabled=false;
+  var mfImg=new Image(); mfImg.src='assets/MF_idle.png';
+  var ogFrame=0, ogTimer=0, mfFrame=0, mfTimer=0, lastTs=0;
+  function drawSprites(ts){
+    requestAnimationFrame(drawSprites);
+    var dt=Math.min(ts-lastTs,100); lastTs=ts;
+    if(sprites.og && ogImg.complete && ogImg.naturalWidth>0){
+      ogTimer+=dt; if(ogTimer>=1000/16){ ogFrame=(ogFrame+1)%10; ogTimer-=1000/16; }
+      ogCtx.clearRect(0,0,32,64); ogCtx.drawImage(ogImg,ogFrame*32,0,32,64,0,0,32,64);
+    }
+    if(sprites.mf && mfImg.complete && mfImg.naturalWidth>0){
+      mfTimer+=dt; if(mfTimer>=1000/17){ mfFrame=(mfFrame+1)%11; mfTimer-=1000/17; }
+      mfCtx.clearRect(0,0,32,32); mfCtx.drawImage(mfImg,mfFrame*32,0,32,32,0,0,32,32);
+    }
+  }
+  requestAnimationFrame(drawSprites);
+  function toggleSprite(name){
+    sprites[name]=!sprites[name];
+    document.getElementById(name==='og'?'spriteOg':'spriteMf').classList.toggle('visible', sprites[name]);
+    document.getElementById(name==='og'?'pillOg':'pillMf').classList.toggle('off', !sprites[name]);
+    if(!sprites[name]){ if(name==='og') ogCtx.clearRect(0,0,32,64); else mfCtx.clearRect(0,0,32,32); }
+  }
+  document.getElementById('pillOg').onclick=function(){ toggleSprite('og'); };
+  document.getElementById('pillMf').onclick=function(){ toggleSprite('mf'); };
+
+  // ── seek bar ──
+  var seekWrap=document.getElementById('seekBarWrap'), seekFill=document.getElementById('seekFill'), seekThumb=document.getElementById('seekThumb');
+  function updateSeek(){ if(!audio.duration) return; var pct=(audio.currentTime/audio.duration)*100; seekFill.style.width=pct+'%'; seekThumb.style.left=pct+'%'; }
+  seekWrap.addEventListener('click', function(e){ if(!audio.duration) return; var r=seekWrap.getBoundingClientRect(); audio.currentTime=((e.clientX-r.left)/r.width)*audio.duration; });
+
+  // ── marquee scrolling track name (full player) + plain title text (mini preview, no marquee needed at that size) ──
+  var mTrack=document.getElementById('marqueeTrack'), WRAP_W=206, mPos=WRAP_W+20, mActive=false;
+  function getTextW(){ var sw=mTrack.scrollWidth; return sw>10?sw:mTrack.textContent.length*12; }
+  setTimeout(function(){ mPos=WRAP_W+20; mActive=true; }, 1000);
+  setInterval(function(){ if(!mActive || !isPlaying) return; mPos-=0.6; if(mPos<-(getTextW()+20)) mPos=WRAP_W+20; mTrack.style.left=mPos+'px'; }, 16);
+  function setTrackName(name){
+    mTrack.textContent=name; setTimeout(function(){ mPos=WRAP_W+20; }, 100);
+    var mt=document.getElementById('miniTitle'); if(mt) mt.textContent=name;
+  }
+
+  // ── transport / playback ──
   function nextWithSrc(from){ for(var i=0;i<tracks.length;i++){ var j=((from+i)%tracks.length+tracks.length)%tracks.length; if(tracks[j]&&tracks[j].src) return j; } return -1; }
   function prevWithSrc(from){ for(var i=0;i<tracks.length;i++){ var j=((from-i)%tracks.length+tracks.length)%tracks.length; if(tracks[j]&&tracks[j].src) return j; } return -1; }
-  function render(){
-    listEl.innerHTML='';
-    if(!tracks.length){ listEl.innerHTML='<div class="mf-row mfsoon"><span class="rt">Add tracks in config.js → music.tracks</span></div>'; return; }
-    tracks.forEach(function(t,i){
-      var row=document.createElement('div'); row.className='mf-row'+(i===cur?' on':'')+(t.src?'':' mfsoon');
-      var idx=document.createElement('span'); idx.className='idx'; idx.textContent=('0'+(i+1)).slice(-2);
-      var rt=document.createElement('span'); rt.className='rt'; rt.textContent=t.title||'Untitled';
-      var rd=document.createElement('span'); rd.className='rd'; rd.textContent=t.src?(i===cur&&!audio.paused?'▮ playing':'▶'):'soon';
-      row.appendChild(idx); row.appendChild(rt); row.appendChild(rd);
-      if(t.src) row.onclick=function(){ playTrack(i); };
-      listEl.appendChild(row);
-    });
+  function setPlayIcon(playing){                                       // updates BOTH the full transport button and the mini preview's
+    var ic = playing ? '❚❚' : '▶';
+    var a=document.getElementById('tbtnPlay'); if(a) a.textContent=ic;
+    var b=document.getElementById('miniPlay'); if(b) b.textContent=ic;
   }
-  function playTrack(i){ var t=tracks[i]; if(!t||!t.src) return;
-    if(i!==cur){ cur=i; audio.src=t.src; titleEl.textContent=t.title||'Untitled'; }
-    audio.play().catch(function(){}); render(); }
-  function toggle(){ if(cur<0){ var f=nextWithSrc(0); if(f>=0) playTrack(f); return; }
-    if(audio.paused) audio.play().catch(function(){}); else audio.pause(); }
-  playBtn.onclick=toggle;
-  document.getElementById('mfNext').onclick=function(){ var n=nextWithSrc(cur+1); if(n>=0) playTrack(n); };
-  document.getElementById('mfPrev').onclick=function(){ var n=prevWithSrc(cur-1); if(n>=0) playTrack(n); };
-  audio.addEventListener('play', function(){ playBtn.textContent='❚❚'; disc.classList.add('spin'); render(); });
-  audio.addEventListener('pause', function(){ playBtn.textContent='▶'; disc.classList.remove('spin'); render(); });
-  audio.addEventListener('timeupdate', function(){ if(audio.duration){ seek.value=Math.round(audio.currentTime/audio.duration*1000); curEl.textContent=fmt(audio.currentTime); durEl.textContent=fmt(audio.duration); } });
-  audio.addEventListener('loadedmetadata', function(){ durEl.textContent=fmt(audio.duration); });
-  audio.addEventListener('ended', function(){ var n=nextWithSrc(cur+1); if(n>=0&&n!==cur) playTrack(n); });
-  audio.addEventListener('error', function(){ if(tracks[cur]) tracks[cur].src=''; titleEl.textContent='— file not found —'; render(); });
-  seek.addEventListener('input', function(){ if(audio.duration) audio.currentTime=seek.value/1000*audio.duration; });
-  var w=document.getElementById('wMusic');                          // stop playback when the music world is closed
-  if(w && window.MutationObserver){ new MutationObserver(function(){ if(!w.classList.contains('show')) audio.pause(); }).observe(w,{attributes:true,attributeFilter:['class']}); }
-  render();
+  function loadTrack(i){ var t=tracks[i]; if(!t||!t.src) return;
+    cur=i; initAudio(); audio.src=t.src; audio.load();
+    audio.play().then(function(){ isPlaying=true; setPlayIcon(true); }).catch(function(){});
+    setTrackName((t.title||'Untitled').toUpperCase()); renderPlaylist(); }
+  function togglePlay(){ if(cur<0){ var f=nextWithSrc(0); if(f>=0) loadTrack(f); return; }
+    initAudio();
+    if(isPlaying){ audio.pause(); isPlaying=false; setPlayIcon(false); }
+    else{ audio.play(); isPlaying=true; setPlayIcon(true); } }
+  function stopTrack(){ audio.pause(); audio.currentTime=0; isPlaying=false; setPlayIcon(false); seekFill.style.width='0%'; seekThumb.style.left='0%'; }
+  function nextTrack(){ var n=nextWithSrc(cur+1); if(n>=0) loadTrack(n); }
+  function prevTrack(){ if(audio.currentTime>3){ audio.currentTime=0; return; } var n=prevWithSrc(cur-1); if(n>=0) loadTrack(n); }
+
+  document.getElementById('tbtnPlay').onclick=togglePlay;
+  document.getElementById('tbtnStop').onclick=stopTrack;
+  document.getElementById('tbtnNext').onclick=nextTrack;
+  document.getElementById('tbtnPrev').onclick=prevTrack;
+
+  // mini preview controls (above littleMF's head on the homepage) — stopPropagation so a click doesn't also
+  // bubble up to the <a>#oMusic and trigger enter() into the full BEAH!TS world
+  var miniPlayBtn=document.getElementById('miniPlay'), miniPrevBtn=document.getElementById('miniPrev'), miniNextBtn=document.getElementById('miniNext');
+  if(miniPlayBtn) miniPlayBtn.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); togglePlay(); });
+  if(miniPrevBtn) miniPrevBtn.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); prevTrack(); });
+  if(miniNextBtn) miniNextBtn.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); nextTrack(); });
+
+  audio.addEventListener('timeupdate', function(){
+    var s=audio.currentTime;
+    document.getElementById('timeDisplay').textContent=('0'+Math.floor(s/60)).slice(-2)+':'+('0'+Math.floor(s%60)).slice(-2);
+    updateSeek();
+  });
+  audio.addEventListener('ended', nextTrack);
+  audio.addEventListener('error', function(){ if(tracks[cur]) tracks[cur].src=''; setTrackName('— FILE NOT FOUND —'); renderPlaylist(); });
+
+  // ── playlist — real A-side / B-side columns, just like the cassette itself ──
+  function makeItem(i){
+    var t=tracks[i]; if(!t) return '';
+    var isPlay=(i===cur);
+    var cls='mfp-item'+(isPlay?' on':'');
+    var prefix=isPlay?'▶':('0'+(i+1)).slice(-2);
+    return '<div class="'+cls+'" data-i="'+i+'"><span class="mfp-num">'+prefix+'</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis">'+(t.title||'Untitled').toUpperCase()+'</span></div>';
+  }
+  function renderPlaylist(){
+    var sideA=document.getElementById('plSideA'), sideB=document.getElementById('plSideB');
+    if(!tracks.length){ sideA.innerHTML='<div id="plEmpty">NO TRACKS</div>'; sideB.innerHTML=''; return; }
+    var COL=Math.ceil(tracks.length/2);
+    sideA.innerHTML=tracks.slice(0,COL).map(function(t,i){ return makeItem(i); }).join('');
+    var b=tracks.slice(COL,COL*2);
+    sideB.innerHTML=b.length ? b.map(function(t,i){ return makeItem(i+COL); }).join('') : '';
+    [].forEach.call(document.querySelectorAll('.mfp-item'), function(el){ el.onclick=function(){ var i=parseInt(el.dataset.i,10); if(tracks[i]&&tracks[i].src) loadTrack(i); }; });
+  }
+  renderPlaylist();
+
+  // ── PL panel toggle ──
+  var plOpen=false;
+  document.getElementById('pillPl').onclick=function(){
+    plOpen=!plOpen;
+    document.getElementById('plPanel').classList.toggle('visible', plOpen);
+    document.getElementById('pillPl').classList.toggle('off', !plOpen);
+  };
+  document.getElementById('plClose').onclick=function(){ plOpen=false; document.getElementById('plPanel').classList.remove('visible'); document.getElementById('pillPl').classList.add('off'); };
+})();
+</script>
+<script>
+/* ---- PHENOMENAH hub (WalkBoy's world) — launcher + real page gallery. Paths mirror BOOKmaker's own
+       on-disk structure: assets/thumbnails/PHE/<id>.jpg for the grid, assets/originals/PHE/<id>.jpg for
+       the full-res reader. Page order + names come straight from BOOKmaker's manifest.json. ---- */
+(function(){
+  var wrap=document.getElementById('wBook'); if(!wrap) return;
+  var PAGES=[                                                        // explicit thumb+full paths (not every page has a generated thumbnail)
+    {thumb:'assets/originals/PHE/Main.png', full:'assets/originals/PHE/Main.png', name:'Cover'},
+    {thumb:'assets/originals/PHE/PHE.png', full:'assets/originals/PHE/PHE.png', name:'PHE'},
+    {thumb:'assets/thumbnails/PHE/d505f0f1ba53.jpg', full:'assets/originals/PHE/d505f0f1ba53.jpg', name:'untitled scene'},
+    {thumb:'assets/thumbnails/PHE/e6e82b9ac33f.jpg', full:'assets/originals/PHE/e6e82b9ac33f.jpg', name:'untitled scene'},
+    {thumb:'assets/thumbnails/PHE/a6152f04cd8b.jpg', full:'assets/originals/PHE/a6152f04cd8b.jpg', name:'untitled scene'},
+    {thumb:'assets/thumbnails/PHE/b7fd4cbbe37c.jpg', full:'assets/originals/PHE/b7fd4cbbe37c.jpg', name:'untitled scene'},
+  ];
+  var grid=document.getElementById('hubPages');
+  PAGES.forEach(function(p,i){
+    var d=document.createElement('div'); d.className='hub-page';
+    d.innerHTML='<img src="'+p.thumb+'" alt="" loading="lazy"><div class="n">'+('0'+(i+1)).slice(-2)+'</div>';
+    d.onclick=function(){ openReader(i); };
+    grid.appendChild(d);
+  });
+
+  var reader=document.getElementById('hubReader'), spreadEl=document.getElementById('hrSpread'),
+      toggleBtn=document.getElementById('hrToggle');
+  var curIdx=0, spreadMode=true;
+  function alignedIdx(i){                                              // Cover (0) and PHE (1) are always solo; pairing starts at index 2: [2,3],[4,5]...
+    if(i<2) return i;
+    return i - ((i-2)%2);
+  }
+  function pageCard(i){
+    var p=PAGES[i]; if(!p) return '';
+    return '<div class="hr-page"><img src="'+p.full+'" alt=""><div class="cap"><b>'+('0'+(i+1)).slice(-2)+'</b>'+p.name+'</div></div>';
+  }
+  function renderSpread(){
+    spreadEl.innerHTML = (!spreadMode || curIdx<2) ? pageCard(curIdx) : pageCard(curIdx)+pageCard(curIdx+1);
+  }
+  function openReader(i){
+    curIdx = spreadMode ? alignedIdx(i) : i;
+    renderSpread();
+    reader.classList.add('show'); reader.setAttribute('aria-hidden','false');
+  }
+  function closeReader(){ reader.classList.remove('show'); reader.setAttribute('aria-hidden','true'); }
+  function nextStop(cur, d){                                            // walks the solo→solo→pair→pair sequence correctly in both directions
+    if(!spreadMode) return Math.max(0, Math.min(PAGES.length-1, cur+d));
+    if(d>0){
+      if(cur===0) return Math.min(PAGES.length-1, 1);
+      if(cur===1) return Math.min(PAGES.length-1, 2);
+      return Math.min(PAGES.length-1, cur+2);
+    } else {
+      if(cur<=1) return Math.max(0, cur-1);
+      if(cur===2) return 1;
+      return cur-2;
+    }
+  }
+  function nav(d){ openReader(nextStop(curIdx, d)); }
+  toggleBtn.onclick=function(){ spreadMode=!spreadMode; openReader(curIdx); };
+  document.getElementById('hubReaderClose').onclick=closeReader;
+  document.getElementById('hubPrev').onclick=function(){ nav(-1); };
+  document.getElementById('hubNext').onclick=function(){ nav(1); };
+  reader.addEventListener('click', function(e){ if(e.target===reader) closeReader(); });   // click the dark backdrop to close
+  // capture phase + stopImmediatePropagation: runs BEFORE the world's own Escape-closes-everything handler,
+  // so Escape/arrows close/navigate just the reader, not the whole PHENOMENAH world underneath it
+  addEventListener('keydown', function(e){
+    if(!reader.classList.contains('show')) return;
+    if(e.key==='Escape'){ e.stopImmediatePropagation(); closeReader(); }
+    else if(e.key==='ArrowLeft'){ e.stopImmediatePropagation(); nav(-1); }
+    else if(e.key==='ArrowRight'){ e.stopImmediatePropagation(); nav(1); }
+  }, true);
+
+  // copy-to-clipboard for the launch command
+  var copyBtn=document.getElementById('hubCopyBtn'), cmdEl=document.getElementById('hubCmd');
+  if(copyBtn){ copyBtn.onclick=function(){
+    var text=cmdEl.textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject())
+      .then(function(){ copyBtn.textContent='copied ✓'; copyBtn.classList.add('copied');
+        setTimeout(function(){ copyBtn.textContent='copy'; copyBtn.classList.remove('copied'); }, 1600); })
+      .catch(function(){ copyBtn.textContent='select & ⌘C'; });
+  }; }
+
+  // pencil click — reveal/hide the launch command (matches BOOKmaker's own per-chapter pencil icon)
+  var pencil=document.getElementById('hubPencil'), launch=document.getElementById('hubLaunch');
+  if(pencil && launch){ pencil.onclick=function(){ launch.classList.toggle('open'); }; }
 })();
 </script>
 </body>

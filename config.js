@@ -33,7 +33,7 @@ window.AH_PARAMS = {
 
   /* ───────────── FADE when NOT hovered ───────────── */
   /* every character RESTS at this opacity; the one you hover / tap lights up to full */
-  fadeWhenNotOver: 0.5,   // 0 = invisible until hovered … 1 = no fade (always full)   (default 0.28)
+  fadeWhenNotOver: 0.75,   // 0 = invisible until hovered … 1 = no fade (always full)   (default 0.28)
 
   /* ───────────── THE THREE CHARACTERS ─────────────
      Each one has a RESTING look and an "over" look (while hovered / tapped).
@@ -41,17 +41,17 @@ window.AH_PARAMS = {
 
   MF: {                                   // littleMF — the small one on the LEFT
     x: 0,   y: 0,   scale: 2,   fps: 13.8,
-    over: { x: 0, y: 0, scale: 2.12, fps: 13.8 },   // while hovered / tapped
+    over: { x: 0, y: 0, scale: 2.1, fps: 13.8 },   // while hovered / tapped — scale matches resting, no size change
   },
 
   WB: {                                   // WalkBoy — the one in the MIDDLE
     x: 0,   y: 0,   scale: 3,   fps: 13.3,
-    over: { x: 0, y: 0, scale: 3.18, fps: 13.3 },
+    over: { x: 0, y: 0, scale: 3.2, fps: 13.3 },
   },
 
   GIANT: {                                // GIANT — the tall one on the RIGHT
     x: 0,   y: 0,   scale: 3,   fps: 11.4,
-    over: { x: 0, y: 0, scale: 3.18, fps: 11.4 },
+    over: { x: 0, y: 0, scale: 3.05, fps: 11.4 },
   },
 
   /* ───────────── CLOUDS  (blow in from the right when GIANT is hovered / tapped) ───────────── */
@@ -125,8 +125,11 @@ window.AH_PARAMS = {
      Leave src "" and the track shows as "soon" (greyed) until you add the file. */
   music: {
     tracks: [
-      { title: "Side A — the ascent",  src: "" },   // ← e.g. "assets/tracks/side-a.mp3"
-      { title: "Side B — the archive", src: "" },
+      { title: "ODB",         src: "assets/tracks/ODB.wav" },
+      { title: "Manège",      src: "assets/tracks/MANEGE.wav" },
+      { title: "Goodbye SIM", src: "assets/tracks/GoodbyeSIM.wav" },
+      { title: "Sleep",       src: "assets/tracks/SLEEP.wav" },
+      { title: "FAReast",     src: "assets/tracks/FAReast.wav" },
     ],
   },
 

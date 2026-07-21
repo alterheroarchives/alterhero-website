@@ -30,7 +30,7 @@
   .brand .logo{ font-size:14px; font-weight:800; letter-spacing:.12em; color:var(--acc);
     text-shadow:0 0 20px rgba(124,199,255,.4); }
   .brand .csub{ font-size:9px; color:var(--faint); letter-spacing:.08em; }
-  .count{ font-size:11px; color:var(--dim); white-space:nowrap; }
+  .count{ font-size:11px; color:var(--dim); white-space:nowrap; margin-left:56px; }   /* pushed right — leaves clear room at screen-centre for the archive's own ▲ up-chevron, which floats above this header */
   .count b{ color:var(--fg); font-weight:700; }
   .search{ flex:1 1 260px; min-width:120px; max-width:420px; position:relative; }
   .search input{ width:100%; font:inherit; font-size:12px; color:var(--fg);
@@ -68,14 +68,6 @@
   aside .side-head .clall{ font-size:10px; color:var(--acc); background:none; border:0; cursor:pointer; opacity:0; pointer-events:none; transition:opacity .15s; }
   aside .side-head .clall.show{ opacity:1; pointer-events:auto; }
   aside .side-head .clall:hover{ text-decoration:underline; }
-
-  .mkt{ margin:2px 12px 10px; padding:10px 12px; border:1px solid rgba(124,199,255,.16);
-    background:rgba(124,199,255,.05); border-radius:10px; }
-  .mkt .lbl{ font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--acc); margin-bottom:5px; }
-  .mkt p{ margin:0 0 8px; font-size:10px; line-height:1.5; color:var(--dim); }
-  .mkt a{ display:block; text-align:center; font-size:11px; font-weight:600; text-decoration:none;
-    color:#04122a; background:linear-gradient(90deg,#7cc7ff,#9ad0ff); padding:7px; border-radius:8px; }
-  .mkt a:hover{ filter:brightness(1.07); }
 
   .acc{ border-top:1px solid var(--line); }
   .acc:last-child{ border-bottom:1px solid var(--line); }
@@ -269,8 +261,8 @@
     <input id="q" type="search" placeholder="Search name, #id or trait…" autocomplete="off" spellcheck="false" />
     <button class="clr" id="qClr" title="Clear">✕</button>
   </div>
-  <span class="count" id="count"><b>999</b> items</span>
-  <select id="sort" title="Sort">
+  <span class="count" id="count" style="visibility:hidden"><b>999</b> items</span>
+  <select id="sort" title="Sort" style="visibility:hidden">
     <option value="id-asc">Token ID ↑</option>
     <option value="id-desc">Token ID ↓</option>
     <option value="rare-desc">Rarity: rarest</option>
@@ -289,13 +281,8 @@
   <aside id="side">
     <button class="sclose" id="sclose" title="Close">✕</button>
     <div class="side-head">
-      <span class="t">Filters</span>
+      <span class="t">EXPLORE</span>
       <button class="clall" id="clearAll">Clear all</button>
-    </div>
-    <div class="mkt">
-      <div class="lbl">Live market</div>
-      <p>Listings, offers &amp; sales are on-chain — open the collection on OpenSea for live trades &amp; floor.</p>
-      <a href="https://opensea.io/collection/ahrchives/activity" target="_blank" rel="noopener">View live trades ↗</a>
     </div>
     <div id="accs"></div>
   </aside>
