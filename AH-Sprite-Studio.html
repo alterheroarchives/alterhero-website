@@ -11,10 +11,21 @@
   html,body{margin:0;height:100%}
   body{background:var(--bg);color:var(--ink);font:13px/1.4 ui-monospace,"SF Mono",Menlo,Consolas,monospace;
        display:flex;flex-direction:column;overflow:hidden;user-select:none}
-  header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid var(--line);background:#100f15}
+  /* position:relative + z-index lifts the whole header above .row below it, so the oversized logo
+     can hang OVER the panels instead of being painted under them */
+  header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid var(--line);background:#100f15;position:relative;z-index:30}
   header .hleft{justify-self:start;display:flex;align-items:center;gap:10px;min-width:0}
-  header .htitle{justify-self:center;letter-spacing:2px;font-size:14px;white-space:nowrap;position:relative;padding-left:64px;display:flex;align-items:center}
-  header .htitle .logo-mark{height:52px;width:auto;display:block;position:absolute;left:0;top:4px;z-index:20;pointer-events:none}
+  /* .htitle is now a zero-size anchor point at the header's centre — it takes up no space, so the
+     logo can grow without making the header taller or shoving ← BACK sideways */
+  header .htitle{justify-self:center;position:relative;width:0;height:0}
+  /* ═══ HEADER LOGO — size & position ═══ */
+  header .htitle .logo-mark{
+    height:80px;     /* SIZE — width follows automatically (aspect kept)    */
+    width:auto;
+    top:-28px;        /* POSITION — vertical: lower = hangs further down     */
+    left:-80px;         /* POSITION — horizontal nudge (negative = left)       */
+    position:absolute;transform:translateX(-50%);
+    display:block;z-index:20;pointer-events:none;image-rendering:pixelated}
   header .hright{justify-self:end}
   .backlink{color:#fff;text-decoration:none;font-size:11px;letter-spacing:1.5px;font-weight:bold}
   .backlink:hover{color:var(--accent)}
@@ -159,7 +170,7 @@
 
 <header>
   <div class="hleft"></div>
-  <b class="htitle"><img src="assets/AH!logo.png" alt="AH!" class="logo-mark"> STUDIO</b>
+  <b class="htitle"><img src="assets/spritestudiologo.png" alt="AH! Sprite Studio" class="logo-mark"></b>
   <a class="hright backlink" href="home.html" title="Back to alterhero.xyz">← BACK</a>
 </header>
 
@@ -229,7 +240,12 @@
 
   <div class="rightTop">
   <section class="panel" id="project">
-    <div class="ptitle"><span id="saveLib" title="save this session in this browser" style="cursor:pointer;color:var(--accent);margin-left:auto">💾 save</span></div>
+    <div class="ptitle" style="gap:10px">
+      <span id="exportProject" title="Download the whole project as one .ahsprite file — put it in iCloud Drive so iOS can't wipe it" style="cursor:pointer;color:var(--accent2);margin-left:auto">⭳ export</span>
+      <span id="importProject" title="Load a .ahsprite file back in (replaces what's here)" style="cursor:pointer;color:var(--accent2)">⭱ import</span>
+      <span id="saveLib" title="save this session in this browser" style="cursor:pointer;color:var(--accent)">💾 save</span>
+      <input type="file" id="importFile" accept=".ahsprite,.json,application/json">
+    </div>
     <div class="pbody">
       <div style="display:flex;gap:6px">
         <div class="addbtn" id="addFolder" style="flex:1">+ FOLDER</div>
@@ -306,7 +322,11 @@
   var $=function(s){return document.querySelector(s)};
   var uid=0;
   var S={ files:[], folders:[], curFolder:null, selId:null, timeline:[], fps:12, name:'animation', playhead:0, playing:false, zoom:'auto', grid:true };
-  S.slots=[{timeline:S.timeline}]; S.curSlotIdx=0;   // TIMELINE slots — slot #1's array IS S.timeline (same reference), so anything that mutates S.timeline (push/splice) stays in sync automatically
+  // ANIMATION slots — each is a named timeline (idle / attack / jump...). Slot 0's array IS S.timeline
+  // (same reference), so anything that mutates S.timeline (push/splice) stays in sync automatically.
+  var slotSeq=1;
+  function newSlotId(){ return 'a'+(slotSeq++)+'-'+Date.now().toString(36); }
+  S.slots=[{id:newSlotId(), name:'idle', timeline:S.timeline}]; S.curSlotIdx=0;
   function renderSlots(){
     var wrap=$('#tlSlots'); if(!wrap) return;
     wrap.innerHTML='';
@@ -314,11 +334,13 @@
       var on=(i===S.curSlotIdx);
       var item=document.createElement('span'); item.className='ebtn';
       item.style.cssText='display:inline-flex;align-items:center;gap:5px;padding:3px 6px 3px 8px'+(on?';border-color:var(--accent);color:var(--accent)':'');
-      var num=document.createElement('span'); num.textContent='#'+(i+1); num.style.cursor='pointer';
-      num.onclick=function(){ switchSlot(i); };
+      // tap an INACTIVE chip to switch to it · tap the ACTIVE one to rename (works on iPad — no dblclick)
+      var num=document.createElement('span'); num.textContent=sl.name||('anim '+(i+1)); num.style.cursor='pointer';
+      num.title=on?'tap to rename this animation':'switch to "'+(sl.name||('anim '+(i+1)))+'"';
+      num.onclick=function(){ if(on) renameSlot(i); else switchSlot(i); };
       item.appendChild(num);
       if(S.slots.length>1){                                        // every slot gets its own × — no need to select it first
-        var x=document.createElement('span'); x.textContent='×'; x.title='delete this timeline';
+        var x=document.createElement('span'); x.textContent='×'; x.title='delete this animation';
         x.style.cssText='cursor:pointer;opacity:.55;font-size:13px;line-height:1';
         x.onmouseenter=function(){ x.style.opacity='1'; x.style.color='var(--danger)'; };
         x.onmouseleave=function(){ x.style.opacity='.55'; x.style.color=''; };
@@ -327,16 +349,28 @@
       }
       wrap.appendChild(item);
     });
-    var add=document.createElement('button'); add.className='ebtn'; add.textContent='+'; add.title='new timeline slot';
+    var add=document.createElement('button'); add.className='ebtn'; add.textContent='+'; add.title='new animation';
     add.onclick=function(){
-      S.slots.push({timeline:[]});
+      var nm=prompt('Name this animation','anim '+(S.slots.length+1));
+      if(nm===null) return;                                        // cancelled — don't create an empty slot
+      S.slots.push({id:newSlotId(), name:(nm.trim()||('anim '+(S.slots.length+1))), timeline:[]});
       switchSlot(S.slots.length-1);
     };
     wrap.appendChild(add);
   }
+  function renameSlot(i){
+    var sl=S.slots[i]; if(!sl) return;
+    var nm=prompt('Rename animation', sl.name||('anim '+(i+1)));
+    if(nm===null) return;
+    sl.name=nm.trim()||sl.name||('anim '+(i+1));
+    renderSlots(); markDirty();
+  }
   function switchSlot(i){
     if(i===S.curSlotIdx) return;
-    S.slots[S.curSlotIdx].timeline=S.timeline;   // stash current slot's array reference (defensive — normally already the same object)
+    // stash current slot's array reference (defensive — normally already the same object).
+    // Guarded: deleteSlot() parks curSlotIdx at -1 to force this function past its no-op guard,
+    // and it can also point at a slot that was just spliced out — in both cases there's nothing to stash.
+    var curSlot=S.slots[S.curSlotIdx]; if(curSlot) curSlot.timeline=S.timeline;
     S.curSlotIdx=i; S.timeline=S.slots[i].timeline; S.playhead=0;
     renderSlots(); renderTimeline();
   }
@@ -362,7 +396,10 @@
     return new Promise(function(res){
       var img=new Image();
       img.onload=function(){
-        var f={id:++uid, name:name||('sheet'+uid+'.png'), url:dataURL, original:dataURL, modified:false, img:img,
+        // id = per-session, regenerated every load. sid = STABLE across saves/reloads — timelines reference
+        // sid (not name), so renaming a PNG or having duplicate names can't reattach frames to the wrong file.
+        var f={id:++uid, sid:opts.sid||('f'+uid+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7)),
+               name:name||('sheet'+uid+'.png'), url:dataURL, original:dataURL, modified:false, img:img,
                folderId:(opts.folderId!==undefined?opts.folderId:S.curFolder), source:opts.source||'local',
                frameW:(typeof opts.frameW==='number'?opts.frameW:guessSize(img.width)),
                frameH:(typeof opts.frameH==='number'?opts.frameH:guessSize(img.height)), frames:[], open:true};
@@ -415,7 +452,7 @@
         });
       });
     });
-    chain.then(function(){ renderFiles(); renderBrowser(); });
+    chain.then(function(){ renderFiles(); renderBrowser(); relinkTimelines(); });   // library is in — reattach any frames waiting on it
   }
 
   /* ---------- slicing ---------- */
@@ -699,14 +736,21 @@
       var slot=document.createElement('div'); slot.className='slot'+(i===S.playhead?' on':''); slot.draggable=true;
       var cv=document.createElement('canvas'); var fr=f.frames[t.frame]; if(!fr){return;}
       var sc=Math.max(1,Math.round(69/Math.max(fr.sw,fr.sh))); drawFrame(cv,f,fr,sc);
-      var rm=document.createElement('div'); rm.className='rm'; rm.textContent='×';
+      // the slot is draggable=true, so a mousedown on these corner buttons + the slightest drift starts a
+      // drag and the click NEVER fires. preventDefault on mousedown stops the drag from ever beginning.
+      var noDrag=function(e){ e.stopPropagation(); e.preventDefault(); };
+      var rm=document.createElement('div'); rm.className='rm'; rm.textContent='×'; rm.title='delete this frame';
+      rm.addEventListener('mousedown',noDrag);
       rm.onclick=function(e){ e.stopPropagation(); S.timeline.splice(i,1); if(S.playhead>=S.timeline.length)S.playhead=Math.max(0,S.timeline.length-1); renderTimeline(); };
       var dup=document.createElement('div'); dup.className='dup'; dup.textContent='⧉'; dup.title='duplicate this frame next to it';
+      dup.addEventListener('mousedown',noDrag);
       dup.onclick=function(e){ e.stopPropagation(); S.timeline.splice(i+1,0,{fileId:t.fileId,frame:t.frame}); setPlayhead(i+1); renderTimeline(); };
       var num=document.createElement('div'); num.className='snum'; num.textContent=t.frame+1;
       slot.appendChild(cv); slot.appendChild(rm); slot.appendChild(dup); slot.appendChild(num);
       slot.onclick=function(){ setPlayhead(i); };
-      slot.ondragstart=function(e){ e.dataTransfer.setData('text/reorder',i); };
+      slot.ondragstart=function(e){                                   // belt-and-braces: never start a reorder
+        if(e.target&&e.target!==slot&&/\b(rm|dup)\b/.test(e.target.className)){ e.preventDefault(); return false; }
+        e.dataTransfer.setData('text/reorder',i); };
       track.appendChild(slot);
     });
     var ph=document.createElement('div'); ph.className='playhead'; ph.id='ph'; ph.style.height='100%'; track.appendChild(ph);
@@ -926,11 +970,37 @@
         var tx=db.transaction('kv','readonly'), q=tx.objectStore('kv').get(k);
         q.onsuccess=function(){res(q.result);}; q.onerror=function(){rej(q.error);}; }); }); } };
   })();
+  /* A frame points at a file by STABLE ref, never by name (names change; duplicates collide).
+     Local files → their sid. Library files → their url, since library sids are regenerated from
+     manifest.json on every load and so can't be persisted. */
+  function fileRef(f){ return f.source==='library' ? ('url:'+f.url) : ('sid:'+f.sid); }
+  function fileByRef(ref){
+    if(!ref) return null;
+    var i;
+    if(ref.indexOf('url:')===0){ var u=ref.slice(4); for(i=0;i<S.files.length;i++) if(S.files[i].url===u) return S.files[i]; return null; }
+    if(ref.indexOf('sid:')===0){ var s=ref.slice(4); for(i=0;i<S.files.length;i++) if(S.files[i].sid===s) return S.files[i]; return null; }
+    for(i=0;i<S.files.length;i++) if(S.files[i].name===ref) return S.files[i];   // legacy saves keyed by bare name
+    return null;
+  }
+  /* Library files arrive asynchronously from manifest.json, often AFTER the project is restored, so their
+     frames land with fileId:null and just don't render. This re-links them once they show up. */
+  function relinkTimelines(){
+    var changed=false;
+    S.slots.forEach(function(sl){ (sl.timeline||[]).forEach(function(t){
+      if(t.fileId==null && t.ref){ var f=fileByRef(t.ref); if(f){ t.fileId=f.id; changed=true; } } }); });
+    if(changed){ renderTimeline(); drawPreview(); }
+  }
   function buildProject(){                                    // KEEPS both original + current(modified) PNG per file — library-sourced items are excluded (re-fetched fresh from manifest.json each load)
-    return { folders:S.folders.filter(function(fo){return !fo.fromLibrary;}).map(function(fo){ return {id:fo.id,name:fo.name,open:fo.open,parentId:fo.parentId||null}; }),
-      files:S.files.filter(function(f){return f.source!=='library';}).map(function(f){ return {name:f.name,url:f.url,original:f.original||f.url,modified:!!f.modified,
+    return { v:2,
+      folders:S.folders.filter(function(fo){return !fo.fromLibrary;}).map(function(fo){ return {id:fo.id,name:fo.name,open:fo.open,parentId:fo.parentId||null}; }),
+      files:S.files.filter(function(f){return f.source!=='library';}).map(function(f){ return {sid:f.sid,name:f.name,url:f.url,original:f.original||f.url,modified:!!f.modified,
         folderId:f.folderId||null,frameW:f.frameW,frameH:f.frameH,sliced:f.frames.length>0}; }),
-      timeline:S.timeline.map(function(t){ var f=fileById(t.fileId); return f?{name:f.name,frame:t.frame}:null; }).filter(Boolean),
+      slots:S.slots.map(function(sl,idx){ return { id:sl.id||('a'+idx), name:sl.name||('anim '+(idx+1)),
+        timeline:(sl.timeline||[]).map(function(t){
+          var f=(t.fileId!=null)?fileById(t.fileId):null;
+          var ref=f?fileRef(f):t.ref;                          // keep unresolved refs so a late library file isn't lost on the next save
+          return ref?{ref:ref,frame:t.frame}:null; }).filter(Boolean) }; }),
+      curSlotIdx:S.curSlotIdx,
       settings:{ fps:S.fps, name:S.name, anchor:S.anchor||'middle' } };
   }
   var _saveT=null;
@@ -950,7 +1020,7 @@
     (lib.folders||[]).forEach(function(fo){ S.folders.push({id:fo.id,name:fo.name,open:fo.open,parentId:fo.parentId||null}); if(fo.id>uid) uid=fo.id; });
     var chain=Promise.resolve();
     (lib.files||[]).forEach(function(sf){
-      chain=chain.then(function(){ return loadImage(sf.url, sf.name).then(function(id){
+      chain=chain.then(function(){ return loadImage(sf.url, sf.name, {sid:sf.sid}).then(function(id){   // sid carried through so frame refs still resolve
         var f=fileById(id); f.folderId=sf.folderId||null; f.frameW=sf.frameW; f.frameH=sf.frameH;
         f.original=sf.original||sf.url; f.modified=!!sf.modified;
         if(sf.sliced) sliceFile(f,sf.frameW,sf.frameH);
@@ -960,8 +1030,20 @@
       if(lib.settings){ S.fps=lib.settings.fps||12; if($('#fps'))$('#fps').value=S.fps;
         S.name=lib.settings.name||'animation'; if($('#animName'))$('#animName').value=S.name;
         S.anchor=lib.settings.anchor||'middle'; }
-      (lib.timeline||[]).forEach(function(t){ var f=S.files.filter(function(g){return g.name===t.name;})[0]; if(f) S.timeline.push({fileId:f.id,frame:t.frame}); });
-      S.curFolder=null; renderFiles(); renderBrowser(); if(typeof renderTimeline==='function') renderTimeline();
+      // v2 saves carry every named animation; a v1 save has one bare `timeline` — fold it into slot 0.
+      var saved=lib.slots||[{ name:'idle', timeline:(lib.timeline||[]) }];
+      S.slots=saved.map(function(sl,idx){
+        return { id:sl.id||newSlotId(), name:sl.name||('anim '+(idx+1)),
+          timeline:(sl.timeline||[]).map(function(t){
+            var ref=t.ref||t.name, f=fileByRef(ref);
+            return { fileId:f?f.id:null, ref:ref, frame:t.frame };   // fileId null = file not loaded yet; relinkTimelines() fills it in
+          }) };
+      });
+      if(!S.slots.length) S.slots=[{id:newSlotId(),name:'idle',timeline:[]}];
+      S.curSlotIdx=Math.min(Math.max(0, lib.curSlotIdx||0), S.slots.length-1);
+      S.timeline=S.slots[S.curSlotIdx].timeline;                     // keep the shared-reference contract
+      S.playhead=0;
+      S.curFolder=null; renderFiles(); renderBrowser(); renderSlots(); if(typeof renderTimeline==='function') renderTimeline();
       S.ready=true;
     });
   }
@@ -973,6 +1055,46 @@
     }).catch(function(){ S.ready=true; });
   }
   $('#saveLib').onclick=saveLibrary;
+
+  /* ---------- EXPORT / IMPORT: one .ahsprite file (JSON) holding every PNG + every named animation ----------
+     iOS evicts IndexedDB after ~7 days of not visiting the site, and wipes it in Private Browsing, so the
+     in-browser autosave alone is not a safe home for work. Exporting to Files/iCloud Drive is the backup. */
+  function exportProject(){
+    var el=$('#exportProject'), o=el?el.textContent:'';
+    try{
+      var data=buildProject();
+      data.exportedAt=new Date().toISOString();
+      var blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+      var stamp=new Date().toISOString().slice(0,10);
+      var fname=(S.name||'sprites').replace(/[^\w\-]+/g,'-')+'-'+stamp+'.ahsprite';
+      var a=document.createElement('a');
+      a.href=URL.createObjectURL(blob); a.download=fname;
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1000);
+      if(el){ el.textContent='✓ exported'; setTimeout(function(){ el.textContent=o; },1600); }
+    }catch(e){ alert('Export failed: '+(e&&e.message||e)); if(el) el.textContent=o; }
+  }
+  function importProject(file){
+    if(!file) return;
+    var fr=new FileReader();
+    fr.onload=function(){
+      var lib;
+      try{ lib=JSON.parse(fr.result); }catch(e){ alert('That file isn\'t a valid .ahsprite project.'); return; }
+      if(!lib || (!lib.files && !lib.slots && !lib.timeline)){ alert('That file doesn\'t look like a sprite project.'); return; }
+      var n=(lib.files||[]).length, a=(lib.slots||[]).length||1;
+      if(!confirm('Import '+n+' PNG'+(n===1?'':'s')+' and '+a+' animation'+(a===1?'':'s')+'?\n\nThis REPLACES everything currently in the studio. Export first if you want to keep it.')) return;
+      S.ready=false;                                   // hold off autosave while we swap the project out
+      S.files=[]; S.folders=[]; S.selId=null; S.curFolder=null;
+      S.slots=[{id:newSlotId(),name:'idle',timeline:[]}]; S.curSlotIdx=0; S.timeline=S.slots[0].timeline; S.playhead=0;
+      applyProject(lib);
+      loadLibraryManifest();                           // library files aren't in the file — re-fetch, then relink
+    };
+    fr.onerror=function(){ alert('Could not read that file.'); };
+    fr.readAsText(file);
+  }
+  $('#exportProject').onclick=exportProject;
+  $('#importProject').onclick=function(){ $('#importFile').value=''; $('#importFile').click(); };
+  $('#importFile').onchange=function(e){ importProject(e.target.files&&e.target.files[0]); };
   window.addEventListener('pagehide',function(){ if(S.ready) IDB.set('project',buildProject()).catch(function(){}); });
   document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='hidden'&&S.ready) IDB.set('project',buildProject()).catch(function(){}); });
   renderSlots();
@@ -1167,6 +1289,8 @@
     saveLibrary:saveLibrary, timelineCanvases:timelineCanvases, apngBytes:apngBytes, drawPreview:drawPreview,
     setView:setView, ED:ED, edNew:edNew, edPaint:edPaint, edSetTool:edSetTool, edSetColor:edSetColor, edUndo:edUndo, edRedo:edRedo,
     currentFrameRef:currentFrameRef, edLoadFrame:edLoadFrame, edSaveToFrame:edSaveToFrame,
-    IDB:IDB, buildProject:buildProject, revertToOriginal:revertToOriginal, markDirty:markDirty };
+    IDB:IDB, buildProject:buildProject, revertToOriginal:revertToOriginal, markDirty:markDirty,
+    applyProject:applyProject, exportProject:exportProject, fileRef:fileRef, fileByRef:fileByRef,
+    relinkTimelines:relinkTimelines, renameSlot:renameSlot, switchSlot:switchSlot, deleteSlot:deleteSlot };
 })();
 </script>

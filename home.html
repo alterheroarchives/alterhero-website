@@ -56,7 +56,7 @@
      --headPx = head height above feet in NATIVE px, so the hover bubble sits just above the head. */
   #oArchives{ --scale:3; --headPx:54; }   /* GIANT    32×64 ×3 = 96×192 px */
   #oBook{     --scale:3; --headPx:29; }   /* WalkBoy  32×64 ×3 = 96×192 px */
-  #oMusic{    --scale:2; --headPx:28; }   /* LittleMF 32×32 ×2 = 64×64 px */
+  #oMusic{    --scale:2; --headPx:58; }   /* LittleMF 32×32 ×2 = 64×64 px */
   .orb .chip{ position:relative; width:128px; height:128px; display:flex; align-items:flex-end; justify-content:center;
     transform-origin:bottom center; transition:transform .18s cubic-bezier(.2,.7,.2,1), filter .18s; }
   /* ---- reflecting lake: a mirrored, softly-swaying, fading copy that hangs DOWN from the soil ---- */
@@ -85,8 +85,8 @@
   .sprite{ flex:none; transform:scale(calc(var(--rs,1) * var(--scale,1))); transform-origin:bottom center;
     background-repeat:no-repeat; image-rendering:pixelated; image-rendering:crisp-edges; -webkit-user-drag:none; }
   .sprite.gi{ width:32px; height:64px; background-image:url(assets/GIANT-sheet.png); background-size:320px 64px; animation:spr-gi var(--gi-dur,.88s) steps(10) infinite; }   /* 10 frames · speed = GIANT.fps in config.js */
-  .sprite.wb{ width:32px; height:64px; background-image:url(assets/wbidle1.png); background-size:320px 64px; }   /* NEW idle · 4 sheets ×10 frames, sequenced by JS below */
-  .sprite.lm{ width:32px; height:32px; background-image:url(assets/lmidle0.png); background-size:352px 32px; }   /* NEW idle · 4 sheets ×11 frames, sequenced by JS below */
+  .sprite.wb{ width:32px; height:64px; background-image:url(assets/WALKBOY-sheet.png); background-size:1280px 64px; }   /* ONE sheet · 40 frames · stepped by JS below */
+  .sprite.lm{ width:32px; height:32px; background-image:url(assets/LITTLEMF-sheet.png); background-size:1408px 32px; }  /* ONE sheet · 44 frames · stepped by JS below */
   @keyframes spr-gi{ from{ background-position-x:0 } to{ background-position-x:-320px } }
   .orb:hover .sprite.gi, .orb.revealed .sprite.gi{ animation-duration:var(--gi-odur,.88s); }   /* GIANT.over.fps in config.js */
   @keyframes spr-wb{ from{ background-position-x:0 } to{ background-position-x:-320px } }
@@ -151,7 +151,10 @@
   }
 
   /* WalkBoy hover → a little blue slime pops up next to him on the soil and idly squishes */
-  #slime{ position:fixed; height:0; z-index:5; pointer-events:none; opacity:0; transform:translateY(8px);
+  /* TEMPORARILY HIDDEN — delete the `display:none;` below to bring the slime back. Everything else
+     (markup, animation loop, positioning in the layout code) is left intact and still running. */
+  #slime{ display:none;
+    position:fixed; height:0; z-index:5; pointer-events:none; opacity:0; transform:translateY(8px);
     transition:opacity .3s ease, transform .3s cubic-bezier(.2,.8,.3,1.2); }
   #slime .slimesprite{ position:absolute; bottom:0; left:0; margin-left:-8px; width:16px; height:16px;
     background:url(assets/slime_blue.png) no-repeat 0 0; background-size:80px 32px; image-rendering:pixelated;
@@ -182,9 +185,9 @@
   /* littleMF = the mirror of the GIANT: open to the LEFT edge, full colour to 75%, one clean fade on the right quarter */
   #backMF{ -webkit-mask-image:linear-gradient(to right, #000 0, #000 75%, transparent 100%);
                    mask-image:linear-gradient(to right, #000 0, #000 75%, transparent 100%); }
-  #backMoon .bd,#backMoon .bdref{ background-image:url(assets/back-moon.jpeg); }
-  #backSun .bd,#backSun .bdref{ background-image:url(assets/back-sun.jpeg); }
-  #backMF .bd,#backMF .bdref{ background-image:url(assets/back-mf.jpeg); }
+  /* background-image intentionally NOT set here — these are hover-only atmosphere (back-mf.jpeg alone
+     is ~1.1MB) and are lazy-loaded by JS on first hover/tap of the matching character instead, so none
+     of the three cost anything on initial page load. See loadBackdrop() further down. */
   body.clouds-in #backMoon{ opacity:.92; }
   body.moon-in #backSun{ opacity:.92; }
   body.car-in #backMF{ opacity:.92; }
@@ -204,7 +207,7 @@
   /* pixel-RPG dialogue box — hidden until the cursor is on that character */
   /* pixel dialogue bubble — an EMPTY pre-rendered frame (framebubble1.png, 2 blink frames of 111×32);
      the two lines of text are LIVE DOM, typed on hover (line 1 letter-by-letter, line 2 opens on dwell). */
-  .orb .think{ position:absolute; z-index:16; width:var(--bub-w,222px); height:var(--bub-h,64px);   /* size = bubble.scale in config.js (native 111×32 × scale); z-index above #mfDock (15) so it never gets covered by the music player */
+  .orb .think{ position:absolute; z-index:16; width:var(--bub-w,222px); height:var(--bub-h,64px);   /* size = bubble.scale in config.js (native 111×32 × scale); this z-index only orders the bubble WITHIN its orb — clearing #mfDock is handled by the .orb:hover rule below */
     background-repeat:no-repeat; background-size:200% 100%; background-position-x:0;
     image-rendering:pixelated; image-rendering:crisp-edges;
     opacity:0; pointer-events:none; transition:opacity .12s steps(2), transform .18s steps(3); }
@@ -212,7 +215,42 @@
   /* all dialogue boxes appear ABOVE their character (RPG text-over-head; no off-screen clipping) */
   .orb .think{ left:50%; bottom:calc(var(--scale) * var(--headPx) * var(--rs) * 1px + var(--bub-y,14px)); transform-origin:bottom center; transform:translateX(calc(-50% + var(--bub-x,0px))) translateY(8px) scale(.96); }
   #oMusic .think{ bottom:var(--mf-bub, 96px); }                    /* littleMF: lift the bubble ABOVE the dropped van (height set by layout) */
+  #oBook .think{ --bub-y:22px; --bub-x:0px; }                      /* WalkBoy ONLY: y = gap above his head, x = left/right nudge (overrides config.js bubble.x/.y) */
+  #oArchives .think{ --bub-y:64px; --bub-x:0px; }                  /* GIANT ONLY: same two knobs (his --headPx is 54, so the bubble already starts much higher) */
   .orb:hover .think, .orb.revealed .think{ opacity:1; transform:translateX(calc(-50% + var(--bub-x,0px))) translateY(0) scale(1); }
+  /* .orb has z-index:6, which creates a stacking context — so .think's z-index is scoped INSIDE the orb and
+     can never beat #mfDock (15) on its own. Lift the whole orb while its bubble is showing instead.
+     Stays under .world (21) and .topnav (22); body.opening .orb.chosen (z-index:7) is more specific, so
+     the open-a-world animation is unaffected. */
+  #oBook:hover, #oBook.revealed{ z-index:17; }   /* WalkBoy ONLY — littleMF's bubble stays behind the player */
+
+  /* ═══ CODE MODE — painted bubble swapped for matrix-style typed code ═══
+     Driven by MATRIX_ORBS in the script (search "MATRIX_ORBS"). The .think bubble is only HIDDEN here,
+     never removed — empty that object and the original artwork comes straight back. */
+  .orb.codemode .think{ display:none; }
+  .orb .codeline{ position:absolute; left:50%; transform:translateX(-50%); display:none;
+    bottom:calc(var(--scale) * var(--headPx) * var(--rs) * 1px + var(--code-y,14px));
+    --code-y:14px;                                                  /* POSITION — gap above his head    */
+    --code-size:12px;                                               /* SIZE — text size                 */
+    flex-direction:column; align-items:flex-start; gap:2px;
+    font-family:ui-monospace,'SF Mono',Menlo,'Courier New',monospace; font-size:var(--code-size);
+    line-height:1.5; letter-spacing:.5px; white-space:pre; text-align:left;   /* pre (not nowrap) so leading spaces indent */
+    color:var(--ink);                                               /* COLOUR — black, matches the site's ink */
+    text-shadow:0 0 6px rgba(255,255,255,.85), 0 0 14px rgba(255,255,255,.6);   /* white halo so it stays readable over the sun backdrop */
+    pointer-events:none; z-index:16; }
+  .orb.codemode .codeline{ display:flex; }
+  .codeline .cl{ display:block; }
+  .codeline .b{ font-weight:700; letter-spacing:1.5px; }             /* bold — whole line, or one segment of it */
+  /* littleMF only: white type, no plate, lifted higher above his head.
+     Halo is dark (not white like the others) — it's the only thing separating white text from white paper. */
+  #oMusic .codeline{ color:#fff; --code-y:30px;
+    text-shadow:0 0 4px rgba(0,0,0,.9), 0 0 10px rgba(0,0,0,.75), 0 0 20px rgba(0,0,0,.5); }
+  #oMusic .codeline .cur{ background:#fff; box-shadow:0 0 6px rgba(0,0,0,.7); }
+  /* an empty .codeline must not paint an empty plate when he isn't hovered */
+  .orb.codemode .codeline:empty{ display:none; }
+  .codeline .cur{ display:inline-block; width:.55em; height:1em; background:var(--ink); margin-left:2px;
+    vertical-align:-2px; animation:codeblink 1s steps(1) infinite; }
+  @keyframes codeblink{ 0%,49%{opacity:1} 50%,100%{opacity:0} }
 
   /* ---- thought-trail bubbles rising from his head to the world-orbs ---- */
   .tdot{ position:fixed; z-index:4; border-radius:50%; background:#fff; border:1.5px solid #111;
@@ -245,12 +283,15 @@
      generically, so the same effect works for any character without any character-specific CSS. ---- */
   body.sink-music #top, body.sink-music #soil, body.sink-music #foot{
     opacity:0; transition:opacity .5s ease; }
+  /* No `transform` in these keyframes ON PURPOSE: an animated property overrides the element's own value,
+     so declaring scale(1) here would snap the chip back down out of its hover size the instant the
+     teleport begins. Leaving it out lets the hover/opening transform hold for the whole vanish. */
   @keyframes teleport-char{
-    0%{   transform:scale(1); filter:brightness(1) saturate(1); opacity:1; }
-    70%{  transform:scale(1); filter:brightness(1.1) saturate(1); opacity:1; }
-    88%{  transform:scale(1); filter:brightness(1.7) saturate(1.4); opacity:1; }
-    94%{  transform:scale(1); filter:brightness(3) saturate(.3); opacity:.7; }
-    100%{ transform:scale(1); filter:brightness(5) saturate(0); opacity:0; }
+    0%{   filter:brightness(1) saturate(1); opacity:1; }
+    70%{  filter:brightness(1.1) saturate(1); opacity:1; }
+    88%{  filter:brightness(1.7) saturate(1.4); opacity:1; }
+    94%{  filter:brightness(3) saturate(.3); opacity:.7; }
+    100%{ filter:brightness(5) saturate(0); opacity:0; }
   }
   @keyframes tunnel-ring{
     0%{   transform:translate(-50%,-50%) scale(.25); opacity:0; border-width:2px; }
@@ -302,6 +343,37 @@
     100%{ filter:brightness(5) saturate(0); opacity:0; }
   }
   body.vacuum-mf .orb.chosen .chip{ animation:teleport-char-mf 4.5s steps(1) forwards !important; }
+
+  /* ---- MOON landing glitch: the same chromatic-aberration language as the character teleport, but it
+     DECAYS back to clean instead of flashing out — the moon has to survive the impact. Fires when it
+     touches down on floor2 (the lower position). Only `filter` is animated, so it never fights the
+     gravity sim, which owns `transform` on this img every frame. ---- */
+  @keyframes moon-glitch{
+    0%{     filter:none; }
+    8.45%{  filter:drop-shadow(2px 0 0 rgba(255,20,60,.55)) drop-shadow(-2px 0 0 rgba(20,255,220,.55)); }
+    9.86%{  filter:none; }
+    25.35%{ filter:drop-shadow(1px 0 0 rgba(255,20,60,.4)) drop-shadow(-1px 0 0 rgba(20,255,220,.4)); }
+    26.76%{ filter:none; }
+    45.07%{ filter:drop-shadow(3px 0 0 rgba(255,20,60,.6)) drop-shadow(-3px 0 0 rgba(20,255,220,.6)) drop-shadow(0 -2px 0 rgba(255,220,40,.4)); }
+    46.48%{ filter:none; }
+    64.79%{ filter:drop-shadow(2px 0 0 rgba(255,20,60,.5)) drop-shadow(-2px 0 0 rgba(20,255,220,.5)); }
+    66.20%{ filter:none; }
+    81.70%{ filter:drop-shadow(4px 0 0 rgba(255,20,60,.65)) drop-shadow(-4px 0 0 rgba(20,255,220,.65)) drop-shadow(0 2px 0 rgba(255,220,40,.45)); }
+    83.10%{ filter:none; }
+    98.60%{ filter:drop-shadow(3px 0 0 rgba(255,20,60,.6)) drop-shadow(-3px 0 0 rgba(20,255,220,.6)); }
+    100%{   filter:none; }
+  }
+  /* infinite: the glitch runs for the WHOLE floor2 stay. The keyframes start and end on filter:none,
+     so the loop is seamless. Duration = one full glitch cycle. */
+  #moonPeek.glitch img{ animation:moon-glitch var(--moon-glitch-ms,2s) steps(1) infinite; }
+
+  /* WARM TINT — eases in when it settles on floor2 and holds there, eases back out when it climbs to
+     floor1. Lives on the CONTAINER, so it composes with the img's own aberration filter. */
+  #moonPeek{ transition:filter .9s ease; }
+  /* sepia lays down an amber base, saturate deepens it, hue-rotate swings that amber toward YELLOW
+     (positive = away from red). Raise hue-rotate for greener-yellow, lower it for orange. */
+  #moonPeek.warm{ filter:sepia(.85) saturate(2.4) hue-rotate(10deg) brightness(1.14); }
+
 
   /* BEAH!TS player dock — floats directly above littleMF's head (position set dynamically in layout()/JS,
      matching how the other atmosphere elements track his position). Toggled by clicking him — that's also
@@ -366,6 +438,14 @@
   #arcLayers .layer.active iframe{ pointer-events:auto; }         /* the focused page is fully interactive */
   /* incoming page just appears once the black fade has covered the swap — no flip/unfold anymore */
   #arcLayers .layer.active{ opacity:1; }
+  /* ---- per-layer LOADING card: covers the blank dark iframe until it fires `load`. Sits inside the
+     layer, so it inherits the layer's visibility — a preloaded background layer never shows one. ---- */
+  #arcLayers .arcload{ position:absolute; inset:0; z-index:3; display:flex; align-items:center; justify-content:center;
+    background:#05060a; color:#7cc7ff; font-family:var(--mono); font-size:12px; letter-spacing:1.5px;
+    transition:opacity .45s ease; }
+  #arcLayers .arcload.gone{ opacity:0; pointer-events:none; }
+  #arcLayers .arcload .cur{ display:inline-block; width:.55em; height:1em; background:#7cc7ff;
+    margin-left:4px; vertical-align:-2px; animation:codeblink 1s steps(1) infinite; }
   /* ---- fade-to-black-and-back segue (covers the page swap) ---- */
   #arcFade{ position:fixed; inset:0; z-index:6; pointer-events:none; opacity:0; background:#000; }
   #arcFade.play{ animation:arcFadeBlack .7s ease both; }
@@ -462,16 +542,35 @@
   .mfp-pill:hover{ opacity:.65; }
   .mfp-pill.off{ opacity:.35; }
   #marqueeWrap{ position:absolute; bottom:34px; left:34px; width:170px; height:84px; overflow:hidden; }
-  #marqueeTrack{ position:absolute; top:0; left:0; height:64px; line-height:64px; white-space:nowrap; font-family:'TrackFont',monospace; font-size:26px; color:#000; letter-spacing:1px; }
+  #marqueeTrack{ position:absolute; top:0; left:0; height:68px; line-height:68px; white-space:nowrap; font-family:'TrackFont',monospace; font-size:24px; color:#000; letter-spacing:1px; }
   #timeDisplay{ position:absolute; bottom:100px; left:325px; height:21px; line-height:21px; font-family:'TimeFont',monospace; font-size:14px; color:var(--gold-bright); letter-spacing:1.5px; text-shadow:0 0 5px var(--gold); white-space:nowrap; }
-  #transport{ position:absolute; top:0; left:0; width:399px; height:255px; pointer-events:none; }
-  .mfp-tbtn{ position:absolute; width:24px; height:24px; background:transparent; border:none; color:#1a1000; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-family:'Courier New',monospace; pointer-events:all; padding:0; }
+  #transport{ position:absolute; top:0; left:0; width:399px; height:255px; pointer-events:none;
+    /* ═══ TRANSPORT ICON TWEAKS — all size/shape knobs live here ═══ */
+    --tbtn-hit:      24px;  /* clickable square around each icon        */
+    --icon-size:     26px;  /* prev / stop / next glyph size            */
+    --icon-play-ratio: 1.15; /* play/pause size relative to the others  */
+    --icon-play:     calc(var(--icon-size) * var(--icon-play-ratio));
+    --icon-stroke:   1.6;   /* outline weight — 1.2 hairline, 2.2 bold  */
+    --icon-nudge-x:  -3px;   /* shift ALL icons left/right               */
+    --icon-nudge-y:  16px;   /* shift ALL icons up/down                  */
+    --tbtn-x:        146px; /* left edge of the FIRST button            */
+    --tbtn-y:        209px; /* top edge of all four                     */
+    --tbtn-step:     29px;  /* spacing between buttons — the gap knob   */
+  }
+  .mfp-tbtn{ position:absolute; width:var(--tbtn-hit); height:var(--tbtn-hit); background:transparent; border:none; color:#1a1000; cursor:pointer; display:flex; align-items:center; justify-content:center; pointer-events:all; padding:0; }
+  .mfp-tbtn svg{ width:var(--icon-size); height:var(--icon-size); display:block;
+    transform:translate(var(--icon-nudge-x), var(--icon-nudge-y));
+    fill:none; stroke:currentColor; stroke-width:var(--icon-stroke); stroke-linecap:round; stroke-linejoin:round; }
+  #tbtnPlay svg{ width:var(--icon-play); height:var(--icon-play); }
   .mfp-tbtn:hover{ color:#000; }
   .mfp-tbtn:active{ opacity:.5; }
-  #tbtnPrev{ top:209px; left:146px; }
-  #tbtnStop{ top:210px; left:173px; }
-  #tbtnPlay{ top:209px; left:200px; font-size:13px; }
-  #tbtnNext{ top:209px; left:226px; }
+  /* evenly spaced from --tbtn-x by --tbtn-step; override an individual `left` here if one
+     needs to break the grid to match the printed panel */
+  .mfp-tbtn{ top:var(--tbtn-y); }
+  #tbtnPrev{ left:var(--tbtn-x); }
+  #tbtnStop{ left:calc(var(--tbtn-x) + var(--tbtn-step)); }
+  #tbtnPlay{ left:calc(var(--tbtn-x) + var(--tbtn-step) * 2); }
+  #tbtnNext{ left:calc(var(--tbtn-x) + var(--tbtn-step) * 3); }
   #seekBarWrap{ position:absolute; bottom:58px; left:75px; right:79px; height:7px; cursor:pointer; }
   #seekTrack{ position:absolute; top:50%; transform:translateY(-50%); width:100%; height:2px; background:var(--gold-dim); }
   #seekFill{ position:absolute; top:50%; transform:translateY(-50%); height:2px; width:0%; background:var(--gold-bright); box-shadow:0 0 4px var(--gold); }
@@ -497,7 +596,9 @@
     transition:opacity .4s ease; pointer-events:none; }
   /* the picked icon: nudges 3% bigger and holds the centre while the other two fade */
   body.opening .orb.chosen{ z-index:7; pointer-events:none; }
-  body.opening .orb.chosen .chip{ transform:scale(1.03);
+  /* HOLD the hover size through the click — identical transform to the .orb:hover rule above. It has to be
+     restated (not inherited) because .orb.chosen sets pointer-events:none, which drops :hover immediately. */
+  body.opening .orb.chosen .chip{ transform:translate(var(--onx,0px),var(--ony,0px)) scale(var(--ogrow,1.04));
     filter:drop-shadow(0 6px 8px rgba(20,16,24,.22)); transition:transform .35s cubic-bezier(.2,.7,.2,1), filter .35s; }
   .world .wrap{ transform:translateY(34px); transition:transform .7s cubic-bezier(.2,.7,.2,1) .12s; }
   .world.show .wrap{ transform:translateY(0); }
@@ -571,10 +672,12 @@
   <a class="orb" id="oArchives" href="index.html" data-world="Archives" data-key="archives">
     <div class="chip"><div class="sprite gi" role="img" aria-label="GIANT"></div><div class="lake" aria-hidden="true"><div class="sprite gi"></div></div></div>
     <div class="think" role="img" aria-label="you are a collector — step into the AH!rchives"></div>
+    <div class="codeline" aria-hidden="true"></div>
   </a>
   <a class="orb" id="oBook" href="#book" data-world="Book" data-key="book">
     <div class="chip"><div class="sprite wb" role="img" aria-label="Walkboy"></div><div class="lake" aria-hidden="true"><div class="sprite wb"></div></div></div>
     <div class="think" role="img" aria-label="one word — PHENOMENAH!"></div>
+    <div class="codeline" aria-hidden="true"></div>   <!-- matrix-style typed code, replaces the painted bubble while codemode is on -->
   </a>
   <a class="orb" id="oMusic" href="#music" data-world="Music" data-key="music">
     <div class="chip"><div class="sprite lm" role="img" aria-label="LittleMF"></div><div class="lake" aria-hidden="true"><div class="sprite lm"></div></div></div>
@@ -599,10 +702,10 @@
         <div id="marqueeWrap"><div id="marqueeTrack">  </div></div>
         <div id="timeDisplay">00:00</div>
         <div id="transport">
-          <button class="mfp-tbtn" id="tbtnPrev">|◀</button>
-          <button class="mfp-tbtn" id="tbtnStop">■</button>
-          <button class="mfp-tbtn" id="tbtnPlay">▶</button>
-          <button class="mfp-tbtn" id="tbtnNext">▶|</button>
+          <button class="mfp-tbtn" id="tbtnPrev" aria-label="Previous"><svg viewBox="0 0 24 24"><path d="M18 5.5v13L8.5 12z"/><path d="M6 5.5v13"/></svg></button>
+          <button class="mfp-tbtn" id="tbtnStop" aria-label="Stop"><svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="1"/></svg></button>
+          <button class="mfp-tbtn" id="tbtnPlay" aria-label="Play/Pause"><svg viewBox="0 0 24 24"><path d="M8 5.5v13L18.5 12z"/></svg></button>
+          <button class="mfp-tbtn" id="tbtnNext" aria-label="Next"><svg viewBox="0 0 24 24"><path d="M6 5.5v13L15.5 12z"/><path d="M18 5.5v13"/></svg></button>
         </div>
         <div id="seekBarWrap">
           <div id="seekTrack"></div>
@@ -996,7 +1099,7 @@
     document.body.classList.remove('clouds-in','moon-in','car-in');                 // clear any prior character's atmosphere
     orbs.forEach(function(x){ var on=(x===o); x.el.classList.toggle('dim',!on); x.el.classList.toggle('revealed',on); });
     var atmo={ archives:'clouds-in', book:'moon-in', music:'car-in' }[o.key];
-    if(atmo) document.body.classList.add(atmo);
+    if(atmo){ loadBackdrop(o.key); document.body.classList.add(atmo); }
     if(o.world==='Archives' && !reduced){ arcLoad(); }                // preload archives on first tap, like hover does
     bubStart(o);
     revealedOrb=o;
@@ -1011,19 +1114,38 @@
   addEventListener('click', function(e){                                            // touch: tap outside a character dismisses it
     if(noHover && revealedOrb && !(e.target.closest && e.target.closest('.orb'))) clearReveal(); });
 
+  /* lazy-load the hover backdrops — each is a full photographic image (back-mf.jpeg alone is ~1.1MB)
+     that's only ever seen once someone hovers/taps that specific character. Loading them eagerly via CSS
+     cost ~1.3MB combined on every single page load, even for visitors who never hover a thing. Instead we
+     fetch each one lazily, the first time (and only the first time) its character is engaged. */
+  var BACKDROPS={ archives:{sel:'#backMoon', src:'assets/back-moon.jpeg'},
+                  book:    {sel:'#backSun',  src:'assets/back-sun.jpeg'},
+                  music:   {sel:'#backMF',   src:'assets/back-mf.jpeg'} };
+  var backdropLoaded={};
+  function loadBackdrop(key){
+    if(backdropLoaded[key]) return; backdropLoaded[key]=true;
+    var b=BACKDROPS[key]; if(!b) return;
+    var el=document.querySelector(b.sel); if(!el) return;
+    var css='url('+b.src+')';
+    [].forEach.call(el.querySelectorAll('.bd,.bdref'), function(x){ x.style.backgroundImage=css; });
+  }
+
+  var hoveredOrb=null;                                                          // desktop hover target (touch uses revealedOrb)
   orbs.forEach(function(o){
     o.el.addEventListener('click', function(e){ e.preventDefault();
       if(o.key==='music'){ toggleMfDock(); return; }                            // littleMF: no teleport/world — just toggle the player panel on the homepage
       if(noHover && revealedOrb!==o){ revealOrb(o); return; }                       // 1st tap (touch) = reveal, hold off on diving
       var r=o.el.getBoundingClientRect(); enter(o, r.left+r.width/2, r.top+r.height/2); });   // click / 2nd tap = descend
     o.el.addEventListener('pointerenter', function(){ if(noHover||document.body.classList.contains('opening')) return;
+      hoveredOrb=o;                                                                          // remembered so the ENTER key knows who's talking
       orbs.forEach(function(x){ x.el.classList.toggle('dim', x!==o); }); });                  // hover → dim the other two
     o.el.addEventListener('pointerleave', function(){ if(noHover||document.body.classList.contains('opening')) return;
+      if(hoveredOrb===o) hoveredOrb=null;
       orbs.forEach(function(x){ x.el.classList.remove('dim'); }); });
     if(o.world==='Archives') o.el.addEventListener('pointerenter', function(){ if(!noHover && !reduced){ arcLoad(); } });  // preload on hover → AH! shows instantly
     var atmo={ archives:'clouds-in', book:'moon-in', music:'car-in' }[o.key];    // GIANT → clouds · WalkBoy → moon · littleMF → the van drops
     if(atmo){
-      o.el.addEventListener('pointerenter', function(){ if(!noHover && !document.body.classList.contains('opening')) document.body.classList.add(atmo); });
+      o.el.addEventListener('pointerenter', function(){ if(!noHover && !document.body.classList.contains('opening')){ loadBackdrop(o.key); document.body.classList.add(atmo); } });
       o.el.addEventListener('pointerleave', function(){ if(!noHover) document.body.classList.remove(atmo); });
     }
   });
@@ -1039,11 +1161,30 @@
   var arcNav=document.getElementById('arcNav'), arcUp=document.getElementById('arcUp'),
       arcDown=document.getElementById('arcDown'), arcLabel=document.getElementById('arcLabel'), arcFade=document.getElementById('arcFade');
   var arcIdx=0, arcBusy=false, arcLabelT=0;
+  /* The mosaic pulls ~1000 thumbs, so the layer can sit blank for a while. Type a line over it until the
+     iframe reports `load`. Timeout is a backstop: a stalled/failed page must never leave this up forever. */
+  var ARC_LOAD_TIMEOUT=20000;
+  function arcLoading(L,f){
+    if(L.querySelector('.arcload')) return;
+    var card=document.createElement('div'); card.className='arcload';
+    var txt=document.createElement('span'), cur=document.createElement('span'); cur.className='cur';
+    card.appendChild(txt); card.appendChild(cur); L.appendChild(card);
+    var msg='> loading '+(L.getAttribute('data-title')||'').toUpperCase(), i=0;
+    var typer=setInterval(function(){ if(i<msg.length) txt.textContent+=msg.charAt(i++); else clearInterval(typer); }, 42);
+    function done(){
+      clearInterval(typer); clearTimeout(bail);
+      card.classList.add('gone');
+      setTimeout(function(){ if(card.parentNode) card.parentNode.removeChild(card); }, 500);
+    }
+    var bail=setTimeout(done, ARC_LOAD_TIMEOUT);
+    f.addEventListener('load', done, {once:true});
+  }
   function arcLoadOne(i){ var L=arcLayers[i]; if(!L) return;          // lazy-load a single layer's iframe on first need
     var f=L.querySelector('iframe'); if(!f.getAttribute('src')){
       var src=L.getAttribute('data-src');
       var hashIdx=src.indexOf('#'), base=hashIdx>=0?src.slice(0,hashIdx):src, hash=hashIdx>=0?src.slice(hashIdx):'';
       var sep=base.indexOf('?')>=0?'&':'?';
+      arcLoading(L,f);                                                // card first, so it's up before the fetch starts
       f.src=base+sep+'t='+Date.now()+hash;                            // cache-bust BEFORE the #hash, not after — appending after it corrupts the fragment (#origins?t=... ≠ #origins), breaking the page's own hash-based routing
     } }
   function arcLoad(){ if(arcLoaded) return; arcLoaded=true; arcLoadOne(0); }   // eagerly load ONLY the light landing zone; heavy pages (index galaxies) load when scrolled to
@@ -1114,6 +1255,8 @@
   function toggleMfDock(){
     var dock=document.getElementById('mfDock'); if(!dock) return;
     dock.classList.toggle('show');
+    // opening the dock while his line is mid-type would leave it stranded behind the panel — clear it
+    if(dock.classList.contains('show')){ var mf=orbs.filter(function(x){return x.key==='music';})[0]; if(mf) codeStop(mf); }
   }
   function close(){ if(!openWorld) return; var w=openWorld;
     w.classList.remove('show'); w.setAttribute('aria-hidden','true');
@@ -1160,9 +1303,147 @@
       im.onerror=function(){ if(--pending===0) assemble(); }; im.src=b[k]; });
   }
   orbs.forEach(bubBuild);
+
+  /* ---- CODE MODE: for the orbs listed here the painted bubble is DEACTIVATED (not deleted — bubBuild
+     still stitches its sheet, the .think div still exists, the art is untouched) and the character's line
+     is typed out matrix-style instead. Set MATRIX_ORBS={} to put every bubble back exactly as it was. ---- */
+  var MATRIX_ORBS={ book:true, archives:true, music:true };           // book = WalkBoy · archives = GIANT · music = littleMF
+  /* WalkBoy's line. Swap in any of the variations below — same shape, different flavour.
+     Keep each line under ~24 chars: .codeline is nowrap and will run wide over his neighbours. */
+  /* A line is either a plain string, or {t:'…',bold:true} to render it bold. */
+  var CODE_LINES={
+    book:    ['if (world == ∴asleep◆)',  {t:' PHENOMENAH!',bold:true}, ' > Enter?'],
+    archives:[{n:999, pre:' ', post:'', ms:1100, bold:true},
+              {segs:[{t:' AH!',bold:true},{t:'RCHIVES'}]},
+              ' > Collect?'],
+    /* littleMF is a FUNCTION, not a fixed array — it re-reads the player on every hover, so he
+       reports what's actually on. Falls back to the idle script if the player hasn't loaded. */
+    music:function(){
+      var p=(window.AH_PLAYER&&window.AH_PLAYER.state())||null;
+      function pad(n){ return ('0'+n).slice(-2); }
+      if(p && p.playing && p.title){
+        return [ {segs:[{t:' ▶ '},{t:p.title.toUpperCase(),bold:true}]},
+                 ' '+pad(p.index+1)+' / '+pad(p.total),
+                 {meter:10, amp:1, pre:' ', post:'  > Open?'} ];
+      }
+      return [ {t:'TAH!PE == ∎ready∅', bold:true}, {meter:10, amp:0.35, pre:' ', post:'  > Play?'} ];
+    } };
+  /* thumbs/ actually holds 1001 files — 999 is a deliberate choice, not the real total.
+     ── GIANT: the typed-code version instead of the count ────────────────────────────
+     archives:['if (you == ∴collector◆)', {t:' AH!RCHIVES',bold:true}, ' > Enter?']
+       …swap that first line for: 'if (hands == ∴empty◆)' · 'while (∴collecting◆)'
+                                  'for (obj in ∴memory◆)' · 'if (vault == ∴shut◆)'
+     ── or count variations ───────────────────────────────────────────────────────────
+     {n:1001, pre:' ', post:' objects', ms:1100, bold:true}
+     {n:1001, pre:' ', post:' indexed', ms:1400, bold:true}
+     {n:1001, pre:' ∴ ', post:' ◆', ms:900, bold:true}
+     ───────────────────────────────────────────────────────────────────────────────── */
+  /* ── close variations — same three beats: condition · bare word · invitation ──────
+     drifting symbols:  ['if (world == ▚ asleep ∴ )','PHENOMENAH!','> Enter?']
+     symbols first:     ['if (∴ world ◆ asleep ▚ )','PHENOMENAH!','> Enter?']
+     negated:           ['if (world != ◆ awake ∴ )','PHENOMENAH!','> Enter?']
+     ongoing:           ['while (world ∴ sleeps ◆ )','PHENOMENAH!','> Enter?']
+     inward:            ['if (soul == ◆ empty ∴ )','PHENOMENAH!','> Enter?']
+     closing beat:      …last line can be '> Enter ◆' · '> ∴ Enter?' · '> Enter ▚ ∴ ◆'
+     An EMPTY string '' is a valid line — it types nothing and just leaves a gap,
+     e.g. ['if (world == ∴ asleep ◆ )','','PHENOMENAH!','','> Enter?']
+     ───────────────────────────────────────────────────────────────────────────────── */
+  var CODE_MS=42, CODE_LINE_PAUSE=380;                                // per-character speed · pause between lines
+  orbs.forEach(function(o){ if(MATRIX_ORBS[o.key]) o.el.classList.add('codemode'); });
+  /* The prompt says "> Enter?" — so make it true. While a code-mode character is hovered (desktop) or
+     revealed (touch), the ENTER key dives into his world, exactly like clicking him does. */
+  addEventListener('keydown', function(e){
+    if(e.key!=='Enter' || e.metaKey || e.ctrlKey || e.altKey) return;
+    if(document.body.classList.contains('opening') || openWorld) return;        // already diving, or a world is open
+    var t=e.target, tn=t&&t.tagName;
+    if(tn==='INPUT'||tn==='TEXTAREA'||tn==='SELECT'||(t&&t.isContentEditable)) return;   // don't hijack real typing
+    var o=hoveredOrb||revealedOrb;
+    if(!o || !MATRIX_ORBS[o.key] || !CODE_LINES[o.key]) return;                 // only whoever is showing the prompt
+    e.preventDefault();
+    if(o.key==='music'){ toggleMfDock(); return; }                              // littleMF has no world — Enter opens/closes the player, same as clicking him
+    var r=o.el.getBoundingClientRect();
+    enter(o, r.left+r.width/2, r.top+r.height/2);
+  });
+  function mfDockOpen(){ var d=document.getElementById('mfDock'); return !!(d && d.classList.contains('show')); }
+  function codeStop(o){ clearTimeout(o._ct); var el=o.el.querySelector('.codeline'); if(el) el.textContent=''; }
+  /* A line is one of four things:
+       'text'                                     → typed character by character
+       {t:'text',bold:true}                       → same, whole line bold
+       {segs:[{t:'AH!',bold:true},{t:'RCHIVES'}]} → MIXED weight within one line
+       {n:999,pre:' ',post:'',ms:1100}            → a COUNT: spins up from 0 and settles on n   */
+  function lineOf(l){
+    if(typeof l==='string') return {segs:[{t:l,bold:false}]};
+    if(l && typeof l.n==='number') return {n:l.n, ms:l.ms||1100, pre:l.pre||'', post:l.post||'', bold:!!l.bold};
+    if(l && typeof l.meter==='number') return {meter:l.meter, amp:(l.amp==null?1:l.amp), ms:l.ms||90,
+      pre:l.pre||'', post:l.post||'', bold:!!l.bold};
+    if(l && l.segs) return {segs:l.segs.map(function(s){ return {t:(s&&s.t)||'', bold:!!(s&&s.bold)}; })};
+    return {segs:[{t:(l&&l.t)||'', bold:!!(l&&l.bold)}]};
+  }
+  function codeStart(o){
+    if(o.key==='music' && mfDockOpen()) return;                       // player is open — it already shows the track, don't say it twice
+    var el=o.el.querySelector('.codeline'), lines=CODE_LINES[o.key];
+    if(typeof lines==='function') lines=lines();                      // dynamic script — rebuilt on every hover (littleMF reads the player)
+    if(!lines || !lines.length) return;
+    if(!el){ el=document.createElement('div'); el.className='codeline'; el.setAttribute('aria-hidden','true'); o.el.appendChild(el); }   // auto-create: enabling an orb in MATRIX_ORBS is enough, no markup edit needed
+    clearTimeout(o._ct); el.textContent='';
+    var cur=document.createElement('span'); cur.className='cur';
+    /* One row per line. A row holds one span PER SEGMENT, so weight can change mid-line
+       (bold "AH!" + regular "RCHIVES"). The cursor is appended last and moves down with each new row. */
+    function row(d){
+      var single=(d.n!=null||d.meter);
+      var r=document.createElement('span'); r.className='cl'+(single&&d.bold?' b':'');
+      var spans=(single?[{bold:false}]:d.segs).map(function(s){
+        var x=document.createElement('span'); if(s.bold) x.className='b'; r.appendChild(x); return x; });
+      r.appendChild(cur); el.appendChild(r); return spans;
+    }
+    if(reduced){ lines.forEach(function(l){ var d=lineOf(l);          // reduced motion: no spin, no typing
+      var sp=row(d);
+      if(d.n!=null) sp[0].textContent=d.pre+d.n+d.post;
+      else d.segs.forEach(function(s,i){ sp[i].textContent=s.t; }); }); return; }
+    var li=0, si=0, ci=0, d=lineOf(lines[0]), sp=row(d);
+    function next(){
+      if(++li>=lines.length) return;                                  // finished — cursor just keeps blinking
+      si=0; ci=0; d=lineOf(lines[li]); sp=row(d);
+      o._ct=setTimeout(tick,CODE_LINE_PAUSE);
+    }
+    function tick(){
+      if(d.meter){                                                    // METER line — never finishes, so put it LAST
+        var BARS='▁▂▃▄▅▆▇', m0=Date.now();
+        (function pulse(){
+          var now=(Date.now()-m0)/1000, s='';
+          for(var i=0;i<d.meter;i++){
+            var v=(Math.sin(now*6+i*0.8)+1)/2;                        // a wave travelling along the bars…
+            v=(v*0.6+Math.random()*0.4)*d.amp;                        // …roughened up, scaled by amp
+            s+=BARS.charAt(Math.max(0,Math.min(BARS.length-1,Math.round(v*(BARS.length-1)))));
+          }
+          sp[0].textContent=d.pre+s+d.post;
+          o._ct=setTimeout(pulse,d.ms);
+        })();
+        return;
+      }
+      if(d.n!=null){                                                  // COUNT line — spin the number up
+        var t0=Date.now();
+        (function spin(){
+          var p=Math.min(1,(Date.now()-t0)/d.ms), e=1-Math.pow(1-p,3);   // ease-out — decelerates into the total
+          sp[0].textContent=d.pre+Math.round(e*d.n)+d.post;
+          if(p<1){ o._ct=setTimeout(spin,32); return; }
+          sp[0].textContent=d.pre+d.n+d.post; next();
+        })();
+        return;
+      }
+      while(si<d.segs.length && ci>=d.segs[si].t.length){ si++; ci=0; }   // finished a segment → move to the next
+      if(si>=d.segs.length){ next(); return; }
+      sp[si].textContent+=d.segs[si].t.charAt(ci++);
+      o._ct=setTimeout(tick,CODE_MS);
+    }
+    tick();
+  }
+
   function bubStop(o){ clearTimeout(o._bt); var th=o.el.querySelector('.think');
-    if(th){ th.style.backgroundImage=''; th.style.backgroundSize=''; th.style.backgroundPositionX='0'; } }
+    if(th){ th.style.backgroundImage=''; th.style.backgroundSize=''; th.style.backgroundPositionX='0'; }
+    if(MATRIX_ORBS[o.key]) codeStop(o); }
   function bubStart(o){
+    if(MATRIX_ORBS[o.key]) return codeStart(o);                       // code mode replaces the sprite-sheet bubble
     var th=o.el.querySelector('.think'), s=o._sheet; if(!th || !s) return;
     clearTimeout(o._bt);
     th.style.backgroundImage='url('+s.url+')';
@@ -1202,8 +1483,11 @@
       })(performance.now());
     }
     var orbByKey=function(k){ return orbs.filter(function(o){ return o.key===k; })[0]; };
-    drive('#oBook .sprite', ['assets/wbidle1.png','assets/wbidle2.png','assets/wbidle3.png','assets/wbidle4.png'], 10, orbByKey('book'));    // WalkBoy · WB.fps
-    drive('#oMusic .sprite', ['assets/lmidle0.png','assets/lmidle1.png','assets/lmidle2.png','assets/lmidle3.png'], 11, orbByKey('music'));   // littleMF · MF.fps
+    // ONE sheet each — no mid-loop image swap, which is what caused the blank/white flashes.
+    // To re-art these: keep the filename and the 32px frame width; frame COUNT can change, just update
+    // the number here and the background-size in the .sprite.wb / .sprite.lm rules (count × 32).
+    drive('#oBook .sprite', ['assets/WALKBOY-sheet.png'], 40, orbByKey('book'));      // WalkBoy · 1280×64 · WB.fps
+    drive('#oMusic .sprite', ['assets/LITTLEMF-sheet.png'], 44, orbByKey('music'));   // littleMF · 1408×32 · MF.fps
     // slime: a 16×16 sprite sheet (slime_blue.png, 5-col grid, 7 used frames 0–6). PING-PONG starting on the
     // FLAT frame 6: un-squash 6→0 (flat→tall) then squash 0→6 (tall→flat), looping (Oli: 7-6-5-4-3-2-1-2-3-4-5-6-7).
     (function(){
@@ -1256,6 +1540,15 @@
 
     var y=0, v=0, running=false, phase='fall', last=0, raf=0, floorKey='floor1', cycles=0, ph=0, stage='v1', halfN=0, skyY=0, travelDir='down', hopY=0;
     function num(k,d){ var n=parseFloat(mp.dataset[k]); return isFinite(n)?n:d; }
+    /* The moon lands on floor2 once per cycle, so the class has to be removed and re-added to replay the
+       animation — reading offsetWidth in between forces the reflow that makes the restart take. */
+    /* Both classes go on when it touches down on floor2 and stay until it climbs back to floor1 —
+       the glitch loops and the yellow tint holds for the whole time it's at the lower position. */
+    function moonGlitch(){
+      if(reduced) return;
+      mp.classList.remove('glitch'); void mp.offsetWidth;                  // reflow → restart the loop cleanly on re-entry
+      mp.classList.add('glitch'); mp.classList.add('warm');
+    }
     function profile(){
       return floorKey==='floor1'
         ? {moveS:F1_MOVE_S, moveH:F1_H, cycleS:F1_CYCLE_S, cycleH:F1_H, floatS:F1_FLOAT_S, floatH:F1_H, bounces:F1_BOUNCES}
@@ -1286,6 +1579,7 @@
             var goingDown=(floorKey==='floor1');
             floorKey=goingDown?'floor2':'floor1';
             travelDir=goingDown?'down':'up';
+            if(!goingDown) mp.classList.remove('glitch','warm');           // leaving floor2 → glitch stops, tint eases off
             hopY=y; v=0; phase='travel';
           } }
       } else if(phase==='travel'){                                            // ── TRAVEL: DOWN to floor2 or UP back to floor1, both constant speed staged by FIXED px ──
@@ -1293,7 +1587,7 @@
           var distH=y-hopY;
           var sH = distH<TF2_BREAK1 ? TF2_S1 : distH<TF2_BREAK2 ? TF2_S2 : TF2_S3;
           y += sH*dt;
-          if(y>=floor){ y=floor; phase='float'; cycles=0; ph=0; stage='v1'; halfN=0; }
+          if(y>=floor){ y=floor; phase='float'; cycles=0; ph=0; stage='v1'; halfN=0; moonGlitch(); }   // touched down on FLOOR 2 → glitch
         } else {
           var distR=hopY-y;
           var aS = distR<AS_BREAK1 ? AS1 : distR<AS_BREAK2 ? AS2 : AS3;
@@ -1309,7 +1603,8 @@
       if(reduced){ img.style.transform='translateY('+(num('floor1',0)-48)+'px)'; return; }   // static peek, no motion
       skyY=num('sky',-80); y=skyY; v=0; phase='fall'; floorKey='floor1'; cycles=0; ph=0; stage='v1'; halfN=0; last=0; running=true;
       cancelAnimationFrame(raf); raf=requestAnimationFrame(frame); }
-    function stop(){ running=false; cancelAnimationFrame(raf); img.style.transition=''; img.style.transform=''; }   // → CSS base (flies back up to the sky)
+    function stop(){ running=false; cancelAnimationFrame(raf); img.style.transition=''; img.style.transform='';
+      mp.classList.remove('glitch','warm'); }   // → CSS base (flies back up to the sky), glitch + tint cleared
     var oBk=document.getElementById('oBook');
     if(oBk){ oBk.addEventListener('pointerenter', start); oBk.addEventListener('pointerleave', stop); }
   })();
@@ -1325,8 +1620,12 @@
   var P=window.AH_PARAMS||{}, tracks=(P.music&&P.music.tracks)||[];
   var audio=document.getElementById('mfAudio'); if(!audio) return;
   var cur=-1, isPlaying=false;
+  /* read-only view of the player for code OUTSIDE this IIFE (littleMF's "now playing" line).
+     Closes over the live vars, so it always reports the current state. */
+  window.AH_PLAYER={ state:function(){ var t=tracks[cur]||null;
+    return { playing:isPlaying, index:cur, total:tracks.length, title:(t&&t.title)||'' }; } };
   var sprites={og:false,mf:false};
-  audio.volume=0.8;
+  audio.volume=(P.music && typeof P.music.volume==='number') ? P.music.volume : 0.8;
 
   // ── visualizer: draws to BOTH the full player's canvas AND the mini-preview's canvas, from the same data ──
   var waveCanvas=document.getElementById('waveCanvas'), waveCtx=waveCanvas.getContext('2d');
@@ -1419,17 +1718,22 @@
   setTimeout(function(){ mPos=WRAP_W+20; mActive=true; }, 1000);
   setInterval(function(){ if(!mActive || !isPlaying) return; mPos-=0.6; if(mPos<-(getTextW()+20)) mPos=WRAP_W+20; mTrack.style.left=mPos+'px'; }, 16);
   function setTrackName(name){
-    mTrack.textContent=name; setTimeout(function(){ mPos=WRAP_W+20; }, 100);
+    // reset position in the SAME tick as the text swap — deferring it (the old setTimeout 100ms) let the
+    // new title paint at the PREVIOUS track's scroll offset for a few frames, flashing letters mid-bar
+    mTrack.textContent=name; mPos=WRAP_W+20; mTrack.style.left=mPos+'px';
     var mt=document.getElementById('miniTitle'); if(mt) mt.textContent=name;
   }
 
   // ── transport / playback ──
   function nextWithSrc(from){ for(var i=0;i<tracks.length;i++){ var j=((from+i)%tracks.length+tracks.length)%tracks.length; if(tracks[j]&&tracks[j].src) return j; } return -1; }
   function prevWithSrc(from){ for(var i=0;i<tracks.length;i++){ var j=((from-i)%tracks.length+tracks.length)%tracks.length; if(tracks[j]&&tracks[j].src) return j; } return -1; }
+  // outline transport icons — edit the path data here to reshape play/pause everywhere
+  var ICON_PLAY  = '<svg viewBox="0 0 24 24"><path d="M8 5.5v13L18.5 12z"/></svg>';
+  var ICON_PAUSE = '<svg viewBox="0 0 24 24"><path d="M9.5 5.5v13M14.5 5.5v13"/></svg>';
   function setPlayIcon(playing){                                       // updates BOTH the full transport button and the mini preview's
-    var ic = playing ? '❚❚' : '▶';
-    var a=document.getElementById('tbtnPlay'); if(a) a.textContent=ic;
-    var b=document.getElementById('miniPlay'); if(b) b.textContent=ic;
+    var ic = playing ? ICON_PAUSE : ICON_PLAY;
+    var a=document.getElementById('tbtnPlay'); if(a) a.innerHTML=ic;
+    var b=document.getElementById('miniPlay'); if(b) b.innerHTML=ic;
   }
   function loadTrack(i){ var t=tracks[i]; if(!t||!t.src) return;
     cur=i; initAudio(); audio.src=t.src; audio.load();

@@ -124,12 +124,13 @@ window.AH_PARAMS = {
      Each track: { title: "name shown", src: "assets/your-file.mp3" }  · order = play order.
      Leave src "" and the track shows as "soon" (greyed) until you add the file. */
   music: {
+    volume: 1.0,   // playback volume, 0 (silent) to 1 (loudest)                              (default 0.8)
     tracks: [
       { title: "ODB",         src: "assets/tracks/ODB.wav" },
       { title: "Manège",      src: "assets/tracks/MANEGE.wav" },
-      { title: "Goodbye SIM", src: "assets/tracks/GoodbyeSIM.wav" },
-      { title: "Sleep",       src: "assets/tracks/SLEEP.wav" },
-      { title: "FAReast",     src: "assets/tracks/FAReast.wav" },
+      { title: "Goodbye",        src: "assets/tracks/GoodbyeSIM.wav" },
+      { title: "Sleep & Tears",  src: "assets/tracks/SLEEP.wav" },
+      { title: "FAReast",        src: "assets/tracks/FAReast.wav" },
     ],
   },
 
