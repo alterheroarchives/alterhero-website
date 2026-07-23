@@ -474,7 +474,33 @@
       f.frames.push({sx:sx,sy:sy,sw:fw,sh:fh,col:c,row:r,empty:empty,use:!empty});
     }
     f.trim=(tmaxx>=0)? {x:tminx,y:tminy,w:tmaxx-tminx+1,h:tmaxy-tminy+1} : {x:0,y:0,w:fw,h:fh};
+    pruneTimelines(f);                                              // re-slicing can leave frames pointing past the new end
     return f.frames;
+  }
+  /* A timeline entry is {fileId, frame:<index into f.frames>}. Re-slicing REBUILDS f.frames, so a file that
+     had 44 frames and now has 11 leaves entries pointing at 11..43. Those render as nothing (renderTimeline
+     and drawPreview both skip a missing frame) but still COUNT — which is why FRAMES read 44 while only 11
+     existed, and why playback showed empty canvases. Drop them whenever the frame list changes.
+     Entries with fileId null are left alone: those are waiting on a library file to finish loading. */
+  function pruneAll(){ var n=0; S.files.forEach(function(f){ n+=pruneTimelines(f); }); return n; }
+  function pruneTimelines(f){
+    if(!f) return 0;
+    var n=f.frames.length, dropped=0;
+    S.slots.forEach(function(sl){
+      var keep=(sl.timeline||[]).filter(function(t){
+        if(t.fileId!==f.id) return true;
+        if(t.frame<n) return true;
+        dropped++; return false;
+      });
+      if(keep.length!==(sl.timeline||[]).length){
+        sl.timeline.length=0; keep.forEach(function(t){ sl.timeline.push(t); });   // mutate in place — S.timeline shares this array
+      }
+    });
+    if(dropped){
+      if(S.playhead>=S.timeline.length) S.playhead=Math.max(0,S.timeline.length-1);
+      if(typeof renderTimeline==='function') renderTimeline();
+    }
+    return dropped;
   }
 
   /* ---------- draw a frame onto a canvas ---------- */
@@ -807,9 +833,13 @@
       var REF=64;   // shared reference cell: EVERY sprite gets the same ×N, so 16×16 vs 32×32 vs 32×64 keep their true relative sizes
       sc=Math.max(1,Math.floor(target/REF)); }
     else sc=Math.max(1,+S.zoom||1);
-    var tr=(f.trim&&f.trim.w>0&&f.trim.h>0)?f.trim:{x:0,y:0,w:fr.sw,h:fr.sh};   // crop the empty padding → sprite fills the view
-    cv.width=tr.w*sc; cv.height=tr.h*sc; x=cv.getContext('2d'); x.imageSmoothingEnabled=false;
-    x.drawImage(f.img,fr.sx+tr.x,fr.sy+tr.y,tr.w,tr.h,0,0,cv.width,cv.height);
+    // ALIGNMENT: draw the FULL frame cell (fr.sw×fr.sh), NOT each file's own content bbox. The old code
+    // cropped to f.trim — the tight box around a single FILE's visible pixels — then re-centred it. Two PNGs
+    // dropped in the same timeline have different content boxes, so each landed in a different spot and the
+    // sprite jumped frame to frame. Using the whole cell means any two frames of the SAME pixel size occupy
+    // an identical box at an identical position — they always land on the same spot.
+    cv.width=fr.sw*sc; cv.height=fr.sh*sc; x=cv.getContext('2d'); x.imageSmoothingEnabled=false;
+    x.drawImage(f.img,fr.sx,fr.sy,fr.sw,fr.sh,0,0,cv.width,cv.height);
     var stage=cv.parentElement;
     // place the canvas at INTEGER pixel coords (flex centering can land on half-pixels → grid misalignment)
     var stW=stage.clientWidth, stH=stage.clientHeight;
@@ -988,7 +1018,7 @@
     var changed=false;
     S.slots.forEach(function(sl){ (sl.timeline||[]).forEach(function(t){
       if(t.fileId==null && t.ref){ var f=fileByRef(t.ref); if(f){ t.fileId=f.id; changed=true; } } }); });
-    if(changed){ renderTimeline(); drawPreview(); }
+    if(changed){ pruneAll(); renderTimeline(); drawPreview(); }   // newly-linked entries may also be out of range
   }
   function buildProject(){                                    // KEEPS both original + current(modified) PNG per file — library-sourced items are excluded (re-fetched fresh from manifest.json each load)
     return { v:2,
@@ -1043,6 +1073,9 @@
       S.curSlotIdx=Math.min(Math.max(0, lib.curSlotIdx||0), S.slots.length-1);
       S.timeline=S.slots[S.curSlotIdx].timeline;                     // keep the shared-reference contract
       S.playhead=0;
+      // files were sliced BEFORE these slots existed, so sliceFile's own prune couldn't see them —
+      // sweep once more now. This repairs projects already saved with out-of-range frames.
+      pruneAll();
       S.curFolder=null; renderFiles(); renderBrowser(); renderSlots(); if(typeof renderTimeline==='function') renderTimeline();
       S.ready=true;
     });
@@ -1265,10 +1298,35 @@
     $('#anchorBtn').style.color=(S.anchor==='bottom')?'var(--accent)':'var(--dim)';
     drawPreview();
   };
+  /* Inline name field instead of prompt(): iPad Safari suppresses prompt() in several situations (it just
+     returns null, so the folder was never created and nothing appeared to happen), and a dialog can't
+     summon the on-screen keyboard reliably. A real focused <input> does. */
   $('#addFolder').onclick=function(){
-    var n=prompt('Folder name'); if(!n) return;
-    var id=++uid; S.folders.push({id:id,name:n,open:true,parentId:S.curFolder||null});
-    S.curFolder=id; renderFiles();
+    var wrap=$('#flist'), existing=wrap.querySelector('.newfolder');
+    if(existing){ existing.querySelector('input').focus(); return; }          // already open → just refocus
+    var row=document.createElement('div'); row.className='frow newfolder';
+    var caret=document.createElement('span');
+    caret.style.cssText='width:26px;flex:none;text-align:center;color:var(--accent)'; caret.textContent='▽';
+    var inp=document.createElement('input'); inp.type='text'; inp.placeholder='folder name…';
+    inp.style.cssText='flex:1;min-width:0;background:#0e0d13;border:1px solid var(--accent);'+
+      'color:var(--ink);border-radius:5px;padding:3px 6px;font:inherit';
+    row.appendChild(caret); row.appendChild(inp);
+    wrap.insertBefore(row, wrap.firstChild);
+    inp.focus();                                                             // focus inside the click gesture → keyboard opens on iPad
+    var done=false;
+    function finish(save){
+      if(done) return; done=true;                                            // Enter commits then blurs — don't run twice
+      var n=(inp.value||'').trim();
+      if(row.parentNode) row.parentNode.removeChild(row);
+      if(!save || !n) return;
+      var id=++uid; S.folders.push({id:id,name:n,open:true,parentId:S.curFolder||null});
+      S.curFolder=id; renderFiles();                                         // renderFiles() calls markDirty() → autosaved
+    }
+    inp.onkeydown=function(e){
+      if(e.key==='Enter'){ e.preventDefault(); finish(true); }
+      else if(e.key==='Escape'){ e.preventDefault(); finish(false); }
+    };
+    inp.onblur=function(){ finish(true); };
   };
   $('#gridBtn').style.color='var(--accent)';   // grid on by default
   var fl=$('#flist');   // drop a row on the list background → move it back to root

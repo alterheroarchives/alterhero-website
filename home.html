@@ -85,8 +85,8 @@
   .sprite{ flex:none; transform:scale(calc(var(--rs,1) * var(--scale,1))); transform-origin:bottom center;
     background-repeat:no-repeat; image-rendering:pixelated; image-rendering:crisp-edges; -webkit-user-drag:none; }
   .sprite.gi{ width:32px; height:64px; background-image:url(assets/GIANT-sheet.png); background-size:320px 64px; animation:spr-gi var(--gi-dur,.88s) steps(10) infinite; }   /* 10 frames · speed = GIANT.fps in config.js */
-  .sprite.wb{ width:32px; height:64px; background-image:url(assets/WALKBOY-sheet.png); background-size:1280px 64px; }   /* ONE sheet · 40 frames · stepped by JS below */
-  .sprite.lm{ width:32px; height:32px; background-image:url(assets/LITTLEMF-sheet.png); background-size:1408px 32px; }  /* ONE sheet · 44 frames · stepped by JS below */
+  .sprite.wb{ width:32px; height:64px; background-image:url(assets/WALKBOY-sheet.png); background-size:auto; }   /* natural 1:1 · JS splits into 32×64 frames, count from sheet width */
+  .sprite.lm{ width:32px; height:32px; background-image:url(assets/LITTLEMF-sheet.png); background-size:auto; }  /* natural 1:1 · JS splits into 32-wide frames, count from sheet width */
   @keyframes spr-gi{ from{ background-position-x:0 } to{ background-position-x:-320px } }
   .orb:hover .sprite.gi, .orb.revealed .sprite.gi{ animation-duration:var(--gi-odur,.88s); }   /* GIANT.over.fps in config.js */
   @keyframes spr-wb{ from{ background-position-x:0 } to{ background-position-x:-320px } }
@@ -121,8 +121,8 @@
   body.clouds-in #clouds .front{ animation:cloud-blow var(--cloud-front-dur,56.9s) linear forwards; }   /* front (darker) runs faster — parallax; ratio + all numbers below come from config.js */
   /* fallback keyframes (used only until the JS below generates the real ones from config.js — same shape, same defaults) */
   @keyframes cloud-blow{
-    0%{   transform:translate3d(calc(-50% + 150px),0,0); animation-timing-function:cubic-bezier(.12,.7,.25,1); }  /* fast entrance (unchanged pace) */
-    12%{  transform:translate3d(calc(-50% + 0px),0,0);   animation-timing-function:linear; }                       /* crossed the GIANT → slow-motion, constant */
+    0%{   transform:translate3d(calc(-50% + 150px),0,0); animation-timing-function:cubic-bezier(.12,.7,.7,.888); }  /* fast entrance, exit slope MATCHES the linear cruise → no stop at the junction */
+    12%{  transform:translate3d(calc(-50% + 0px),0,0);   animation-timing-function:linear; }                        /* crossed the GIANT → slow-motion, constant */
     100%{ transform:translate3d(calc(-50% - 120px),0,0); } }
 
   /* ---- the moon DROPS FROM THE SKY when the WalkBoy is HOVERED (body.moon-in): it falls past the logo (which
@@ -241,8 +241,21 @@
   .orb.codemode .codeline{ display:flex; }
   .codeline .cl{ display:block; }
   .codeline .b{ font-weight:700; letter-spacing:1.5px; }             /* bold — whole line, or one segment of it */
+  /* the LAST line is the call to action (Enter? / Collect? / Play?). The .codeline container is
+     pointer-events:none, so this opts just that line back in — it goes bold on hover to read as clickable.
+     The click itself bubbles to the <a class="orb">, so it does exactly what clicking the character does. */
+  .codeline .act{ pointer-events:auto; cursor:pointer; }
+  /* text-stroke, NOT font-weight/letter-spacing: those change the glyph metrics, so the line gets wider,
+     the (centred) .codeline container grows with it, and every line ABOVE re-centres. Stroke thickens the
+     glyphs with zero layout change, so only this line reacts. */
+  .codeline .act:hover{ -webkit-text-stroke:.6px currentColor; text-stroke:.6px currentColor; }
   /* littleMF only: white type, no plate, lifted higher above his head.
      Halo is dark (not white like the others) — it's the only thing separating white text from white paper. */
+  /* littleMF's hover/click area, extended UPWARD. The orb is only as tall as its 128px chip and his sprite
+     sits at the bottom of it, so moving the mouse toward "> Play?" left the orb and the lines vanished
+     before you got there. This invisible pad closes that gap. Raise --mf-hit-h if the code moves higher. */
+  #oMusic{ --mf-hit-h:190px; }
+  #oMusic::before{ content:''; position:absolute; left:0; right:0; bottom:0; height:var(--mf-hit-h); z-index:0; }
   #oMusic .codeline{ color:#fff; --code-y:30px;
     text-shadow:0 0 4px rgba(0,0,0,.9), 0 0 10px rgba(0,0,0,.75), 0 0 20px rgba(0,0,0,.5); }
   #oMusic .codeline .cur{ background:#fff; box-shadow:0 0 6px rgba(0,0,0,.7); }
@@ -579,14 +592,20 @@
   .mfp-bar{ background:transparent; color:var(--gold); height:14px; padding:0 6px; display:flex; align-items:center; justify-content:flex-end; font-size:7px; letter-spacing:2px; font-weight:bold; font-family:'Courier New',monospace; border-bottom:1px solid #332200; }
   .mfp-close{ background:transparent; color:var(--gold-dim); border:none; font-size:9px; cursor:pointer; line-height:1; }
   .mfp-close:hover{ color:#ff4400; }
-  #plPanel{ display:none; width:399px; min-height:60px; max-height:180px; position:relative; background:#151200; overflow:hidden; }
+  /* absolute + top:100% → the playlist hangs BELOW the player without adding to the dock's height. The dock
+     is anchored by its bottom edge, so keeping its height = the main panel keeps the player from shifting up
+     when the list opens. The list just drops down over whatever's beneath it. */
+  #plPanel{ display:none; width:399px; position:absolute; top:100%; left:0;
+    background:#151200; overflow:hidden; z-index:1; box-shadow:0 6px 20px rgba(0,0,0,.55); }
   #plPanel.visible{ display:block; }
-  #plTracks{ position:relative; display:flex; }
-  .mfp-side{ flex:1; overflow:hidden; padding:2px 0; }
-  .mfp-item{ padding:2px 5px; font-size:10px; letter-spacing:.3px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--gold-dim); display:flex; align-items:center; gap:3px; font-family:'TrackFont',monospace; background:transparent; height:15px; }
-  .mfp-item:hover{ background:rgba(255,180,0,.06); }
-  .mfp-item.on{ color:#000!important; font-weight:bold; background:rgba(255,200,0,.18); }
-  .mfp-num{ font-size:6px; color:inherit; min-width:14px; flex-shrink:0; }
+  /* the playlist IS the stack of cassette spines (assets/PLAYLIST.jpg), divided into 5 clickable bands —
+     one per track, top→bottom in the SAME order as config.js music.tracks. */
+  #plCassettes{ position:relative; width:100%; line-height:0; }
+  #plCassettes img{ display:block; width:100%; height:auto; -webkit-user-drag:none; user-select:none; }
+  .plband{ position:absolute; left:0; width:100%; cursor:pointer; transition:box-shadow .15s, background .15s; }
+  .plband:hover{ background:rgba(255,225,140,.12); }
+  .plband.on{ box-shadow:inset 0 0 0 2px var(--gold-bright), inset 0 0 16px rgba(255,205,90,.4); }
+  .plband.dead{ cursor:default; background:rgba(0,0,0,.4); }        /* track has no file yet → greyed, not clickable */
   #plEmpty{ padding:8px 5px; font-size:7px; color:#443300; font-family:'Courier New',monospace; letter-spacing:1px; }
 
   /* the descent: the home plunges away as you fall past it into the world */
@@ -714,10 +733,8 @@
         </div>
       </div>
       <div class="mfp-sub" id="plPanel">
-        <div class="mfp-bar"><button class="mfp-close" id="plClose">✕</button></div>
-        <div id="plTracks">
-          <div class="mfp-side" id="plSideA"></div>
-          <div class="mfp-side" id="plSideB"></div>
+        <div id="plCassettes">
+          <img src="assets/PLAYLIST.jpg" alt="playlist — cassette spines" draggable="false">
         </div>
       </div>
     </div>
@@ -987,8 +1004,19 @@
     var total=enterDur+cruiseDur, enterPct = total>0 ? (enterDur/total*100) : 12;
     var startOff=num(C.startOffset,150), driftDist=num(C.driftDistance,120);
     var boost=num(C.frontSpeedBoost,0.02);
+    /* THE SETTLE FIX. The entrance eased out to a DEAD STOP at enterPct (cubic-bezier exit slope was 0),
+       then the linear drift restarted from rest — a visible stop-and-go. Instead, make the entrance land at
+       exactly the cruise velocity so motion is continuous through the junction (no stop, no restart).
+       Matching condition: (entrance end speed) == (cruise speed)
+         slope_end * startOff/enterDur == driftDist/cruiseDur
+       → slope_end = driftDist*enterDur / (cruiseDur*startOff). Build a bezier whose exit slope equals that,
+       keeping a fast blow-in via the first control point. Recomputed from config, so retuning stays smooth. */
+    var slopeEnd = (cruiseDur>0 && startOff!==0) ? (driftDist*enterDur)/(cruiseDur*startOff) : 0.37;
+    slopeEnd = Math.max(0.05, Math.min(0.9, slopeEnd));
+    var x2=0.7, y2=1 - slopeEnd*(1-x2);                              // exit slope (1-y2)/(1-x2) == slopeEnd
+    var easeIn='cubic-bezier(0.12,0.7,'+x2+','+y2.toFixed(4)+')';    // fast start (slope 5.8), decel to cruise speed
     var css='@keyframes cloud-blow{'+
-      '0%{ transform:translate3d(calc(-50% + '+startOff+'px),0,0); animation-timing-function:cubic-bezier(.12,.7,.25,1); }'+
+      '0%{ transform:translate3d(calc(-50% + '+startOff+'px),0,0); animation-timing-function:'+easeIn+'; }'+
       enterPct.toFixed(3)+'%{ transform:translate3d(calc(-50% + 0px),0,0); animation-timing-function:linear; }'+
       '100%{ transform:translate3d(calc(-50% - '+driftDist+'px),0,0); }'+
     '}';
@@ -1030,7 +1058,12 @@
     var clouds=document.getElementById('clouds');
     if(clouds){ var cwBase=Math.min(Math.round(sp*1.5), Math.round(2*sp-120));
       var cw=cwBase*4;
-      var leftEdge=cx+100;                                          // just short of the WalkBoy at centre (bank + leftward drift stay clear of him)
+      // The bank's left edge must clear the WalkBoy even at the END of the leftward drift. It settles at
+      // leftEdge, then the imgs drift `drift` px further left, so the end sits at leftEdge - drift. Base
+      // leftEdge on the drift + a gap → the cloud stops CLOUD_GAP px RIGHT of the WalkBoy (before him, not
+      // behind). Raise CLOUD_GAP for more clearance. (Old fixed cx+100 let it end ~20px past centre.)
+      var CC=P.clouds||{}, drift=num(CC.driftDistance,120), CLOUD_GAP=50;
+      var leftEdge=cx+drift+CLOUD_GAP;
       clouds.style.left=Math.round(leftEdge+cw/2)+'px'; clouds.style.top=soilY+'px'; clouds.style.width=cw+'px'; }
     // the van drops BEHIND littleMF (the LEFT icon), on the soil line
     var car=document.getElementById('car');
@@ -1389,21 +1422,32 @@
     var cur=document.createElement('span'); cur.className='cur';
     /* One row per line. A row holds one span PER SEGMENT, so weight can change mid-line
        (bold "AH!" + regular "RCHIVES"). The cursor is appended last and moves down with each new row. */
-    function row(d){
+    function row(d,act){
       var single=(d.n!=null||d.meter);
       var r=document.createElement('span'); r.className='cl'+(single&&d.bold?' b':'');
-      var spans=(single?[{bold:false}]:d.segs).map(function(s){
-        var x=document.createElement('span'); if(s.bold) x.className='b'; r.appendChild(x); return x; });
+      var spans;
+      if(d.meter){                                                    // bars and prompt are separate spans, so
+        var m=document.createElement('span'); r.appendChild(m);       // only the PROMPT becomes clickable —
+        var p=document.createElement('span'); p.textContent=d.post;   // hovering the bars shouldn't bold them
+        if(act) p.className='act'; r.appendChild(p);
+        spans=[m,p];
+      } else {
+        spans=(single?[{bold:false}]:d.segs).map(function(s){
+          var x=document.createElement('span'); if(s.bold) x.className='b'; r.appendChild(x); return x; });
+        if(act) r.classList.add('act');
+      }
       r.appendChild(cur); el.appendChild(r); return spans;
     }
-    if(reduced){ lines.forEach(function(l){ var d=lineOf(l);          // reduced motion: no spin, no typing
-      var sp=row(d);
-      if(d.n!=null) sp[0].textContent=d.pre+d.n+d.post;
+    function isLast(i){ return i===lines.length-1; }
+    if(reduced){ lines.forEach(function(l,idx){ var d=lineOf(l);      // reduced motion: no spin, no typing
+      var sp=row(d,isLast(idx));
+      if(d.meter) sp[0].textContent=d.pre+new Array(d.meter+1).join('▃');   // static bars, no pulsing
+      else if(d.n!=null) sp[0].textContent=d.pre+d.n+d.post;
       else d.segs.forEach(function(s,i){ sp[i].textContent=s.t; }); }); return; }
-    var li=0, si=0, ci=0, d=lineOf(lines[0]), sp=row(d);
+    var li=0, si=0, ci=0, d=lineOf(lines[0]), sp=row(d,isLast(0));
     function next(){
       if(++li>=lines.length) return;                                  // finished — cursor just keeps blinking
-      si=0; ci=0; d=lineOf(lines[li]); sp=row(d);
+      si=0; ci=0; d=lineOf(lines[li]); sp=row(d,isLast(li));
       o._ct=setTimeout(tick,CODE_LINE_PAUSE);
     }
     function tick(){
@@ -1416,7 +1460,7 @@
             v=(v*0.6+Math.random()*0.4)*d.amp;                        // …roughened up, scaled by amp
             s+=BARS.charAt(Math.max(0,Math.min(BARS.length-1,Math.round(v*(BARS.length-1)))));
           }
-          sp[0].textContent=d.pre+s+d.post;
+          sp[0].textContent=d.pre+s;                                  // prompt lives in sp[1] now
           o._ct=setTimeout(pulse,d.ms);
         })();
         return;
@@ -1466,28 +1510,34 @@
          Each sprite AND its lake reflection are driven together. WalkBoy: #1→#2→#3→#4. littleMF: #0→#1→#2→#3. ---- */
   (function(){
     var FW=32;
-    function drive(sel, sheets, frames, orb){                          // orb = the orb object → fps + hover state from config.js
+    /* Reads the sheet and splits it into fixed FW-wide frames (32px). The frame COUNT is derived from the
+       PNG's own width (width ÷ 32) once it loads — so re-exporting the sheet at ANY length just works, with
+       no number to update here or in the CSS. The sheet is shown at natural 1:1 size, so one 32px step lands
+       exactly on the next frame. (Frame HEIGHT is the sprite element's own height: 64 for WalkBoy, 32 for MF.) */
+    function drive(sel, sheet, orb){
       var els=[].slice.call(document.querySelectorAll(sel)); if(!els.length) return;
-      sheets.forEach(function(s){ var p=new Image(); p.src=s; });    // preload every sheet → no flash on swap
-      if(reduced){ els.forEach(function(el){ el.style.backgroundImage='url('+sheets[0]+')'; el.style.backgroundPositionX='0px'; }); return; }
-      var i=0, si=0, cur='', last=0, restDur=1000/restFps(orb), overDur=1000/overFps(orb);
+      var bust=sheet+'?t='+Date.now();                                // cache-bust: always load the CURRENT file, never a stale cached copy
+      els.forEach(function(el){ el.style.backgroundImage='url('+bust+')'; el.style.backgroundSize='auto'; el.style.backgroundPositionX='0px'; });
+      var frames=1, ready=false, probe=new Image();
+      probe.onload=function(){ frames=Math.max(1, Math.round(probe.naturalWidth/FW)); ready=true; };   // width ÷ 32 = frame count
+      probe.onerror=function(){ ready=true; };
+      probe.src=bust;
+      if(reduced) return;                                              // reduced motion: hold frame 0
+      var i=0, last=0, restDur=1000/restFps(orb), overDur=1000/overFps(orb);
       (function tick(t){
         var over = orb.el.matches(':hover') || orb.el.classList.contains('revealed');   // speed up to over.fps while hovered/tapped
         var dur = over ? overDur : restDur;
-        if(t-last>=dur){ last=t; var img=sheets[si];
-          if(img!==cur){ els.forEach(function(el){ el.style.backgroundImage='url('+img+')'; }); cur=img; }
+        if(ready && t-last>=dur){ last=t;
           els.forEach(function(el){ el.style.backgroundPositionX=(-i*FW)+'px'; });
-          i++; if(i>=frames){ i=0; si=(si+1)%sheets.length; }         // end of a sheet → advance to the next
+          i++; if(i>=frames) i=0;                                      // loop at the end of the sheet
         }
         requestAnimationFrame(tick);
       })(performance.now());
     }
     var orbByKey=function(k){ return orbs.filter(function(o){ return o.key===k; })[0]; };
-    // ONE sheet each — no mid-loop image swap, which is what caused the blank/white flashes.
-    // To re-art these: keep the filename and the 32px frame width; frame COUNT can change, just update
-    // the number here and the background-size in the .sprite.wb / .sprite.lm rules (count × 32).
-    drive('#oBook .sprite', ['assets/WALKBOY-sheet.png'], 40, orbByKey('book'));      // WalkBoy · 1280×64 · WB.fps
-    drive('#oMusic .sprite', ['assets/LITTLEMF-sheet.png'], 44, orbByKey('music'));   // littleMF · 1408×32 · MF.fps
+    // One PNG each · frame count auto-derived from the sheet width · re-export at any length, nothing to change here.
+    drive('#oBook .sprite', 'assets/WALKBOY-sheet.png', orbByKey('book'));      // WalkBoy · 32×64 frames · WB.fps
+    drive('#oMusic .sprite', 'assets/LITTLEMF-sheet.png', orbByKey('music'));   // littleMF · 32×32 frames · MF.fps
     // slime: a 16×16 sprite sheet (slime_blue.png, 5-col grid, 7 used frames 0–6). PING-PONG starting on the
     // FLAT frame 6: un-squash 6→0 (flat→tall) then squash 0→6 (tall→flat), looping (Oli: 7-6-5-4-3-2-1-2-3-4-5-6-7).
     (function(){
@@ -1767,33 +1817,33 @@
   audio.addEventListener('ended', nextTrack);
   audio.addEventListener('error', function(){ if(tracks[cur]) tracks[cur].src=''; setTrackName('— FILE NOT FOUND —'); renderPlaylist(); });
 
-  // ── playlist — real A-side / B-side columns, just like the cassette itself ──
-  function makeItem(i){
-    var t=tracks[i]; if(!t) return '';
-    var isPlay=(i===cur);
-    var cls='mfp-item'+(isPlay?' on':'');
-    var prefix=isPlay?'▶':('0'+(i+1)).slice(-2);
-    return '<div class="'+cls+'" data-i="'+i+'"><span class="mfp-num">'+prefix+'</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis">'+(t.title||'Untitled').toUpperCase()+'</span></div>';
-  }
+  // ── playlist — the stack of cassette spines (PLAYLIST.jpg), one clickable band per track ──
+  /* Cassette boundaries in PLAYLIST.jpg (736×559), as top/bottom % of the image height — measured from the
+     black gaps between spines. Band i maps to tracks[i]. If you re-art the image, only these numbers change.
+     ODB · MANÈGE · GOODBYE · SLEEP & TEARS · FAREAST — same order as config.js music.tracks. */
+  var PL_BANDS=[[0,19.68],[19.68,39.18],[39.18,59.03],[59.03,80.14],[80.14,100]];
   function renderPlaylist(){
-    var sideA=document.getElementById('plSideA'), sideB=document.getElementById('plSideB');
-    if(!tracks.length){ sideA.innerHTML='<div id="plEmpty">NO TRACKS</div>'; sideB.innerHTML=''; return; }
-    var COL=Math.ceil(tracks.length/2);
-    sideA.innerHTML=tracks.slice(0,COL).map(function(t,i){ return makeItem(i); }).join('');
-    var b=tracks.slice(COL,COL*2);
-    sideB.innerHTML=b.length ? b.map(function(t,i){ return makeItem(i+COL); }).join('') : '';
-    [].forEach.call(document.querySelectorAll('.mfp-item'), function(el){ el.onclick=function(){ var i=parseInt(el.dataset.i,10); if(tracks[i]&&tracks[i].src) loadTrack(i); }; });
+    var host=document.getElementById('plCassettes'); if(!host) return;
+    [].forEach.call(host.querySelectorAll('.plband'), function(b){ b.parentNode.removeChild(b); });   // clear old bands
+    PL_BANDS.forEach(function(band,i){
+      var t=tracks[i], live=!!(t&&t.src);
+      var el=document.createElement('div');
+      el.className='plband'+(i===cur?' on':'')+(live?'':' dead');
+      el.style.top=band[0]+'%'; el.style.height=(band[1]-band[0])+'%';
+      el.title=t?(t.title||'').toUpperCase():'';
+      if(live) el.onclick=function(){ loadTrack(i); };
+      host.appendChild(el);
+    });
   }
   renderPlaylist();
 
   // ── PL panel toggle ──
   var plOpen=false;
-  document.getElementById('pillPl').onclick=function(){
+  document.getElementById('pillPl').onclick=function(){        // PL pill is the only toggle now — no close button on the panel
     plOpen=!plOpen;
     document.getElementById('plPanel').classList.toggle('visible', plOpen);
     document.getElementById('pillPl').classList.toggle('off', !plOpen);
   };
-  document.getElementById('plClose').onclick=function(){ plOpen=false; document.getElementById('plPanel').classList.remove('visible'); document.getElementById('pillPl').classList.add('off'); };
 })();
 </script>
 <script>
