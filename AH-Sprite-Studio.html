@@ -57,8 +57,24 @@
   #editCanvasWrap{position:relative;flex:none}   /* hugs the canvas exactly → grid background aligns pixel-perfect at any zoom */
   #edSelBox{position:absolute;left:0;top:0;width:0;height:0;display:none;border:1px dashed var(--accent2);box-shadow:0 0 0 1px #0008;pointer-events:none;z-index:3}
   #editCanvas{image-rendering:pixelated;touch-action:none;cursor:crosshair;box-shadow:0 0 0 1px #0003;flex:none;display:block}
-  #editTools{display:flex;flex-direction:column;gap:5px;padding:5px 7px;border-top:1px solid var(--line);background:#191822}
-  .etoolsRow{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+  /* ---- Aseprite-style editor chrome: top toolbar · palette | canvas | tools · colour+status footer ---- */
+  #edTop{display:flex;gap:4px;align-items:center;padding:4px 6px;border-bottom:1px solid var(--line);background:#191822;flex:none}
+  #edMain{flex:1;display:flex;min-height:0}
+  #edPalette{flex:none;width:74px;display:grid;grid-template-columns:repeat(3,1fr);gap:1px;padding:3px;overflow-y:auto;
+    background:#191822;border-right:1px solid var(--line);align-content:start}
+  .sw{width:100%;aspect-ratio:1;border:1px solid #0006;cursor:pointer;padding:0;display:block}
+  .sw.on{outline:2px solid var(--accent);outline-offset:-2px;z-index:1}
+  .sw.tr{background-image:linear-gradient(45deg,#999 25%,transparent 25%,transparent 75%,#999 75%),linear-gradient(45deg,#999 25%,#fff 25%,#fff 75%,#999 75%);
+    background-size:8px 8px;background-position:0 0,4px 4px}
+  #edToolCol{flex:none;display:flex;flex-direction:column;gap:3px;padding:3px;background:#191822;border-left:1px solid var(--line)}
+  .edNudge{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-top:6px}
+  .edNudge .etool{width:100%}
+  #edBottom{display:flex;gap:6px;align-items:center;padding:4px 6px;border-top:1px solid var(--line);background:#191822;flex:none}
+  #edHex{width:74px;background:#0e0d13;color:var(--ink);border:1px solid var(--line);border-radius:4px;font:inherit;font-size:11px;padding:3px 5px}
+  #edSize{width:38px;background:#0e0d13;color:var(--ink);border:1px solid var(--line);border-radius:4px;font:inherit;font-size:11px;padding:2px 4px}
+  .edLbl{color:var(--dim);font-size:10px;letter-spacing:.1em}
+  .edSpacer{flex:1}
+  #edStatus{font-size:10px;letter-spacing:.08em;white-space:nowrap}
   .etool{width:27px;height:24px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:4px;background:#0e0d13;color:var(--ink);cursor:pointer;font-size:13px;padding:0;line-height:1}
   .etool.on{border-color:var(--accent);color:var(--accent);background:#ffb0381a}
   .etool:disabled{opacity:.3;cursor:default}
@@ -171,7 +187,7 @@
 <header>
   <div class="hleft"></div>
   <b class="htitle"><img src="assets/spritestudiologo.png" alt="AH! Sprite Studio" class="logo-mark"></b>
-  <a class="hright backlink" href="home.html" title="Back to alterhero.xyz">← BACK</a>
+  <a class="hright backlink" href="index.html" title="Back to alterhero.xyz">← BACK</a>
 </header>
 
 <div class="row">
@@ -179,30 +195,45 @@
     <div class="ptitle"><span class="vtabs"><span class="vtab on" id="tabPreview">PREVIEW</span><span class="vsep">·</span><span class="vtab" id="tabEditor">EDITOR</span></span><span id="pvinfo" class="muted"></span></div>
     <div class="stage"><canvas id="previewCanvas" width="64" height="64"></canvas>
       <div id="editorWrap">
-        <div id="editScroll"><div id="editCanvasWrap"><canvas id="editCanvas" width="32" height="32"></canvas><div id="edSelBox"></div></div></div>
-        <div id="editTools">
-          <div class="etoolsRow">
+        <!-- Aseprite-style top toolbar: history · brush size · zoom · file actions -->
+        <div id="edTop">
+          <button class="etool" id="tUndo" title="Undo (⌘Z)" disabled>↶</button>
+          <button class="etool" id="tRedo" title="Redo (⌘⇧Z)" disabled>↷</button>
+          <span class="vsep">|</span>
+          <span class="edLbl">px</span>
+          <input id="edSize" type="number" min="1" max="8" value="1" title="Brush size (pixels)">
+          <span class="vsep">|</span>
+          <select id="editZoom" title="Zoom">
+            <option value="1">100%</option><option value="4">400%</option><option value="8" selected>800%</option><option value="16">1600%</option>
+          </select>
+          <span class="edSpacer"></span>
+          <button class="ebtn" id="editNew">New</button>
+          <button class="ebtn" id="editSave">Save to library ▸</button>
+        </div>
+        <!-- main row: palette · canvas · tools (Aseprite) -->
+        <div id="edMain">
+          <div id="edPalette" title="Palette — tap a colour to paint with it"></div>
+          <div id="editScroll"><div id="editCanvasWrap"><canvas id="editCanvas" width="32" height="32"></canvas><div id="edSelBox"></div></div></div>
+          <div id="edToolCol">
+            <button class="etool" id="tSelect" title="Select a zone, then nudge it with the arrows">▣</button>
             <button class="etool on" id="tBrush" title="Pixel brush">✎</button>
             <button class="etool" id="tEraser" title="Eraser">⌫</button>
-            <input type="color" id="editColor" value="#e24b4a" title="Color wheel">
-            <button class="etool" id="tEye" title="Eyedropper — tap a pixel to pick its color">◉</button>
-            <span class="vsep">|</span>
-            <button class="etool" id="tSelect" title="Select a zone, then nudge it with the arrows">▭</button>
-            <button class="etool" id="nLeft" title="Nudge selection left 1px" disabled>◀</button>
-            <button class="etool" id="nUp" title="Nudge selection up 1px" disabled>▲</button>
-            <button class="etool" id="nDown" title="Nudge selection down 1px" disabled>▼</button>
-            <button class="etool" id="nRight" title="Nudge selection right 1px" disabled>▶</button>
-            <span class="vsep">|</span>
-            <button class="etool" id="tUndo" title="Undo" disabled>↶</button>
-            <button class="etool" id="tRedo" title="Redo" disabled>↷</button>
+            <button class="etool" id="tFill" title="Paint bucket — flood fill">▩</button>
+            <button class="etool" id="tEye" title="Eyedropper — tap a pixel to pick its colour">◉</button>
+            <div class="edNudge">
+              <span></span><button class="etool" id="nUp" title="Nudge selection up 1px" disabled>▲</button><span></span>
+              <button class="etool" id="nLeft" title="Nudge selection left 1px" disabled>◀</button>
+              <button class="etool" id="nDown" title="Nudge selection down 1px" disabled>▼</button>
+              <button class="etool" id="nRight" title="Nudge selection right 1px" disabled>▶</button>
+            </div>
           </div>
-          <div class="etoolsRow">
-            <select id="editZoom" title="Zoom">
-              <option value="1">×1</option><option value="2">×2</option><option value="4">×4</option><option value="8" selected>×8</option>
-            </select>
-            <button class="ebtn" id="editNew">New</button>
-            <button class="ebtn" id="editSave">Save to library ▸</button>
-          </div>
+        </div>
+        <!-- colour bar + status line (Aseprite footer) -->
+        <div id="edBottom">
+          <input type="color" id="editColor" value="#e24b4a" title="Colour wheel">
+          <input id="edHex" value="#e24b4a" spellcheck="false" title="Hex colour">
+          <span class="edSpacer"></span>
+          <span id="edStatus" class="muted">–</span>
         </div>
       </div>
     </div>
@@ -1148,7 +1179,7 @@
   /* ---------- PIXEL EDITOR (pointer = works with iPad touch / Apple Pencil) ---------- */
   var ED={ cv:$('#editCanvas'), w:32, h:32, scale:8, tool:'brush', color:'#e24b4a', drawing:false, lastX:-1, lastY:-1, undo:[], redo:[] };
   ED.ctx=ED.cv.getContext('2d');
-  function edApplyZoom(){ ED.cv.style.width=(ED.w*ED.scale)+'px'; ED.cv.style.height=(ED.h*ED.scale)+'px'; edApplyGrid(); edPositionSelBox(); }
+  function edApplyZoom(){ ED.cv.style.width=(ED.w*ED.scale)+'px'; ED.cv.style.height=(ED.h*ED.scale)+'px'; edApplyGrid(); edPositionSelBox(); edStatus(); }
   /* pixel grid over the editor canvas — same look/threshold as the PREVIEW's stage grid (drawPreview), cell = 1 sprite pixel */
   function edApplyGrid(){
     var wrap=$('#editCanvasWrap'); if(!wrap) return;
@@ -1206,13 +1237,59 @@
   function edPixel(clientX,clientY){ var r=ED.cv.getBoundingClientRect(); if(!r.width) return null;
     var px=Math.floor((clientX-r.left)/(r.width/ED.w)), py=Math.floor((clientY-r.top)/(r.height/ED.h));
     return (px<0||py<0||px>=ED.w||py>=ED.h)?null:{x:px,y:py}; }
-  function edPaint(px,py){ if(ED.tool==='eraser') ED.ctx.clearRect(px,py,1,1);
-    else { ED.ctx.fillStyle=ED.color; ED.ctx.fillRect(px,py,1,1); } }
+  function edPaint(px,py){                                   // brush size n → n×n block centred on the pixel (Aseprite-style)
+    var n=Math.max(1,Math.min(8,ED.size||1)), o=(n/2)|0, x=px-o, y=py-o;
+    if(ED.tool==='eraser') ED.ctx.clearRect(x,y,n,n);
+    else { ED.ctx.fillStyle=ED.color; ED.ctx.fillRect(x,y,n,n); } }
+  /* paint bucket — flood fill the contiguous region matching the pixel you tapped */
+  function edFill(px,py){
+    var id=ED.ctx.getImageData(0,0,ED.w,ED.h), d=id.data, W=ED.w, H=ED.h;
+    function at(x,y){ return (y*W+x)*4; }
+    var s=at(px,py), t=[d[s],d[s+1],d[s+2],d[s+3]];
+    var c=document.createElement('canvas').getContext('2d'); c.fillStyle=ED.color; c.fillRect(0,0,1,1);
+    var rgba=c.getImageData(0,0,1,1).data;
+    var fill = (ED.tool==='eraser') ? [0,0,0,0] : [rgba[0],rgba[1],rgba[2],255];
+    if(t[0]===fill[0]&&t[1]===fill[1]&&t[2]===fill[2]&&t[3]===fill[3]) return;   // already that colour
+    var st=[[px,py]];
+    while(st.length){
+      var p=st.pop(), x=p[0], y=p[1]; if(x<0||y<0||x>=W||y>=H) continue;
+      var i=at(x,y);
+      if(d[i]!==t[0]||d[i+1]!==t[1]||d[i+2]!==t[2]||d[i+3]!==t[3]) continue;
+      d[i]=fill[0]; d[i+1]=fill[1]; d[i+2]=fill[2]; d[i+3]=fill[3];
+      st.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+    }
+    ED.ctx.putImageData(id,0,0);
+  }
   function edLine(x0,y0,x1,y1){ var dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1,e=dx-dy;
     while(true){ edPaint(x0,y0); if(x0===x1&&y0===y1)break; var e2=2*e; if(e2>-dy){e-=dy;x0+=sx;} if(e2<dx){e+=dx;y0+=sy;} } }
-  function edSetColor(hex){ ED.color=hex; $('#editColor').value=hex; }
+  function edSetColor(hex){ ED.color=hex; $('#editColor').value=hex;
+    var hx=$('#edHex'); if(hx && document.activeElement!==hx) hx.value=hex;
+    [].forEach.call(document.querySelectorAll('#edPalette .sw'),function(s){
+      s.classList.toggle('on', (s.dataset.c||'').toLowerCase()===hex.toLowerCase()); }); }
   function edSetTool(t){ ED.tool=t;
-    $('#tBrush').classList.toggle('on',t==='brush'); $('#tEraser').classList.toggle('on',t==='eraser'); $('#tEye').classList.toggle('on',t==='eye'); $('#tSelect').classList.toggle('on',t==='select'); }
+    [['brush','#tBrush'],['eraser','#tEraser'],['eye','#tEye'],['select','#tSelect'],['fill','#tFill']].forEach(function(p){
+      var b=$(p[1]); if(b) b.classList.toggle('on',t===p[0]); }); }
+  /* Aseprite-style palette — tap a swatch to paint with it */
+  var PALETTE=['#000000','#1a1a2e','#2d1b33','#5c3a2e','#8b5a3c','#e07a2f','#d9a066','#eec39a','#f5e04a',
+    '#99e550','#6abe30','#37946e','#4b6b28','#524b24','#323c39','#3f3f74','#4a6c8c','#4b6ede',
+    '#5b9fe0','#5fcde4','#b8d8ea','#ffffff','#a8b7c0','#9badb7','#847e87','#696a6a','#76428a',
+    '#ac3232','#d95763','#d77bba','#8f974a','#8a6f30','#e24b4a'];
+  function buildPalette(){
+    var p=$('#edPalette'); if(!p) return; p.innerHTML='';
+    PALETTE.forEach(function(c){
+      var b=document.createElement('button'); b.className='sw'; b.dataset.c=c; b.style.background=c; b.title=c;
+      b.onclick=function(){ edSetColor(c); if(ED.tool==='eraser'||ED.tool==='eye') edSetTool('brush'); };
+      p.appendChild(b); });
+    var tr=document.createElement('button'); tr.className='sw tr'; tr.title='Transparent — eraser';
+    tr.onclick=function(){ edSetTool('eraser'); }; p.appendChild(tr);
+    edSetColor(ED.color);
+  }
+  function edStatus(){
+    var el=$('#edStatus'); if(!el) return;
+    var f=ED.target&&fileById(ED.target.fileId);
+    el.textContent=(f? f.name+'  ·  frame '+(ED.target.frame+1)+'  ·  ' : 'new sprite  ·  ')
+      + ED.w+'×'+ED.h + '  ·  ' + (ED.scale*100) + '%';
+  }
   function edPositionSelBox(){
     var box=$('#edSelBox'); if(!box) return;
     if(!ED.sel){ box.style.display='none'; }
@@ -1239,6 +1316,7 @@
     if(ED.tool==='eye'){ edEyedrop(p.x,p.y); return; }
     if(ED.tool==='select'){ ED.sel={x:p.x,y:p.y,w:1,h:1}; ED.selData=null; ED.selecting=true; ED.selX0=p.x; ED.selY0=p.y; edPositionSelBox();
       try{ ED.cv.setPointerCapture(e.pointerId); }catch(err){} return; }
+    if(ED.tool==='fill'){ edPushUndo(); edFill(p.x,p.y); return; }
     edPushUndo(); ED.drawing=true; ED.lastX=p.x; ED.lastY=p.y; edPaint(p.x,p.y);
     try{ ED.cv.setPointerCapture(e.pointerId); }catch(err){} });
   ED.cv.addEventListener('pointermove',function(e){
@@ -1260,6 +1338,11 @@
   $('#editColor').oninput=function(e){ edSetColor(e.target.value); if(ED.tool==='eraser') edSetTool('brush'); };
   $('#tUndo').onclick=edUndo; $('#tRedo').onclick=edRedo;
   $('#editZoom').onchange=function(e){ ED.scale=+e.target.value; edApplyZoom(); };
+  $('#tFill').onclick=function(){ edSetTool('fill'); };
+  $('#edSize').oninput=function(e){ ED.size=Math.max(1,Math.min(8,+e.target.value||1)); };
+  $('#edHex').oninput=function(e){ var v=e.target.value.trim(); if(!/^#/.test(v)) v='#'+v;
+    if(/^#[0-9a-f]{6}$/i.test(v)){ edSetColor(v); if(ED.tool==='eraser') edSetTool('brush'); } };
+  buildPalette();
   $('#editNew').onclick=function(){ var s=prompt('New blank canvas size in pixels (e.g. 16, 32, 64):','32'); if(!s)return;
     var n=Math.max(1,Math.min(256,parseInt(s,10)||32)); edNew(n,n); ED.target=null; updateSaveLabel(); };
   $('#editSave').onclick=function(){

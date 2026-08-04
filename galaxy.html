@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>AH!rchives — mosaic</title>
+<style>
+  :root { --fg:#eef1f7; --dim:#8b93a7; --acc:#7cc7ff; }
+  * { box-sizing: border-box; }
+  html,body { margin:0; height:100%; background:#05060a; overflow:hidden;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; color:var(--fg); }
+  #stars { position:fixed; inset:0; z-index:0; display:none; }
+  #stage { position:fixed; inset:0; display:block; z-index:1; }
+  /* white mode: the canvas background flips (GL clears white); dark canvas UI text needs darkening */
+  body.light{ background:#ffffff; }
+  body.light #stat{ color:#6b7280; }
+  body.light #stat b{ color:#1b2130; }
+  body.light #boot{ color:#6b7280; }
+  body.light #focusName{ color:#12496e; text-shadow:0 0 16px rgba(124,199,255,.35); }
+  #panel { position:fixed; bottom:0; left:0; right:0; z-index:10;
+    background:rgba(10,12,18,.78); backdrop-filter:blur(18px) saturate(1.3);
+    border-top:1px solid rgba(255,255,255,.07);
+    padding:6px 14px; user-select:none;
+    transition:transform .3s ease, opacity .3s; display:flex; align-items:center; gap:10px; }
+  #panel.hidden { transform:translateY(100%); opacity:0; }
+  #panel h1 { font-size:9px; letter-spacing:.16em; margin:0; font-weight:700; white-space:nowrap; color:var(--acc); }
+  #panel .sub { display:none; }
+  .sliders { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
+  .row { margin:0; display:flex; align-items:center; gap:5px; white-space:nowrap; }
+  .row.mos { display:none; }
+  .row label { display:flex; align-items:center; gap:4px; font-size:8px; color:var(--dim);
+    letter-spacing:.03em; margin:0; text-transform:uppercase; white-space:nowrap; }
+  .row label b { color:var(--fg); font-weight:600; min-width:22px; text-align:right; }
+  input[type=range]{ -webkit-appearance:none; width:70px; height:2px; border-radius:2px;
+    background:rgba(255,255,255,.18); outline:none; flex-shrink:1; min-width:40px; }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:8px; height:8px; border-radius:50%;
+    background:var(--acc); cursor:pointer; box-shadow:0 0 6px rgba(124,199,255,.6); }
+  input[type=range]::-moz-range-thumb{ width:8px; height:8px; border:0; border-radius:50%;
+    background:var(--acc); cursor:pointer; box-shadow:0 0 6px rgba(124,199,255,.6); }
+  .btns { display:flex; gap:3px; margin:0; }
+  button { flex:0 0 auto; font:inherit; font-size:8px; letter-spacing:.03em; color:var(--fg);
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10); border-radius:4px;
+    padding:3px 7px; cursor:pointer; transition:background .15s, border-color .15s; white-space:nowrap; }
+  button:hover{ background:rgba(124,199,255,.16); border-color:rgba(124,199,255,.45); }
+  button.on{ background:rgba(124,199,255,.22); border-color:rgba(124,199,255,.6); color:#dff0ff; }
+  .sep{ width:1px; align-self:stretch; margin:2px 2px; background:rgba(255,255,255,.10); flex:0 0 auto; }
+  .tiers button{ min-width:26px; font-weight:600; }
+  .tiers button.on{ background:rgba(255,196,124,.24); border-color:rgba(255,196,124,.65); color:#ffe6c4;
+    box-shadow:0 0 8px rgba(255,196,124,.25); }
+  #toExplore{ flex:0 0 auto; font:inherit; font-size:8px; letter-spacing:.06em; font-weight:700; text-decoration:none;
+    color:#04122a; background:linear-gradient(90deg,#7cc7ff,#9ad0ff); border:1px solid rgba(124,199,255,.6);
+    border-radius:4px; padding:3px 8px; cursor:pointer; white-space:nowrap; box-shadow:0 0 8px rgba(124,199,255,.25); }
+  #toExplore:hover{ filter:brightness(1.08); }
+  /* narrow screens: let the panel wrap instead of clipping the tier buttons + explore link off-screen */
+  @media (max-width:640px){ #panel{ flex-wrap:wrap; } }
+  #hint { display:none; }
+  #stat { position:fixed; top:8px; right:10px; z-index:10; text-align:right; font-size:8px;
+    color:var(--dim); letter-spacing:.05em; line-height:1.4; opacity:.45; }
+  #stat b{ color:var(--fg); }
+  #loadbar { position:fixed; left:0; top:0; height:2px; background:linear-gradient(90deg,#7cc7ff,#b388ff);
+    width:0%; z-index:20; transition:width .2s ease; box-shadow:0 0 10px rgba(124,199,255,.8); }
+  #toggleBtn { position:fixed; bottom:6px; left:50%; transform:translateX(-50%); z-index:11; display:none; width:32px;height:18px;
+    border-radius:9px 9px 0 0; background:rgba(10,12,18,.78); border:1px solid rgba(255,255,255,.10); border-bottom:0;
+    color:var(--dim); cursor:pointer; font-size:10px; line-height:16px; text-align:center; }
+  #focusName { position:fixed; left:50%; bottom:52px; transform:translateX(-50%); z-index:6;
+    font-size:12px; letter-spacing:.12em; color:#dff0ff; opacity:0; transition:opacity .3s;
+    text-shadow:0 0 18px rgba(124,199,255,.6); }
+  #boot { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:8;
+    color:var(--dim); font-size:12px; letter-spacing:.14em; pointer-events:none; transition:opacity .4s; }
+  #backdrop{ position:fixed; inset:0; background:rgba(2,3,8,.5); z-index:30; opacity:0; pointer-events:none; transition:opacity .2s; }
+  #backdrop.show{ opacity:1; pointer-events:auto; }
+  #card{ position:fixed; z-index:31; width:360px; max-width:92vw; left:50%; top:50%; transform:translate(-50%,-46%) scale(.96);
+    max-height:92vh; overflow:auto;
+    background:rgba(18,21,31,.94); backdrop-filter:blur(18px) saturate(1.2); border:1px solid rgba(255,255,255,.12);
+    border-radius:18px; padding:14px; box-shadow:0 24px 70px rgba(0,0,0,.6); opacity:0; pointer-events:none;
+    transition:opacity .2s, transform .2s; }
+  #card.show{ opacity:1; pointer-events:auto; transform:translate(-50%,-50%) scale(1); }
+  #cardImg{ width:100%; aspect-ratio:1; object-fit:cover; border-radius:12px; display:block; background:#0a0c14; }
+  #cardName{ font-size:13px; font-weight:600; letter-spacing:.05em; text-align:center; color:#dfe6f2; margin:11px 2px 0; }
+  #cardTraits{ display:flex; flex-wrap:wrap; justify-content:center; gap:5px; margin:9px 0 0; }
+  .chip{ font-size:9px; letter-spacing:.03em; color:#aebfd6; background:rgba(124,199,255,.10);
+    border:1px solid rgba(124,199,255,.20); border-radius:6px; padding:3px 7px; }
+  .chip b{ color:#dfe6f2; font-weight:600; }
+  #cardDesc{ font-size:10px; line-height:1.5; color:var(--dim); text-align:center; margin:9px 2px 0; max-height:60px; overflow:auto; }
+  #cardFoot{ display:flex; align-items:center; gap:8px; margin-top:12px; }
+  #cardBuy{ flex:1 1 auto; min-width:0; text-align:center; text-decoration:none; font-size:11px; font-weight:600;
+    letter-spacing:.05em; color:#04122a; background:linear-gradient(90deg,#7cc7ff,#9ad0ff); padding:10px; border-radius:10px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #cardBuy:hover{ filter:brightness(1.07); }
+  #cardClose{ flex:0 0 auto; width:38px; height:38px; border-radius:10px;
+    background:rgba(0,0,0,.4); border:1px solid rgba(255,255,255,.15); color:#fff; font-size:18px; cursor:pointer; line-height:1; }
+  #cardClose:hover{ background:rgba(255,255,255,.12); }
+  #cardFav{ flex:0 0 auto; width:38px; height:38px; border-radius:10px;
+    background:rgba(0,0,0,.4); border:1px solid rgba(255,255,255,.15); color:#ffd36b; font-size:17px; cursor:pointer; line-height:1;
+    transition:background .15s, transform .12s; }
+  #cardFav:hover{ background:rgba(255,196,124,.22); }
+  #cardFav.on{ background:rgba(255,196,124,.28); border-color:rgba(255,196,124,.7); transform:scale(1.08); }
+  /* embedded as a background layer (home descent): hide the chrome for a clean cinematic view */
+  html.embed #panel, html.embed #hint, html.embed #loadbar, html.embed #toggleBtn, html.embed #stat, html.embed #boot{ display:none !important; }
+</style>
+</head>
+<body>
+<script>if(window.self!==window.top)document.documentElement.classList.add('embed');</script>
+<div id="loadbar"></div>
+<canvas id="stars"></canvas>
+<canvas id="stage"></canvas>
+<button id="toggleBtn" title="Show controls">⚙</button>
+<div id="panel">
+  <h1>AH!</h1>
+  <div class="btns">
+    <button id="mTime" class="on">ah!</button>
+    <button id="mMos">side B</button>
+    <button id="mCluster">origins</button>
+  </div>
+  <div class="sliders">
+    <div class="row mos"><label>Speed <b id="vMspeed">0.50</b></label><input id="mspeed" type="range" min="0" max="150" value="50"></div>
+    <div class="row mos"><label>Active <b id="vActive">60</b></label><input id="active" type="range" min="0" max="100" value="60"></div>
+    <div class="row cellrow"><label>Cell <b id="vCell">90</b></label><input id="cell" type="range" min="44" max="180" value="90"></div>
+    <div class="row tim"><label>Rain <b id="vFlick">50</b></label><input id="flick" type="range" min="0" max="100" value="50"></div>
+    <div class="row clu"><label>Speed <b id="vFly">0.40</b></label><input id="fly" type="range" min="0" max="150" value="40"></div>
+  </div>
+  <div class="btns">
+    <button id="bShape">◻</button>
+    <button id="bPause">⏸</button>
+    <button id="bShuffle">⤮</button>
+    <button id="bGalaxy" title="Full galaxy view">◎</button>
+    <button id="bFlip">⤢</button>
+    <button id="bTheme" title="Toggle light / dark background">☾</button>
+  </div>
+  <div class="sep"></div>
+  <div class="btns tiers">
+    <button id="tA" class="on">all</button>
+    <button id="t1" title="900 items">T1</button>
+    <button id="t2" title="77 items">T2</button>
+    <button id="t3" title="22 items">T3</button>
+    <button id="tFav" title="Favourites">★</button>
+  </div>
+  <div class="sep"></div>
+  <a id="toExplore" href="explorer.html" title="Browse & filter the whole collection by trait">⊞ explore</a>
+</div>
+<div id="stat"><div>loaded <b id="sLoaded">0</b>/<span id="sTotal">999</span></div><div><b id="sFps">0</b> fps</div></div>
+<div id="focusName"></div>
+<div id="backdrop"></div>
+<div id="card">
+  <img id="cardImg" alt="">
+  <div id="cardName"></div>
+  <div id="cardTraits"></div>
+  <div id="cardDesc"></div>
+  <div id="cardFoot">
+    <button id="cardFav" title="Add to favourites">☆</button>
+    <a id="cardBuy" target="_blank" rel="noopener">Buy on OpenSea ↗</a>
+    <button id="cardClose" title="Close">×</button>
+  </div>
+</div>
+<div id="boot">loading 999 ah!rchives…</div>
+<div id="hint">click a head to pull it forward · drag a slider · ⚙ hides panel</div>
+
+<script src="thumbs/list.js" onerror="window.__noList=true"></script>
+<script src="thumbs/meta.js?v=2" onerror="window.__noMeta=true"></script>
+<script>
+(() => {
+  const cv = document.getElementById('stage');
+  const gl = cv.getContext('webgl', { alpha:true, antialias:false, premultipliedAlpha:true, powerPreference:'high-performance', desynchronized:true });
+  window.__diag = { gl: !!gl, ready:false, sprites:0, err:null };
+  if(!gl){ document.getElementById('boot').textContent='WebGL unavailable in this browser'; return; }
+
+  let W,H,DPR=Math.min(window.devicePixelRatio||1, 2);
+
+  // ---- parallax starfield: a 2D canvas behind the (dark-origins-only transparent) GL stage ----
+  const starCv=document.getElementById('stars'), sctx=starCv.getContext('2d');
+  // d = parallax/brightness factor (nearer → moves more, brighter); counts kept fuller
+  const STAR_LAYERS=[{d:0.26,n:440,r0:0.5,r1:1.2,b0:0.26,b1:0.50},    // far: fullest, small, dimmest (more depth separation)
+                     {d:0.60,n:250,r0:0.9,r1:1.9,b0:0.52,b1:0.86},    // mid
+                     {d:1.00,n:115,r0:1.5,r1:3.1,b0:0.84,b1:1.16}];   // near: fewer, bigger, brightest, parallax leaders
+  let stars=[];
+  function genStars(){ stars=STAR_LAYERS.map(L=>{ const a=[];
+    for(let i=0;i<L.n;i++) a.push({x:Math.random(), y:Math.random(), r:L.r0+Math.random()*(L.r1-L.r0),
+      b:L.b0+Math.random()*(L.b1-L.b0), tw:Math.random()*6.283, ts:0.5+Math.random()*1.7, warm:Math.random()<0.12});
+    return {d:L.d, s:a}; }); }
+  genStars();
+  function resizeStars(){ starCv.width=Math.floor(W*DPR); starCv.height=Math.floor(H*DPR); starCv.style.width=W+'px'; starCv.style.height=H+'px'; }
+  let _lastCA=0, starAccX=0;                                          // continuous horizontal drift (never pops at the camAngle TAU wrap)
+  function drawStars(tSec){
+    let d=camAngle-_lastCA; _lastCA=camAngle;
+    if(d>Math.PI) d-=6.283; else if(d<-Math.PI) d+=6.283;            // unwrap the orbit angle
+    starAccX += d*0.10;                                               // gentle drift (slowed further)
+    const w=starCv.width, h=starCv.height;
+    const g=sctx.createRadialGradient(w*0.5,h*0.42,0, w*0.5,h*0.42,Math.hypot(w,h)*0.62);
+    g.addColorStop(0,'#0a0e18'); g.addColorStop(1,'#030409');
+    sctx.fillStyle=g; sctx.fillRect(0,0,w,h);
+    // one shared pan → every layer moves in the same direction, offset ∝ depth (coherent parallax)
+    const panX=starAccX + camX*0.035 + ovA*0.03, panY=-camY*0.035;
+    for(const layer of stars){ const ox=panX*layer.d, oy=panY*layer.d;
+      for(const st of layer.s){
+        let fx=st.x+ox; fx-=Math.floor(fx); let fy=st.y+oy; fy-=Math.floor(fy);
+        const px=fx*w, py=fy*h, b=st.b*(0.78+0.22*Math.sin(tSec*st.ts+st.tw)), r=st.r*DPR;
+        if(st.r>1.6){ sctx.beginPath(); sctx.arc(px,py,r*2.6,0,6.283);   // soft halo, stronger on the nearer layers
+          sctx.fillStyle=st.warm?`rgba(255,220,180,${b*0.12*layer.d})`:`rgba(150,190,255,${b*0.15*layer.d})`; sctx.fill(); }
+        sctx.beginPath(); sctx.arc(px,py,r,0,6.283);
+        sctx.fillStyle=st.warm?`rgba(255,226,192,${b})`:`rgba(214,230,255,${b})`; sctx.fill();
+      }
+    }
+  }
+
+  function resize(){ W=innerWidth||1280; H=innerHeight||800; cv.width=Math.floor(W*DPR); cv.height=Math.floor(H*DPR);
+    cv.style.width=W+'px'; cv.style.height=H+'px'; gl.viewport(0,0,cv.width,cv.height); resizeStars(); }
+  addEventListener('resize', resize); resize();
+
+  const IDS = (window.THUMB_IDS && window.THUMB_IDS.length) ? window.THUMB_IDS : Array.from({length:999},(_,i)=>i+1);
+  document.getElementById('sTotal').textContent = IDS.length;
+
+  // ---- params from UI ----
+  const P = { count:IDS.length, swirl:0.30, depth:0.50, drift:0.35, size:1.0, shape:'square', paused:false,
+              mode:'time', mspeed:0.50, cell:90, activePct:60, flip:'both', tiers:new Set(), favOnly:false, rainPct:50,
+              photoTarget:null, clusterTrait:'Realm', fly:0.40 };
+  // ---- galaxy fly-through camera (cluster mode): pilot forward through depth-layered trait nebulae ----
+  const CGAP=6.0;                                  // world-units between cluster centres along the corridor
+  let camAngle=0, camX=0, camY=0, camTX=0, camTY=0, clusterL=CGAP, clusterReady=false;
+  let ringR=1, ringRx=1, ringRz=1, ringSin=0.52, ringCos=0.85;       // the galaxy is a tilted 3D ellipse (closed loop)
+  let clusterMembers=[];                                              // sprite indices in the galaxy (respects the filter)
+  let ovTarget=0, ovBlend=0, ovA=0;                // zoom 0=cockpit → 1=full elliptical-galaxy view (◎ / scroll); ovA = turntable angle
+  const OV_DFAC=2.1, OV_PHI=0.78;                   // overview camera distance factor + elevation (shared by render + re-entry)
+  const clusterVis=new Int32Array(IDS.length+8);   // reused visible-index scratch for the fly-through
+  const bind = (id, key, f) => {
+    const el=document.getElementById(id), out=document.getElementById('v'+id[0].toUpperCase()+id.slice(1));
+    const upd=()=>{ const v=+el.value; P[key]= f? f(v): v; if(out) out.textContent=(typeof P[key]==='number'?(Number.isInteger(P[key])?P[key]:P[key].toFixed(2)):P[key]); };
+    el.addEventListener('input',upd); upd();
+  };
+  bind('mspeed','mspeed', v=>v/100);
+  bind('cell','cell', v=>Math.round(v));
+  bind('active','activePct', v=>Math.round(v));
+  bind('flick','rainPct', v=>Math.round(v));
+  bind('fly','fly', v=>v/100);
+
+  // ---- shaders ----
+  function sh(type,src){ const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+    if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){ window.__diag.err='shader: '+gl.getShaderInfoLog(s); throw new Error(window.__diag.err);} return s; }
+  const prog=gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, `
+    attribute vec2 a_pos; attribute vec2 a_uv; attribute float a_alpha;
+    uniform vec2 u_res; varying vec2 v_uv; varying float v_alpha;
+    void main(){ vec2 c=(a_pos/u_res)*2.0-1.0; gl_Position=vec4(c.x,-c.y,0.0,1.0); v_uv=a_uv; v_alpha=a_alpha; }`));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, `
+    precision mediump float; varying vec2 v_uv; varying float v_alpha; uniform sampler2D u_tex;
+    void main(){ gl_FragColor = texture2D(u_tex, v_uv) * v_alpha; }`));
+  gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog,gl.LINK_STATUS)){ window.__diag.err='link: '+gl.getProgramInfoLog(prog); document.getElementById('boot').textContent='shader link failed'; return; }
+  gl.useProgram(prog);
+  const aPos=gl.getAttribLocation(prog,'a_pos'), aUv=gl.getAttribLocation(prog,'a_uv'), aAlpha=gl.getAttribLocation(prog,'a_alpha');
+  const uRes=gl.getUniformLocation(prog,'u_res'), uTex=gl.getUniformLocation(prog,'u_tex');
+  gl.uniform1i(uTex,0);
+  gl.enable(gl.BLEND);
+  gl.clearColor(0.02,0.024,0.04,1);
+
+  // ---- atlas geometry ----
+  const TILE=256, COLS=32;            // 32*256 = 8192 ; holds up to 1024 heads
+  const ROWS=Math.max(1, Math.ceil(IDS.length/COLS));
+  const AW=COLS*TILE, AH=ROWS*TILE;
+  const atlas=document.createElement('canvas'); atlas.width=AW; atlas.height=AH;
+  const ax=atlas.getContext('2d');
+  const atlasTex=gl.createTexture();
+
+  function maskPath(c, ox, oy, s, shape){
+    c.beginPath();
+    if(shape==='circle'){ c.arc(ox+s/2,oy+s/2,s/2-1,0,Math.PI*2); }
+    else if(shape==='square'){ c.rect(ox,oy,s,s); }
+    else { const r=s*0.16,e=s-1; c.moveTo(ox+r,oy+1); c.arcTo(ox+e,oy+1,ox+e,oy+e,r); c.arcTo(ox+e,oy+e,ox+1,oy+e,r); c.arcTo(ox+1,oy+e,ox+1,oy+1,r); c.arcTo(ox+1,oy+1,ox+e,oy+1,r); c.closePath(); }
+  }
+  function drawTile(img, k, shape){
+    const col=k%COLS, row=(k/COLS)|0, ox=col*TILE, oy=row*TILE;
+    ax.clearRect(ox,oy,TILE,TILE);
+    const ar=(img.width||1)/(img.height||1); let dw=TILE,dh=TILE,dx=ox,dy=oy;
+    if(ar>1){ dh=TILE; dw=TILE*ar; dx=ox-(dw-TILE)/2; } else { dw=TILE; dh=TILE/ar; dy=oy-(dh-TILE)/2; }
+    ax.save(); maskPath(ax,ox,oy,TILE,shape); ax.clip(); ax.drawImage(img,dx,dy,dw,dh); ax.restore();
+    if(shape!=='square'){ ax.save(); maskPath(ax,ox,oy,TILE,shape); ax.lineWidth=4; ax.strokeStyle='rgba(255,255,255,0.12)'; ax.stroke(); ax.restore(); }
+  }
+  function uploadAtlas(){
+    gl.bindTexture(gl.TEXTURE_2D,atlasTex); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,true);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,atlas);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  }
+
+  // ---- sprites (atlas tiles) ----
+  const rnd=(a,b)=>a+Math.random()*(b-a);
+  const sprites=[]; let order=[]; let loaded=0; let ready=false;
+  // ---- tier filter ----
+  const META = window.THUMB_META||{};
+  function tierOf(id){ const m=META[id]; if(!m||!m.t) return null; const t=m.t.find(x=>x[0]==='Tier'); return t?t[1]:null; }
+  // ---- favourites (persisted) ----
+  let favs = new Set();
+  try{ const raw=localStorage.getItem('ahFavs'); if(raw) favs=new Set(JSON.parse(raw)); }catch(e){}
+  function saveFavs(){ try{ localStorage.setItem('ahFavs', JSON.stringify([...favs])); }catch(e){} }
+  let pool=[];   // sprite indices passing the active filter (no filter = all)
+  function rebuildPool(){
+    if(P.favOnly){ pool = sprites.map((_,i)=>i).filter(i => favs.has(sprites[i].id)); return; }   // may be empty
+    pool = sprites.map((_,i)=>i).filter(i => P.tiers.size===0 || P.tiers.has(tierOf(sprites[i].id)));
+    if(!pool.length) pool = sprites.map((_,i)=>i);
+  }
+  // track which items are currently on screen so tiles never duplicate
+  let shown = new Map();
+  function setCellItem(c, it){
+    if(c.item!=null && c.item!==undefined){ const n=(shown.get(c.item)||0)-1; if(n<=0) shown.delete(c.item); else shown.set(c.item,n); }
+    c.item=it; shown.set(it,(shown.get(it)||0)+1);
+  }
+  function pickOffscreen(){            // a pool item not currently displayed, or null if all are shown
+    if(shown.size>=pool.length) return null;
+    for(let t=0;t<24;t++){ const it=pool[(Math.random()*pool.length)|0]; if(!shown.get(it)) return it; }
+    for(const it of pool){ if(!shown.get(it)) return it; }
+    return null;
+  }
+  const INS=0.5/AW; // half-texel inset
+  // average-colour probe — luminance picks the darkest ("black") items; rgb feeds photomosaic matching
+  const lumCv=document.createElement('canvas'); lumCv.width=lumCv.height=4;
+  const lumCtx=lumCv.getContext('2d',{willReadFrequently:true});
+  function avgColor(img){ try{ lumCtx.clearRect(0,0,4,4); lumCtx.drawImage(img,0,0,4,4);
+    const d=lumCtx.getImageData(0,0,4,4).data; let r=0,g=0,b=0,n=d.length/4;
+    for(let i=0;i<d.length;i+=4){ r+=d[i]; g+=d[i+1]; b+=d[i+2]; }
+    r/=n; g/=n; b/=n; return { lum:(0.299*r+0.587*g+0.114*b)/255, r, g, b }; }catch(e){ return {lum:0.5,r:128,g:128,b:128}; } }
+  let darkOrder=[];   // sprite indices sorted darkest→lightest (built after load)
+  function darkItem(){ const n=darkOrder.length; if(!n) return 0; const span=Math.min(70,n); return darkOrder[(Math.random()*span)|0]; }             // a truly-black item for the digits
+  function brightItem(){ const n=darkOrder.length; if(!n) return 0; const span=Math.min(300,n); return darkOrder[n-1-((Math.random()*span)|0)]; }   // a light item for the field
+  function addSprite(id,img){
+    const k=sprites.length, col=k%COLS, row=(k/COLS)|0;
+    const u0=col*TILE/AW+INS, v0=row*TILE/AH+INS, u1=(col+1)*TILE/AW-INS, v1=(row+1)*TILE/AH-INS;
+    const ac=avgColor(img);
+    sprites.push({ id,img, u0,v0,u1,v1, lum:ac.lum, rgb:[ac.r,ac.g,ac.b],
+      base:rnd(0.55,1.35), r:Math.sqrt(Math.random()), a:rnd(0,Math.PI*2), dir:Math.random()<0.5?-1:1,
+      zPh:rnd(0,Math.PI*2), zSp:rnd(0.25,0.55), spin:rnd(-0.25,0.25), spSp:rnd(-0.4,0.4),
+      sx:rnd(0,1), sy:rnd(0,1), focus:0, _bx:0,_by:0,_bs:0,_z:0,_fk:0, tx:0,ty:0,ts:0 });
+    order.push(k); loaded++;
+  }
+  const loadbar=document.getElementById('loadbar'), sLoaded=document.getElementById('sLoaded'), boot=document.getElementById('boot');
+  let li=0, settled=0, finished=false;
+  function onSettled(){ settled++; sLoaded.textContent=loaded; loadbar.style.width=(100*settled/IDS.length)+'%';
+    if(settled>=IDS.length) finish(); else pump(); }
+  function pump(){
+    while(li<IDS.length && (li-settled)<32){
+      const id=IDS[li++]; const im=new Image();
+      im.onload=()=>{ addSprite(id,im); onSettled(); };
+      im.onerror=onSettled;
+      im.src=(window.THUMB_DATA&&window.THUMB_DATA[id])?window.THUMB_DATA[id]:'thumbs/'+id+'.jpg';
+    }
+  }
+  function finish(){
+    if(finished) return; finished=true;
+    // keep the "loading 999 ah!rchives…" message through atlas build
+    setTimeout(()=>{
+      for(let k=0;k<sprites.length;k++) drawTile(sprites[k].img,k,P.shape);
+      uploadAtlas();
+      ready=true; window.__diag.ready=true; window.__diag.sprites=sprites.length;
+      boot.style.opacity=0; loadbar.style.opacity=0;
+      darkOrder=sprites.map((_,i)=>i).sort((a,b)=>sprites[a].lum-sprites[b].lum);
+      rebuildPool();
+      if(P.mode==='mosaic') buildGrid();
+      else if(P.mode==='time') buildTimeGrid();
+      else if(P.mode==='cluster') buildClusters();
+    },30);
+  }
+  function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } }
+  pump();
+
+  // ---- buffers ----
+  const MAX=4096;
+  const mainArr=new Float32Array(MAX*6*5);
+  const vbo=gl.createBuffer();
+  function setAttribs(){ gl.bindBuffer(gl.ARRAY_BUFFER,vbo);
+    gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos,2,gl.FLOAT,false,20,0);
+    gl.enableVertexAttribArray(aUv);  gl.vertexAttribPointer(aUv,2,gl.FLOAT,false,20,8);
+    gl.enableVertexAttribArray(aAlpha); gl.vertexAttribPointer(aAlpha,1,gl.FLOAT,false,20,16); }
+  function quad(arr,o, cx,cy,hs,co,si, u0,v0,u1,v1, al){
+    const x0=-hs,y0=-hs,x1=hs,y1=hs;
+    const TLx=cx+x0*co-y0*si, TLy=cy+x0*si+y0*co;
+    const TRx=cx+x1*co-y0*si, TRy=cy+x1*si+y0*co;
+    const BLx=cx+x0*co-y1*si, BLy=cy+x0*si+y1*co;
+    const BRx=cx+x1*co-y1*si, BRy=cy+x1*si+y1*co;
+    let i=o;
+    arr[i++]=TLx;arr[i++]=TLy;arr[i++]=u0;arr[i++]=v0;arr[i++]=al;
+    arr[i++]=TRx;arr[i++]=TRy;arr[i++]=u1;arr[i++]=v0;arr[i++]=al;
+    arr[i++]=BLx;arr[i++]=BLy;arr[i++]=u0;arr[i++]=v1;arr[i++]=al;
+    arr[i++]=BLx;arr[i++]=BLy;arr[i++]=u0;arr[i++]=v1;arr[i++]=al;
+    arr[i++]=TRx;arr[i++]=TRy;arr[i++]=u1;arr[i++]=v0;arr[i++]=al;
+    arr[i++]=BRx;arr[i++]=BRy;arr[i++]=u1;arr[i++]=v1;arr[i++]=al;
+    return i;
+  }
+  function quadWH(arr,o, cx,cy,hw,hh, u0,v0,u1,v1, al){
+    const x0=cx-hw,x1=cx+hw,y0=cy-hh,y1=cy+hh; let i=o;
+    arr[i++]=x0;arr[i++]=y0;arr[i++]=u0;arr[i++]=v0;arr[i++]=al;
+    arr[i++]=x1;arr[i++]=y0;arr[i++]=u1;arr[i++]=v0;arr[i++]=al;
+    arr[i++]=x0;arr[i++]=y1;arr[i++]=u0;arr[i++]=v1;arr[i++]=al;
+    arr[i++]=x0;arr[i++]=y1;arr[i++]=u0;arr[i++]=v1;arr[i++]=al;
+    arr[i++]=x1;arr[i++]=y0;arr[i++]=u1;arr[i++]=v0;arr[i++]=al;
+    arr[i++]=x1;arr[i++]=y1;arr[i++]=u1;arr[i++]=v1;arr[i++]=al;
+    return i;
+  }
+
+  // ---- mosaic grid state ----
+  let cells=[], gCols=0, gRows=0, gCell=0, gCellW=0, gCellH=0, gW=0, gH=0, gCellParam=0;
+  const MOSAIC_BAR=40;   // px reserved at the bottom for the soundbar so no tile hides behind it
+  function rndInterval(){ const avg=6/(0.25+P.mspeed*3); return avg*(0.4+Math.random()*1.4); }
+  function buildGrid(){
+    gW=W; gH=H;
+    const AH=Math.max(1,H-MOSAIC_BAR);                 // drawable height above the soundbar
+    const filtered = (P.tiers.size>0 || P.favOnly) && pool.length>0;
+    let total, usedRows;
+    if(filtered){
+      // auto-size so every pooled item shows exactly once and fills the screen.
+      // search columns near the square-ish guess; favor few empty cells + near-square tiles.
+      const N=pool.length, ratio=W/AH, guess=Math.sqrt(N*ratio);
+      let best=null;
+      for(let cols=Math.max(1,Math.floor(guess)-2); cols<=Math.min(N,Math.ceil(guess)+2); cols++){
+        const rows=Math.ceil(N/cols), waste=cols*rows-N;
+        const adev=Math.abs(Math.log((W/cols)/(AH/rows)));   // 0 = perfectly square tiles
+        const score=waste + adev*4;
+        if(!best || score<best.score){ best={cols,rows,score}; }
+      }
+      gCols=best.cols; gRows=best.rows; total=N;        // one cell per unique item
+    } else {
+      gCols=Math.max(1,Math.round(W/P.cell));
+      gRows=Math.max(1,Math.round(AH/P.cell));
+      total=Math.min(gCols*gRows, MAX);
+    }
+    usedRows=Math.ceil(total/gCols);
+    gCellParam=P.cell;                                 // remember slider value used (for rebuild detection)
+    // SQUARE tiles — never stretched. Pick the largest square that fits, then center the block.
+    const cell=Math.min(W/gCols, AH/usedRows);
+    gCell=cell; gCellW=cell; gCellH=cell;
+    const x0=(W - gCols*cell)/2, y0=(AH - usedRows*cell)/2;   // center horizontally + vertically
+    const fullRows=Math.floor(total/gCols), lastCount=total-fullRows*gCols;
+    const bag=pool.slice(); shuffle(bag); let bi=0;
+    shown=new Map(); cells=[];
+    for(let i=0;i<total;i++){
+      const row=(i/gCols)|0, col=i%gCols;
+      const centered = (row===fullRows && lastCount>0);            // center a partial last row
+      const xoff = centered ? (gCols-lastCount)*0.5*cell : 0;
+      if(bi>=bag.length){ shuffle(bag); bi=0; }                    // only repeats if cells > pool (manual mode)
+      const c={ cx:x0+(col+0.5)*cell+xoff, cy:y0+(row+0.5)*cell, r:Math.random(),
+        item:undefined, flip:0, flipping:false, swapped:false, axis:Math.random()<0.5?0:1, next:T+rndInterval()*Math.random() };
+      setCellItem(c, bag[bi++]); cells.push(c);
+    }
+  }
+
+  // ---- time mode: the grid flicks NFTs to spell the real clock ----
+  const FONT5={
+    '0':["111","101","101","101","111"], '1':["010","010","010","010","010"],
+    '2':["111","001","111","100","111"], '3':["111","001","111","001","111"],
+    '4':["101","101","111","001","001"], '5':["111","100","111","001","111"],
+    '6':["111","100","111","101","111"], '7':["111","001","010","010","010"],
+    '8':["111","101","111","101","111"], '9':["111","101","111","001","111"],
+    ':':["0","1","0","1","0"],
+    'A':["111","101","111","101","101"], 'H':["101","101","111","101","101"],
+    '!':["1","1","1","0","1"] };
+  const glyphW = ch => (ch===':'||ch==='!')?1:3;
+  function timeLayoutWidth(str){ let w=0; for(const ch of str) w+=glyphW(ch)+1; return w-1; }
+  function logoItem(){ return pool.length? pool[(Math.random()*pool.length)|0] : (sprites.length?(Math.random()*sprites.length)|0:0); }
+  let tColStart=0, tRowStart=0, fontCols=0, litSet=new Set(), timeDirty=true;
+  let ahT0=0, drops=[];
+  function buildLit(str){
+    const lit=new Set(); let x=tColStart;
+    for(const ch of str){ const g=FONT5[ch]||FONT5['0'], w=glyphW(ch);
+      for(let r=0;r<5;r++){ const def=g[r]; for(let px=0;px<w;px++){ if(def[px]==='1'){
+        const gr=tRowStart+r, gc=x+px; if(gr>=0&&gr<gRows&&gc>=0&&gc<gCols) lit.add(gr*gCols+gc); } } }
+      x+=w+1; }
+    return lit;
+  }
+  function buildTimeGrid(){
+    gW=W; gH=H; const AH=Math.max(1,H-MOSAIC_BAR);
+    fontCols=timeLayoutWidth('AH!');
+    const t=Math.min(W*0.66/fontCols, AH*0.52/5);          // big, centered AH!
+    gCols=Math.max(fontCols+4, Math.round(W/t));
+    gRows=Math.max(7, Math.round(AH/t));
+    const cell=Math.min(W/gCols, AH/gRows);                 // square tiles, never stretched
+    gCell=cell; gCellW=cell; gCellH=cell;
+    const x0=(W-gCols*cell)/2, y0=(AH-gRows*cell)/2;
+    tColStart=Math.floor((gCols-fontCols)/2); tRowStart=Math.floor((gRows-5)/2);
+    litSet=buildLit('AH!');
+    // rain now flows through every non-logo cell (incl. those hugging the letters) — no dark margin
+    // matrix rain: TWO independently-timed streams per column (left & right half), each with
+    // its own random speed + vertical span, so columns never read as rigid parallel lines.
+    drops=[]; const rainFrac=P.rainPct/100;
+    for(let col=0;col<gCols;col++) for(const side of [-1,1]) drops.push(makeLane(col,side,rainFrac));
+    shown=new Map(); cells=[];
+    // the logo cells get UNIQUE heads (shuffled bag) so the letters never show the same face twice;
+    // the background cells are random (repeats there are invisible under the dim rain).
+    const logoBag=pool.slice(); shuffle(logoBag); let lb=0;
+    for(let i=0;i<gCols*gRows;i++){ const row=(i/gCols)|0, col=i%gCols;
+      const c={ cx:x0+(col+0.5)*cell, cy:y0+(row+0.5)*cell, r:Math.random(),
+        item:undefined, item2:logoItem(),   // item = left stream's head, item2 = right stream's head
+        flip:0, flipping:false, swapped:false, axis:0, next:T+Math.random()*2.5 };
+      let it;
+      if(litSet.has(i)){ if(lb>=logoBag.length){ shuffle(logoBag); lb=0; } it=logoBag.length?logoBag[lb++]:logoItem(); }
+      else it=logoItem();
+      setCellItem(c, it);   // render decides logo (full) vs rain (dim) vs black
+      cells.push(c);
+    }
+    ahT0=T;   // (re)start the 2s launch timer
+  }
+  // one rain stream: a vertical band [top,bot) it falls through, varied so some run full-height,
+  // some start mid-screen & fade at the bottom, some run top→middle & fade out.
+  function makeLane(col, side, frac){
+    const t=Math.random(); let top, bot;
+    if(t<0.5){ top=0; bot=gRows; }                                                   // full top→bottom
+    else if(t<0.75){ top=Math.floor(gRows*(0.34+Math.random()*0.22)); bot=gRows; }   // middle→bottom
+    else { top=0; bot=Math.ceil(gRows*(0.5+Math.random()*0.22)); }                   // top→middle
+    return { col, side, top, bot, y: top-(Math.random()*(bot-top)*0.8+2),
+             spd: rnd(4,12), len: rnd(3,8), active: Math.random()<frac };
+  }
+
+  // begin a dissolve: the cell's current image fades out to reveal a different one behind it
+  function startFade(c){
+    c.prevItem=c.item;
+    const it=pickOffscreen();
+    if(it!=null){ setCellItem(c,it); }
+    else { const d=cells[(Math.random()*cells.length)|0]; if(d&&d!==c){ const tmp=c.item; c.item=d.item; d.item=tmp; } }
+    c.flipping=true; c.flip=0;
+  }
+
+  // ---- origins: tiles drift into clusters grouped by a trait ----
+  const CLUSTER_TRAITS=['Tier','Tone','Realm','Origin','Vision','Aura','Flow','Artifact'];
+  function traitVal(id,key){ const m=META[id]; if(!m||!m.t) return 'none'; const t=m.t.find(x=>x[0]===key); return t?t[1]:'none'; }
+  function buildClusters(){
+    gW=W; gH=H;
+    const key=P.clusterTrait, groups=new Map();
+    const members = pool;                                            // honour the active tier / favourites filter (empty favs → empty galaxy + hint)
+    clusterMembers = members.slice();
+    for(const s of sprites) s._bs=0;                                  // drop filtered-out heads from render + hit-test
+    for(const k of members){ const v=traitVal(sprites[k].id,key); (groups.get(v)||groups.set(v,[]).get(v)).push(k); }
+    let keys=[...groups.keys()];
+    if(keys.length<7 && members.length){    // too few trait-groups for a ring (e.g. a filtered set) → spread into arc stations
+      const ordered=members.slice().sort((a,b)=>{ const va=traitVal(sprites[a].id,key), vb=traitVal(sprites[b].id,key); return va<vb?-1:va>vb?1:0; });
+      const nb=Math.min(ordered.length,16), per=Math.ceil(ordered.length/nb);
+      groups.clear(); for(let g=0;g<nb;g++) groups.set('arc'+g,[]);
+      ordered.forEach((k,idx)=> groups.get('arc'+Math.min(nb-1,(idx/per)|0)).push(k));   // keep same-trait heads adjacent
+      keys=[...groups.keys()];
+    }
+    const G=keys.length;
+    clusterL = Math.max(CGAP, G*CGAP);
+    // the galaxy is one big closed ellipse (clusters spaced around the loop), tilted in 3D
+    ringR = (clusterL/(2*Math.PI))*0.95;
+    ringRx = ringR*1.18; ringRz = ringR*0.9;                         // mildly elliptical
+    const tilt=0.55; ringSin=Math.sin(tilt); ringCos=Math.cos(tilt); // tip the disc so it reads as 3D
+    keys.forEach((v,gi)=>{
+      const arr=groups.get(v);
+      const tg=(gi/G)*2*Math.PI;                                     // this cluster's angle around the ring
+      const ccx=ringRx*Math.cos(tg), ccy=ringRz*Math.sin(tg)*ringSin, ccz=ringRz*Math.sin(tg)*ringCos;
+      const baseR=Math.min(ringR*0.28, 0.42*Math.sqrt(arr.length));  // bigger trait-groups = wider nebula
+      for(const k of arr){ const s=sprites[k];
+        const u=Math.random(), ct=Math.random()*2-1, ph=Math.random()*Math.PI*2;
+        const rr=Math.cbrt(u)*baseR, st=Math.sqrt(1-ct*ct);          // uniform point in a 3D ball around the cluster centre
+        s.wx=ccx+rr*st*Math.cos(ph); s.wy=ccy+rr*ct; s.wz=ccz+rr*st*Math.sin(ph);
+        s.ws=0.42*(0.85+Math.random()*0.4);                         // head world size (slight variation)
+      }
+    });
+    clusterReady=true;
+  }
+
+  // ---- interaction ----
+  const focusName=document.getElementById('focusName'); let focusTimer=0;
+  cv.addEventListener('pointerdown', e=>{
+    const mx=e.clientX,my=e.clientY;
+    if(P.mode==='mosaic' || P.mode==='time'){    // grid hit-test
+      const hw=gCellW/2, hh=gCellH/2;
+      for(const c of cells){ if(mx>=c.cx-hw&&mx<=c.cx+hw&&my>=c.cy-hh&&my<=c.cy+hh){
+        const s=sprites[c.item]; if(!s) break;
+        showCard(s.id);
+        break; } }
+      return;
+    }
+    let best=null,bz=-Infinity;                   // origins: hit-test the topmost head
+    for(const s of sprites){ if(!s._bs) continue; const h=s._bs/2;
+      if(mx>=s._bx-h&&mx<=s._bx+h&&my>=s._by-h&&my<=s._by+h&&s._z>bz){ best=s; bz=s._z; } }
+    if(best){ best.focus=performance.now(); showCard(best.id); }
+  });
+  // steer the fly-through: cursor position banks the camera; recentres when the pointer leaves
+  cv.addEventListener('pointermove', e=>{ if(P.mode!=='cluster') return;
+    camTX=((e.clientX/W)-0.5)*1.2; camTY=((e.clientY/H)-0.5)*1.2; });
+  cv.addEventListener('pointerleave', ()=>{ camTX=0; camTY=0; });
+  cv.addEventListener('wheel', e=>{ if(P.mode!=='cluster') return; e.preventDefault();   // scroll out → rise & pitch down to see the whole galaxy
+    setOverview(ovTarget+(e.deltaY>0?0.14:-0.14)); }, {passive:false});
+
+  // ---- info / buy card ----
+  const CONTRACT='0xa179a765c52ced91647c082f02d7e737d7781cae';
+  // meta.js stores only {h, t} now: n/u/i/d are 100% derivable — DESC is the one description, identical for all 999 items
+  const DESC='[ˈäl̪t̪er] ヒーロー';
+  const card=document.getElementById('card'), backdrop=document.getElementById('backdrop'),
+        cardImg=document.getElementById('cardImg'), cardName=document.getElementById('cardName'),
+        cardTraits=document.getElementById('cardTraits'), cardDesc=document.getElementById('cardDesc'),
+        cardBuy=document.getElementById('cardBuy'), cardFav=document.getElementById('cardFav');
+  function thumbSrc(id){ return (window.THUMB_DATA&&window.THUMB_DATA[id])?window.THUMB_DATA[id]:'thumbs/'+id+'.jpg'; }
+  function hiResSrc(id){ const m=window.THUMB_META&&window.THUMB_META[id]; if(!m) return null;
+    const img = m.i || (m.h ? ('https://i2c.seadn.io/ethereum/'+CONTRACT+'/'+m.h.slice(2)+'/'+m.h+'.png') : null);
+    return img ? img+'?w=1000' : null; }   // crisp 1000px CDN render (derived from the stored hash when m.i is absent)
+  let cardId=null;
+  function syncFavBtn(){ const on=cardId!=null&&favs.has(cardId);
+    cardFav.classList.toggle('on',on); cardFav.textContent=on?'★':'☆';
+    cardFav.title=on?'Remove from favourites':'Add to favourites'; }
+  function showCard(id){
+    cardId=id;
+    const m=(window.THUMB_META&&window.THUMB_META[id])||null;
+    cardImg.src=thumbSrc(id);                          // show the cached thumb instantly…
+    const hi=hiResSrc(id);
+    if(hi){ const big=new Image(); big.onload=()=>{ if(cardId===id) cardImg.src=hi; }; big.src=hi; }   // …then upgrade to the crisp render
+    cardName.textContent=(m&&m.n)||('AH!rchives #'+id);
+    cardBuy.href=(m&&m.u)||('https://opensea.io/assets/ethereum/'+CONTRACT+'/'+id);
+    cardTraits.innerHTML='';
+    if(m&&m.t&&m.t.length){ for(const tr of m.t){ const c=document.createElement('span'); c.className='chip'; c.innerHTML=tr[0]+' · <b>'+tr[1]+'</b>'; cardTraits.appendChild(c); } }
+    else { const c=document.createElement('span'); c.className='chip'; c.textContent='#'+id; cardTraits.appendChild(c); }
+    const desc=(m&&(m.d||DESC))||''; cardDesc.textContent=desc; cardDesc.style.display=desc?'block':'none';
+    syncFavBtn();
+    card.classList.add('show'); backdrop.classList.add('show');
+  }
+  cardFav.onclick=()=>{ if(cardId==null) return;
+    try{ const raw=localStorage.getItem('ahFavs'); favs=new Set(raw?JSON.parse(raw):[]); }catch(e){}   // re-read: explorer page / other tab may have written
+    if(favs.has(cardId)) favs.delete(cardId); else favs.add(cardId);
+    saveFavs(); syncFavBtn();
+    if(typeof refreshFavBtn==='function') refreshFavBtn();
+    if(P.favOnly){ rebuildPool(); if(P.mode==='mosaic') buildGrid(); else if(P.mode==='cluster') buildClusters(); }   // live-update the favourites view
+  };
+  function hideCard(){ card.classList.remove('show'); backdrop.classList.remove('show'); }
+  document.getElementById('cardClose').onclick=hideCard;
+  backdrop.onclick=hideCard;
+  addEventListener('keydown', e=>{ if(e.key==='Escape') hideCard(); });
+
+  // ---- buttons / modes ----
+  const bShape=document.getElementById('bShape'), bPause=document.getElementById('bPause'),
+        bShuffle=document.getElementById('bShuffle'), bGalaxy=document.getElementById('bGalaxy'),
+        bFlip=document.getElementById('bFlip'),
+        mMos=document.getElementById('mMos'),
+        hint=document.getElementById('hint');
+  const flipLabel={h:'⇆', v:'⇅', both:'⤢', null:'⊘'};
+  const flipOrder=['both','h','v','null'];
+  function setFlip(m){ P.flip=m; bFlip.textContent=flipLabel[m]; }
+  bFlip.onclick=()=>{ setFlip(flipOrder[(flipOrder.indexOf(P.flip)+1)%flipOrder.length]); };
+  const shapeLabel={round:'◻',circle:'●',square:'▦'};
+  function rebuildAtlas(){ if(!ready) return; for(let k=0;k<sprites.length;k++) drawTile(sprites[k].img,k,P.shape); uploadAtlas(); }
+  function setShape(sh){ P.shape=sh; bShape.textContent=shapeLabel[sh]; rebuildAtlas(); }
+  bShape.onclick=()=>{ setShape(P.shape==='round'?'circle':P.shape==='circle'?'square':'round'); };
+  function syncGalaxyBtn(){ const on=ovTarget>0.5; bGalaxy.classList.toggle('on',on);
+    if(P.mode==='cluster') hint.textContent = on ? 'elliptical galaxy view · ◎ to fly again · ⤮ regroup' : 'flying the ellipse · move to steer · scroll / ◎ for full galaxy · ⤮ regroup'; }
+  function nearestEntryAngle(){   // ellipse angle whose point is closest to the current overview camera → short descent, no cross-galaxy sweep
+    const D=ringR*OV_DFAC, ox=D*Math.cos(OV_PHI)*Math.sin(ovA), oy=D*Math.sin(OV_PHI), oz=D*Math.cos(OV_PHI)*Math.cos(ovA);
+    let best=0, bd=Infinity;
+    for(let k=0;k<96;k++){ const t=k/96*Math.PI*2, s=Math.sin(t), c=Math.cos(t);
+      const px=ringRx*c, py=ringRz*s*ringSin, pz=ringRz*s*ringCos;
+      const dd=(px-ox)*(px-ox)+(py-oy)*(py-oy)+(pz-oz)*(pz-oz);
+      if(dd<bd){ bd=dd; best=t; } }
+    return best + (Math.random()-0.5)*0.7;   // small jitter so quick toggles still vary, descent stays short
+  }
+  function setOverview(v){ const wasOverview=ovTarget>0.5; ovTarget=Math.max(0,Math.min(1,v));
+    if(wasOverview && ovTarget<=0.5) camAngle=nearestEntryAngle();   // re-enter the fly near where we're looking — varied but short
+    syncGalaxyBtn(); }
+  bGalaxy.onclick=()=>{ setOverview(ovTarget>0.5?0:1); };   // ◎ stop & view the whole elliptical galaxy
+  bPause.onclick=()=>{ P.paused=!P.paused; bPause.classList.toggle('on',P.paused); bPause.textContent=P.paused?'▶':'⏸'; };
+  bShuffle.onclick=()=>{
+    if(P.mode==='mosaic'){ for(const c of cells) startFade(c); }
+    else if(P.mode==='time'){ for(const d of drops){ d.active=Math.random()<(P.rainPct/100); d.y=d.top-rnd(1,Math.max(2,(d.bot-d.top)*0.6)); } }
+    else if(P.mode==='cluster'){ P.clusterTrait=CLUSTER_TRAITS[(CLUSTER_TRAITS.indexOf(P.clusterTrait)+1)%CLUSTER_TRAITS.length]; camAngle=0; buildClusters(); syncGalaxyBtn(); }
+  };
+  const mTime=document.getElementById('mTime'), mCluster=document.getElementById('mCluster');
+  function applyMode(){
+    const tim=P.mode==='time', clu=P.mode==='cluster', mos=P.mode==='mosaic';
+    document.querySelectorAll('.row.mos').forEach(e=>e.style.display=mos?'flex':'none');
+    document.querySelectorAll('.row.tim').forEach(e=>e.style.display=tim?'flex':'none');
+    document.querySelectorAll('.row.cellrow').forEach(e=>e.style.display=mos?'flex':'none');
+    document.querySelectorAll('.row.clu').forEach(e=>e.style.display=clu?'flex':'none');
+    mMos.classList.toggle('on',mos); mTime.classList.toggle('on',tim); mCluster.classList.toggle('on',clu);
+    bFlip.style.display='none'; bShuffle.textContent='⤮'; bGalaxy.style.display=clu?'':'none';
+    hint.textContent = clu ? (ovTarget>0.5 ? 'elliptical galaxy view · ◎ to fly again · ⤮ regroup' : 'flying the ellipse · move to steer · scroll / ◎ for full galaxy · ⤮ regroup') : '';
+  }
+  function setMode(m){
+    if(P.mode===m) return; P.mode=m;
+    if(m==='cluster'){ if(P.shape==='square') setShape('round'); }
+    else { if(P.shape!=='square') setShape('square'); }
+    if(m!=='mosaic' && P.paused){ P.paused=false; bPause.classList.remove('on'); bPause.textContent='⏸'; }   // animated modes auto-play
+    applyMode();
+    updateBG();   // toggle the transparent-clear + starfield when entering/leaving origins
+    try{                                          // geometry may build before images/atlas are ready
+      if(m==='mosaic') buildGrid();
+      else if(m==='time') timeDirty=true;
+      else if(m==='cluster'){ camAngle=0; camX=camY=camTX=camTY=0; ovBlend=0; ovA=0; buildClusters();
+        ovTarget=(P.tiers.size>0||P.favOnly)?1:0; syncGalaxyBtn(); }   // filtered → overview; unfiltered → cockpit fly
+    }catch(e){}   // finish() rebuilds for the active mode once ready
+  }
+  mMos.onclick=()=>setMode('mosaic');
+  mTime.onclick=()=>setMode('time');
+  mCluster.onclick=()=>setMode('cluster');
+  applyMode();
+
+  // deep-link the view via URL hash (used by the home descent's layered iframes)
+  function modeFromHash(){ const h=(location.hash||'').replace('#','').toLowerCase();
+    if(h==='origins'||h==='cluster') setMode('cluster');
+    else if(h==='mosaic'||h==='sideb'||h==='side-b') setMode('mosaic');
+    else if(h==='matrix'||h==='ah'||h==='time') setMode('time'); }
+  addEventListener('hashchange', modeFromHash);   // initial route applied after init completes (see end of script)
+
+  // ---- tier + favourites filter buttons ----
+  const tA=document.getElementById('tA'), tFav=document.getElementById('tFav'),
+        tierBtns={'1':document.getElementById('t1'),'2':document.getElementById('t2'),'3':document.getElementById('t3')};
+  function refreshFavBtn(){ tFav.classList.toggle('on',P.favOnly);
+    tFav.textContent = '★ '+favs.size; }
+  // favourites live on the shared 'ahFavs' key — refresh when the explorer page / another tab writes it
+  function reloadFavs(){ try{ const raw=localStorage.getItem('ahFavs'); favs=new Set(raw?JSON.parse(raw):[]); }catch(e){}
+    refreshFavBtn(); if(typeof syncFavBtn==='function') syncFavBtn();
+    if(P.favOnly){ rebuildPool(); if(P.mode==='mosaic') buildGrid(); else if(P.mode==='cluster') buildClusters(); } }
+  addEventListener('storage', e=>{ if(e.key==='ahFavs') reloadFavs(); });
+  addEventListener('pageshow', e=>{ if(e.persisted) reloadFavs(); });
+  function syncTierBtns(){ tA.classList.toggle('on',P.tiers.size===0 && !P.favOnly);
+    for(const k in tierBtns) tierBtns[k].classList.toggle('on',!P.favOnly && P.tiers.has(k));
+    refreshFavBtn(); }
+  function applyFilter(){
+    rebuildPool();
+    order = pool.slice(); shuffle(order);
+    if(P.mode==='mosaic'){
+      buildGrid();                                   // resize + assign each item once
+      if(!P.paused){ for(const c of cells){ c.prevItem=null; c.flipping=true; c.flip=0; } }   // fade the new set in
+    } else if(P.mode==='time'){ timeDirty=true; }
+    else if(P.mode==='cluster'){ camAngle=0; buildClusters();
+      ovTarget=(P.tiers.size>0||P.favOnly)?1:0; syncGalaxyBtn(); }   // a filtered subset → frame it all in the overview; "all" → fly the full galaxy
+    // empty favourites → show a friendly hint over the dark canvas
+    if(P.favOnly && pool.length===0){ boot.textContent='no favourites yet — open any item and tap ☆'; boot.style.opacity=1; }
+    else { boot.style.opacity=0; }
+    syncTierBtns();
+  }
+  tA.onclick=()=>{ if(P.tiers.size===0 && !P.favOnly) return; P.tiers.clear(); P.favOnly=false; applyFilter(); };
+  for(const k in tierBtns){ tierBtns[k].onclick=()=>{ P.favOnly=false; P.tiers.has(k)?P.tiers.delete(k):P.tiers.add(k); applyFilter(); }; }
+  tFav.onclick=()=>{ P.favOnly=!P.favOnly; if(P.favOnly) P.tiers.clear(); applyFilter(); };
+  refreshFavBtn();
+
+  // ---- theme (dark / white background) + starfield visibility ----
+  const bTheme=document.getElementById('bTheme');
+  let theme='dark';
+  try{ const t=localStorage.getItem('ahTheme'); if(t==='light'||t==='dark') theme=t; }catch(e){}
+  function updateBG(){
+    if(theme==='light') gl.clearColor(1,1,1,1);                    // white, opaque
+    else if(P.mode==='cluster') gl.clearColor(0,0,0,0);           // dark origins: transparent → starfield shows behind
+    else gl.clearColor(0.02,0.024,0.04,1);                         // dark, opaque (ah! / side B unchanged)
+    starCv.style.display=(theme==='dark' && P.mode==='cluster')?'block':'none';
+  }
+  function applyTheme(){
+    document.body.classList.toggle('light', theme==='light');
+    bTheme.textContent = theme==='dark' ? '☾' : '☀';
+    bTheme.classList.toggle('on', theme==='light');
+    updateBG();
+  }
+  bTheme.onclick=()=>{ theme = theme==='dark'?'light':'dark';
+    try{ localStorage.setItem('ahTheme', theme); }catch(e){} applyTheme(); };
+  applyTheme();
+
+  const panel=document.getElementById('panel'), toggleBtn=document.getElementById('toggleBtn');
+  document.querySelector('#panel h1').addEventListener('dblclick',hidePanel);
+  toggleBtn.onclick=showPanel;
+  function hidePanel(){ panel.classList.add('hidden'); toggleBtn.style.display='block'; }
+  function showPanel(){ panel.classList.remove('hidden'); toggleBtn.style.display='none'; }
+  addEventListener('keydown',e=>{ if(e.key==='h') panel.classList.contains('hidden')?showPanel():hidePanel();
+    if(e.key===' '){ e.preventDefault(); bPause.click(); } });
+
+  // ---- camera-orientation slerp (origins): blend two look-bases along the shortest arc, no roll-flip ----
+  function basisToQuat(rx,ry,rz, ux,uy,uz, fx,fy,fz){   // columns = right, up, fwd
+    const t=rx+uy+fz; let x,y,z,w,s;
+    if(t>0){ s=Math.sqrt(t+1)*2; w=0.25*s; x=(uz-fy)/s; y=(fx-rz)/s; z=(ry-ux)/s; }
+    else if(rx>uy&&rx>fz){ s=Math.sqrt(1+rx-uy-fz)*2; w=(uz-fy)/s; x=0.25*s; y=(ux+ry)/s; z=(fx+rz)/s; }
+    else if(uy>fz){ s=Math.sqrt(1+uy-rx-fz)*2; w=(fx-rz)/s; x=(ux+ry)/s; y=0.25*s; z=(fy+uz)/s; }
+    else { s=Math.sqrt(1+fz-rx-uy)*2; w=(ry-ux)/s; x=(fx+rz)/s; y=(fy+uz)/s; z=0.25*s; }
+    return [x,y,z,w];
+  }
+  function slerpQ(a,b,t){
+    let d=a[0]*b[0]+a[1]*b[1]+a[2]*b[2]+a[3]*b[3], b0=b[0],b1=b[1],b2=b[2],b3=b[3];
+    if(d<0){ d=-d; b0=-b0;b1=-b1;b2=-b2;b3=-b3; }                    // shortest path
+    let s0,s1;
+    if(d>0.9995){ s0=1-t; s1=t; } else { const th=Math.acos(d), st=Math.sin(th); s0=Math.sin((1-t)*th)/st; s1=Math.sin(t*th)/st; }
+    const x=a[0]*s0+b0*s1, y=a[1]*s0+b1*s1, z=a[2]*s0+b2*s1, w=a[3]*s0+b3*s1, n=Math.hypot(x,y,z,w)||1;
+    return [x/n,y/n,z/n,w/n];
+  }
+  function quatBasis(q){ const x=q[0],y=q[1],z=q[2],w=q[3];
+    return { rx:1-2*(y*y+z*z), ry:2*(x*y+z*w), rz:2*(x*z-y*w),       // right
+             ux:2*(x*y-z*w), uy:1-2*(x*x+z*z), uz:2*(y*z+x*w),       // up
+             fx:2*(x*z+y*w), fy:2*(y*z-x*w), fz:1-2*(x*x+y*y) }; }   // fwd
+
+  // ---- animation ----
+  let T=0,last=performance.now(),fa=0,ft=0; const sFps=document.getElementById('sFps');
+  function frame(now){
+    let dt=(now-last)/1000; last=now; if(dt>0.05) dt=0.05;
+    if(!P.paused) T+=dt;
+    if(theme==='dark' && P.mode==='cluster') drawStars(now*0.001);   // parallax starfield behind the transparent GL stage
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    if(ready){
+      gl.uniform2f(uRes,W,H); gl.activeTexture(gl.TEXTURE0);
+
+      if(P.mode==='mosaic'){
+        if(gW!==W || gH!==H || (!P.favOnly && P.tiers.size===0 && gCellParam!==P.cell)) buildGrid();
+        const fadeDur=0.75;
+        let mo=0;
+        const frac=P.activePct/100;
+        for(const c of cells){
+          if(!P.paused){
+            if(!c.flipping && T>=c.next){
+              if(c.r<frac){ startFade(c); }
+              else { c.next=T+rndInterval(); }
+            }
+            if(c.flipping){ c.flip += dt/fadeDur;
+              if(c.flip>=1){ c.flipping=false; c.flip=0; c.prevItem=null; c.next=T+rndInterval(); } }
+          }
+          const hw=gCellW*0.5, hh=gCellH*0.5;
+          if(c.flipping){
+            const p=c.flip<0?0:c.flip>1?1:c.flip, e=p*p*(3-2*p);          // smoothstep dissolve
+            if(c.prevItem!=null){                                        // reveal the image behind, fade the front out
+              const sn=sprites[c.item], sp=sprites[c.prevItem];
+              if(sn) mo=quadWH(mainArr,mo, c.cx,c.cy, hw,hh, sn.u0,sn.v0,sn.u1,sn.v1, 1);
+              if(sp) mo=quadWH(mainArr,mo, c.cx,c.cy, hw,hh, sp.u0,sp.v0,sp.u1,sp.v1, 1-e);
+            } else { const s=sprites[c.item]; if(s) mo=quadWH(mainArr,mo, c.cx,c.cy, hw,hh, s.u0,s.v0,s.u1,s.v1, e); }
+          } else { const s=sprites[c.item]; if(s) mo=quadWH(mainArr,mo, c.cx,c.cy, hw,hh, s.u0,s.v0,s.u1,s.v1, 1); }
+          if(mo>=mainArr.length-30) break;
+        }
+        gl.bindTexture(gl.TEXTURE_2D,atlasTex); gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+        gl.bindBuffer(gl.ARRAY_BUFFER,vbo); gl.bufferData(gl.ARRAY_BUFFER,mainArr.subarray(0,mo),gl.DYNAMIC_DRAW); setAttribs();
+        gl.drawArrays(gl.TRIANGLES,0,mo/5);
+
+      } else if(P.mode==='time'){
+        // AH! launch: black field, static 100%-lit colour logo in the centre, faded Matrix rain flowing behind & around it
+        if(gW!==W || gH!==H || timeDirty){ buildTimeGrid(); timeDirty=false; }
+        const RAIN_MAX=0.5, hw=gCellW*0.5, hh=gCellH*0.5; let mo=0;   // background luminosity never exceeds 50%
+        let rs=(T-ahT0)-2; rs=rs<=0?0:rs>=1?1:rs; rs=rs*rs*(3-2*rs);   // rain fades in over ~1s starting at 2s
+        if(!P.paused && rs>0){
+          for(const d of drops){ d.y+=d.spd*dt;
+            if(d.y-d.len>d.bot){ d.y=d.top-(Math.random()*(d.bot-d.top)*0.6+1); d.spd=rnd(4,12); d.len=rnd(3,8); d.active=Math.random()<(P.rainPct/100); } }
+        }
+        // logo first (always full-colour, static, on top)
+        for(let i=0;i<cells.length;i++){ if(!litSet.has(i)) continue; const c=cells[i], s=sprites[c.item];
+          if(s){ mo=quadWH(mainArr,mo, c.cx,c.cy, hw,hh, s.u0,s.v0,s.u1,s.v1, 1); } }
+        // rain: walk each stream's trail; left stream draws c.item on the left half, right draws c.item2 on the right
+        if(rs>0){ const hs=Math.min(gCellW,gCellH)*0.25, xo=gCellW*0.25, F1=2.0, F2=2.4;
+          for(const d of drops){ if(!d.active) continue;
+            const r0=Math.max(d.top, Math.ceil(d.y-d.len)), r1=Math.min(d.bot-1, Math.floor(d.y));
+            for(let r=r0; r<=r1; r++){ const ci=r*gCols+d.col; if(litSet.has(ci)) continue;
+              const c=cells[ci]; if(!c) continue;
+              const s=sprites[d.side<0?c.item:c.item2]; if(!s) continue;
+              const trail=1-(d.y-r)/d.len;
+              const env=Math.min(1,(r-d.top+0.5)/F1,(d.bot-r-0.5)/F2);   // fade in/out at the band edges
+              const a=trail*(env>0?env:0)*RAIN_MAX*rs;
+              if(a>0.01) mo=quadWH(mainArr,mo, c.cx+d.side*xo, c.cy, hs,hs, s.u0,s.v0,s.u1,s.v1, a);
+              if(mo>=mainArr.length-30) break;
+            }
+            if(mo>=mainArr.length-30) break;
+          }
+        }
+        gl.bindTexture(gl.TEXTURE_2D,atlasTex); gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+        gl.bindBuffer(gl.ARRAY_BUFFER,vbo); gl.bufferData(gl.ARRAY_BUFFER,mainArr.subarray(0,mo),gl.DYNAMIC_DRAW); setAttribs();
+        gl.drawArrays(gl.TRIANGLES,0,mo/5);
+
+      } else if(P.mode==='cluster'){
+        // elliptical galaxy: fly around a tilted 3D ellipse; ◎/scroll lifts the camera out to view the whole loop
+        if(!clusterReady) buildClusters();
+        const F=Math.min(W,H)*0.92, TAU=Math.PI*2;
+        const flySpeed=0.6+P.fly*5;                                  // world-units / sec along the loop
+        ovBlend += (ovTarget-ovBlend)*Math.min(1,dt*3.2);           // ease cockpit ↔ full-galaxy
+        const bl=ovBlend;
+        if(!P.paused && bl<0.5) camAngle += (flySpeed/ringR)*dt;     // freeze the orbit once we settle into the overview
+        camAngle%=TAU; if(camAngle<0) camAngle+=TAU;
+        camX += (camTX-camX)*Math.min(1,dt*2.5);                     // ease steering toward the cursor
+        camY += (camTY-camY)*Math.min(1,dt*2.5);
+        if(bl>0.01) ovA += dt*0.14;                                  // slow turntable while the galaxy view is up
+        // helper: full upright look-basis from a camera position + a point it looks at
+        const basisFrom=(px,py,pz, tx,ty,tz)=>{
+          let fX=tx-px, fY=ty-py, fZ=tz-pz; const fn=Math.hypot(fX,fY,fZ)||1; fX/=fn; fY/=fn; fZ/=fn;
+          let rX=fZ, rZ=-fX; const rn=Math.hypot(rX,rZ)||1; rX/=rn; rZ/=rn;          // right = worldUp × fwd (stays upright)
+          const uX=fY*rZ, uY=fZ*rX-fX*rZ, uZ=-fY*rX;                                 // up = fwd × right
+          return [rX,0,rZ, uX,uY,uZ, fX,fY,fZ];
+        };
+        // --- cockpit camera: ride the ellipse, look along the tangent ---
+        const ca=camAngle, sca=Math.sin(ca), cca=Math.cos(ca);
+        const fpx=ringRx*cca, fpy=ringRz*sca*ringSin, fpz=ringRz*sca*ringCos;
+        let ftx=-ringRx*sca, fty=ringRz*cca*ringSin, ftz=ringRz*cca*ringCos;
+        let tl=Math.hypot(ftx,fty,ftz)||1; ftx/=tl; fty/=tl; ftz/=tl;
+        ftx+=camX*0.18; fty+=-camY*0.18; tl=Math.hypot(ftx,fty,ftz)||1; ftx/=tl; fty/=tl; ftz/=tl;   // gentle look-steer
+        const La=ringR*0.8;
+        const flyB=basisFrom(fpx,fpy,fpz, fpx+ftx*La, fpy+fty*La, fpz+ftz*La);       // cockpit: look ahead on the ring
+        // --- overview camera: orbit the galaxy centre (origin) ---
+        const D=ringR*OV_DFAC, phi=OV_PHI;                                           // look down onto the disc → rounder ellipse
+        const opx=D*Math.cos(phi)*Math.sin(ovA), opy=D*Math.sin(phi), opz=D*Math.cos(phi)*Math.cos(ovA);
+        const ovB=basisFrom(opx,opy,opz, 0,0,0);                                     // overview: look at the galaxy centre
+        // --- position lerps; ORIENTATION slerps along the shortest arc (no roll-flip on a randomized re-entry) ---
+        const camPx=fpx+(opx-fpx)*bl, camPy=fpy+(opy-fpy)*bl, camPz=fpz+(opz-fpz)*bl;
+        const B=quatBasis(slerpQ(basisToQuat(...flyB), basisToQuat(...ovB), bl));
+        const fx=B.fx, fy=B.fy, fz=B.fz, rx=B.rx, ry=B.ry, rz=B.rz, ux=B.ux, uy=B.uy, uz=B.uz;
+        const vis=clusterVis; let vn=0;
+        for(const i of clusterMembers){ const s=sprites[i];
+          const rxp=s.wx-camPx, ryp=s.wy-camPy, rzp=s.wz-camPz;
+          const cz=rxp*fx+ryp*fy+rzp*fz;                              // camera-space depth
+          if(cz<0.08){ s._bs=0; continue; }                          // behind the camera (the arc you just flew past)
+          const nf=cz<1.6?cz/1.6:1;                                  // fade the head you're flying into (avoid whiteout)
+          const al=nf*(1-bl) + 0.92*bl;                              // full-lit in the galaxy view
+          if(al<0.012){ s._bs=0; continue; }
+          const cx=rxp*rx+ryp*ry+rzp*rz, cy=rxp*ux+ryp*uy+rzp*uz;
+          const inv=F/cz, sx=W*0.5+cx*inv, sy=H*0.5-cy*inv, size=s.ws*inv;
+          if(size<1.2 || sx<-size || sx>W+size || sy<-size || sy>H+size){ s._bs=0; continue; }
+          s._bx=sx; s._by=sy; s._bs=size; s._z=-cz; s._al=al;        // _z=-cz → larger = closer (hit-test picks topmost)
+          vis[vn++]=i;
+        }
+        const list=vis.slice(0,vn).sort((a,b)=> sprites[a]._z - sprites[b]._z);   // far → near for correct alpha-over
+        let mo=0;
+        for(const idx of list){ const s=sprites[idx]; const hs=s._bs*0.5;
+          mo=quadWH(mainArr,mo, s._bx,s._by, hs,hs, s.u0,s.v0,s.u1,s.v1, s._al);
+          if(mo>=mainArr.length-30) break;
+        }
+        gl.bindTexture(gl.TEXTURE_2D,atlasTex); gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+        gl.bindBuffer(gl.ARRAY_BUFFER,vbo); gl.bufferData(gl.ARRAY_BUFFER,mainArr.subarray(0,mo),gl.DYNAMIC_DRAW); setAttribs();
+        gl.drawArrays(gl.TRIANGLES,0,mo/5);
+      }
+    }
+    fa++; ft+=dt; if(ft>=0.5){ sFps.textContent=Math.round(fa/ft); fa=0; ft=0; }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  modeFromHash();   // now safe: theme is defined + the render loop is live (fixes hash-routed #origins/#mosaic on load)
+})();
+</script>
+</body>
+</html>

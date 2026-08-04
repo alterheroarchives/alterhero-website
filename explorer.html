@@ -274,7 +274,7 @@
     <button data-min="150" class="on" title="Medium">▦</button>
     <button data-min="110" title="Small">⋯</button>
   </div>
-  <a class="tbtn" href="index.html" title="Back to the mosaic">◎ Mosaic</a>
+  <a class="tbtn" href="galaxy.html" title="Back to the mosaic">◎ Mosaic</a>
 </header>
 
 <div class="wrap">
@@ -413,7 +413,7 @@
   var favs = loadFavs();
   var state = { q:"", qId:null, sort:"id-asc", favOnly:false };
 
-  // shared with the mosaic view (index.html) — same key so favourites carry across both
+  // shared with the mosaic view (galaxy.html) — same key so favourites carry across both
   function loadFavs(){
     try{ return new Set(JSON.parse(localStorage.getItem("ahFavs")||"[]")); }catch(e){ return new Set(); }
   }

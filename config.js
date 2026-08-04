@@ -4,8 +4,8 @@
    HOW TO USE:
      1. Change any number below.
      2. Save this file  (⌘S).
-     3. Refresh home.html in the browser  (⌘R).
-   You never need to open home.html. Every line here has a comment telling you
+     3. Refresh index.html in the browser  (⌘R).
+   You never need to open index.html. Every line here has a comment telling you
    what it does and its default number, so you can always put it back.
 
    POSITION x / y  →  a NUDGE in pixels from where the thing already sits.
@@ -132,6 +132,72 @@ window.AH_PARAMS = {
       { title: "Sleep & Tears",  src: "assets/tracks/SLEEP.wav" },
       { title: "FAReast",        src: "assets/tracks/FAReast.wav" },
     ],
+  },
+
+  /* ───────────── 採集 PICTURE GRID  (the FEATURE 004 panel in the AH!rchives) ─────────────
+     ★ THIS LIST IS THE ORDER OF THE PICTURES. ★  Reading left→right, top→bottom, 7 per row.
+     (the BOOT SCREEN script lives further down, at the very bottom of this file)
+
+       · MOVE a piece      → move its number in the list
+       · SWAP two pieces   → swap their two numbers
+       · REPLACE a piece   → change the number
+       · ADD / REMOVE      → add or delete a number (the grid just reflows)
+
+     Every picture is read out of `folder` below, so dropping <number>.png into
+     assets/OGs/21#3 is all it takes for that number to work here. Numbers whose
+     file hasn't been moved into that folder yet still work — they quietly fall
+     back to the older folders (21#2, assets/OGs, collection#999). */
+  picturesPanel: {
+    folder: 'assets/OGs/21#3',
+    order: [
+       851, 13, 828, 407, 122, 143, 232,
+      390,  48, 310, 450, 713, 754, 550,
+       667, 805, 161, 495, 153, 107,
+    ],
+    /* the two Japanese captions — `at` is the position in the list above (1 = first picture) */
+    sideLabel: { text: '採集',             at: 1 },
+    topLabel:  { text: '悪者は一人もいない', at: 7 },
+  },
+
+  /* ───────────── BOOT SCREEN  (the typing intro, before the home page appears) ─────────────
+     White screen, black text, ONE LINE AT A TIME, typed letter by letter like an old
+     terminal booting up. Clicking anywhere (or pressing any key) skips straight in.
+     Add / remove / reword lines freely — the list below is the whole script. */
+  boot: {
+    typeSpeed:  16,    // DEFAULT ms per letter — LOWER types faster                (default 16)
+    cycleSpeed: 45,    // ms per step for the {scrambled} letters spinning into place (default 45)
+    linePause: 400,    // DEFAULT pause after a line, when it doesn't set its own   (default 400)
+    endPause: 2000,    // ms the cursor blinks on the last line before the fade     (default 900)
+    fadeOut:   600,    // ms for the white screen to fade away at the end           (default 600)
+    showEveryVisit: true,   // false = show only on the first load of each browser session
+
+    /* Each line can set its OWN rhythm — that's what gives the sequence its pacing:
+         after : ms of silence AFTER this line lands, before the next one starts
+         speed : ms per letter for this line (0 = the whole line drops in at once)
+         lock  : freeze the block here — every line after this one grows downward
+                 instead of nudging what's already on screen
+       Leave any of them out and it falls back to typeSpeed / linePause above.
+       Lines STACK like a terminal log — they don't replace each other.
+
+       ★ LETTER CYCLING ★  Wrap any letters in {braces} and they arrive SCRAMBLED, then
+       spin into place — each one starting on a different random character and stepping
+       forward (X→Y→Z→A→…) until it finds itself. They settle at different moments, so
+       the word looks discovered rather than typed. The braces never show on screen.
+       Letters cycle A–Z, digits cycle 0–9, and !?#*@&%$ cycle among themselves. */
+    lines: [
+      { text: 'searching...',              after:  600 },
+      { text: 'loading alterhero.xyz...',  after:  400 },
+      { text: 'no signal...',              after: 1200, lock: true },   // ← let it hang. position locks here.
+
+      /* …then the burst: these come in almost on top of each other, and unscramble as they land */
+      { text: 'searching...',                   after:   60, speed: 4 },
+      { text: 'loading t{ah!}pes...',           after:   60, speed: 4 },
+      { text: 'loading PH{E}N{O}MEN{AH}!...',   after:   60, speed: 4 },
+      { text: 'loading {999} ah!rchives...',    after: 1200, speed: 4 },   // ← second long beat, same as 'no signal...'
+
+      { text: 'v0.777 ready',              after:  600 },
+      { text: 'the walk begins.',          after:  200 },   // ← last line. the cursor then blinks alone
+    ],                                                      //   for `endPause` before the site fades in
   },
 
 };

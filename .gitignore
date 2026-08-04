@@ -29,3 +29,19 @@ assets/* *.png
 
 # unrelated Electron project living in this folder — its node_modules once broke a push (141MB file, GitHub's 100MB limit)
 TAH!PES/
+
+# Full-res masters (698MB, 1080px PNG). The site ships zoom/ (512px, 54MB) instead — see below.
+# Keep these locally: they are the source for regenerating zoom/, and they hash to the
+# collection's on-chain image CID QmVJncJRjcDRz8ok9kEKpjvfStvuV4GMhnEfYoz7xwro8j.
+collection#999/
+
+# Original art folders — superseded by zoom/ for anything the website serves. Local-only.
+assets/OGs/
+
+# Mint metadata for IPFS — never read by the website, and the space in the folder name
+# breaks netlify deploys (same reason as the screenshots above).
+assets/jsonfiles_for_ipfs updated/
+
+# local backups
+*#backup.html
+assets/explorer_backup.html
