@@ -15,11 +15,14 @@
      Assets expected: assets/hero.png (collage) + assets/logo.png (graffiti mark).
      Falls back to a placeholder image until those files are dropped in.
      ============================================================================ */
-  :root{ --ink:#111; --paper:#fff; --mono:ui-monospace,"SF Mono",Menlo,monospace; }
+  :root{ --ink:#111; --paper:#f1f0ec; --mono:ui-monospace,"SF Mono",Menlo,monospace; }
   *{ box-sizing:border-box; margin:0; }
   html,body{ height:100%; }
   body{ font-family:var(--mono); color:var(--ink); background:var(--paper); overflow:hidden;
     -webkit-font-smoothing:antialiased; touch-action:none; }
+  body::after{ content:''; position:fixed; inset:0; pointer-events:none; z-index:9998; opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23g)'/%3E%3C/svg%3E");
+    background-size:220px 220px; }
 
   /* ---- the stage: hero collage removed — the three icons now hold the centre ---- */
   #stage{ display:none; }
@@ -30,7 +33,7 @@
 
   /* ---- logo + motto pinned to the TOP ---- */
   #top{ position:fixed; left:0; right:0; top:13.4vh; z-index:5; display:flex; flex-direction:column; align-items:center; pointer-events:none; }   /* 10% lower (was 3.4vh) */
-  #logo{ width:min(16.1vh,34.5vw,184px); opacity:0; transition:opacity 1s ease .3s; user-select:none; -webkit-user-drag:none; }   /* 10% bigger */
+  #logo{ width:min(16.1vh,34.5vw,184px); opacity:0; transition:opacity 1s ease .3s; user-select:none; -webkit-user-drag:none; }
   #logo.in{ opacity:1; }
   #motto{ margin-top:10px; font-size:11px; letter-spacing:.3em; text-transform:uppercase; color:#8a8290;
     opacity:0; transition:opacity 1s ease .5s; }
@@ -490,9 +493,14 @@
     font-size:11px; letter-spacing:.24em; text-transform:uppercase; color:#9fb4d6; text-shadow:0 1px 12px rgba(0,0,0,.8);
     opacity:0; transition:opacity .4s ease; }
   #arcLabel.in{ opacity:.9; }
-  /* book = warm paper */
-  #wBook, #reveal.toBook{ background:#f3ead6; }
+  /* book = old paper */
+  #wBook, #reveal.toBook{ background:#f1f0ec; }
   #wBook{ color:#2a2016; } #wBook .card{ border-color:rgba(42,32,22,.18); background:rgba(255,255,255,.4); }
+  /* paper grain overlay — felt not seen */
+  #wBook::after{ content:''; position:absolute; inset:0; pointer-events:none; z-index:99;
+    opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23g)'/%3E%3C/svg%3E");
+    background-size:220px 220px; }
   /* PHENOMENAH hub is now a SCROLL-REVEAL. Sections flow top→bottom (masthead · pages · launcher · logo)
      and each fades + rises in as it scrolls into view (.reveal + the IntersectionObserver in the JS). The
      scrollbar is hidden for a clean look. Terminal launcher (thumbnails at assets/thumbnails/PHE/, read
@@ -544,9 +552,9 @@
     text-transform:uppercase; transform-origin:bottom center; opacity:0;
     position:relative; left:var(--big-x,0px); top:var(--big-y,0px); }
   .mast .byl{ font-family:'Heath','Metroway',var(--mono),sans-serif; text-transform:uppercase; letter-spacing:.12em; color:#2a2016; margin:0; opacity:0; }
-  /* hand-written subtitle image (a_mythology_sub.png) replaces the text byline */
+  /* hand-written subtitle image (a_mythology_sub.png) — invisible but holds its space */
   .mast .mast-sub{ display:block; margin:1.1em auto 0; width:auto; height:auto; max-width:min(300px,80vw); opacity:0;
-    position:relative; left:var(--sub-x,0px); top:var(--sub-y,0px); }
+    position:relative; left:var(--sub-x,0px); top:var(--sub-y,0px); visibility:hidden; }
   /* ---- movable magazine callout boxes (retro JP-mag vibe). Absolute inside .mast → overlay the title; move
      each with its --b*-x / --b*-y knobs above. Add more by copying the pattern. ---- */
   .mast .mag-box{ position:absolute; pointer-events:none; z-index:6; text-align:left;
@@ -568,8 +576,6 @@
   @keyframes mastBig{ 0%{ opacity:0; transform:translateY(22px) scaleY(1.06); } 55%{ opacity:1; } 100%{ opacity:1; transform:translateY(0) scaleY(1); } }
   @keyframes mastSlideL{ 0%{ opacity:0; transform:translateX(-62vw); } 100%{ opacity:1; transform:translateX(0); } }   /* title in from the left */
   @media (prefers-reduced-motion:reduce){ .mast .jp,.mast .big,.mast .byl{ opacity:1 !important; animation:none !important; } }
-  .hub-pencil{ position:absolute; left:-50px; bottom:-12px; width:30px; height:auto; cursor:pointer; filter:drop-shadow(0 2px 4px rgba(20,16,10,.2)); transition:transform .15s; }   /* bottom-left · 5% smaller (32→30) · lowered (bottom:20→-12) */
-  .hub-pencil:hover{ transform:scale(1.08) rotate(-4deg); }
   .hub-launch{ position:relative; z-index:5;
     display:none; flex-wrap:wrap; justify-content:center; gap:18px; align-items:center; width:max-content; max-width:90vw; }   /* flows below the pages when the pencil opens it */
   .hub-launch.open{ display:flex; }
@@ -623,7 +629,7 @@
   #wMusic{ color:#efe7f6; } #wMusic .btn{ color:#e08a63; } #wMusic .card{ border-color:rgba(255,255,255,.12); }
   #wMusic .wrap{ display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100%; }   /* centre the eyebrow + player, both axes */
   #wMusic .mfplayer{ margin-top:14px; }
-  /* littleMF soundtrack player (BEAH!TS) — faithful port of TAH!PES's actual app.html UI: the real cassette
+  /* littleMF soundtrack player (BEAH!TS) — faithful port of TAHPES's actual app.html UI: the real cassette
      panel art, the Web Audio visualizer floating above it, two toggleable pixel-sprite characters (OG/MF)
      standing on the tape, scrolling marquee track name, and an A-side/B-side playlist. EQ + cover/tag editing
      (both Node/Electron-only, and EQ was decorative even in the real app) are intentionally left out. */
@@ -728,7 +734,8 @@
   #rotatePrompt{ display:none; position:fixed; inset:0; z-index:999; background:#111014;
     flex-direction:column; align-items:center; justify-content:center; gap:26px; color:#fff;
     font-family:var(--mono); text-align:center; padding:24px; }
-  @media (max-width:600px) and (orientation:portrait){ #rotatePrompt{ display:flex; } }
+  /* portrait phones: scale the whole page to fit instead of blocking */
+  @media (max-width:600px) and (orientation:portrait){ #rotatePrompt{ display:none; } }
   .rot-phone{ width:50px; height:86px; border:3px solid #fff; border-radius:10px; position:relative; flex:none;
     animation:rot-turn 1.8s ease-in-out infinite; }
   .rot-phone::after{ content:''; position:absolute; top:7px; left:50%; transform:translateX(-50%);
@@ -740,17 +747,82 @@
   /* ---- BOOT SCREEN — plain white, black type, one line at a time like a terminal coming up.
      Sits above everything (worlds are 21, topnav 22, lightbox 100) so it hides the sprites
      loading in underneath. Text/timings live in config.js → boot. ---- */
-  #boot{ position:fixed; inset:0; z-index:9999; background:#fff; display:flex; align-items:center; justify-content:center;
+  #boot{ position:fixed; inset:0; z-index:9999; background:#f1f0ec;
     font-family:'RatProp', ui-monospace,'SF Mono',Menlo,monospace; color:var(--ink);
-    font-size:12px; letter-spacing:.5px;                    /* same type as the dialogue bubbles (--code-size) */
+    font-size:12px; letter-spacing:.5px;
     cursor:pointer; transition:opacity .6s ease; }
   #boot.done{ opacity:0; pointer-events:none; }
-  /* the log stacks downward like a terminal; the whole block stays vertically centred as it grows */
-  #boot .bootlog{ text-align:left; line-height:2.05; max-height:86vh; overflow:hidden; }
+  /* pinned by JS before the first line — never moves again */
+  #boot .bootlog{ position:fixed; text-align:left; line-height:2.05; white-space:nowrap; }
   #boot .bootline{ white-space:pre; min-height:1em; }
   /* the cursor only ever sits on the line currently being typed — i.e. the last one */
   #boot .bootline:last-child::after{ content:''; display:inline-block; width:.45em; height:.95em; background:currentColor;
     opacity:.75; margin-left:.2em; vertical-align:-.1em; animation:codeblink 1s steps(1) infinite; }
+
+  /* ============================================================================
+     AH! STUDIO — the workshop. Every tool we've built, standing on one shelf.
+     Deliberately echoes the home page: figures on a floor line, the chosen one
+     centred and largest, the others waiting to the side.
+     ============================================================================ */
+  #wStudio, #reveal.toStudio{ background:#f1eee8; }
+  #wStudio{ color:#221d17; overflow:hidden; }
+  /* the home page's logo lives in #top at z-index:5, well under .world's 21, so it's
+     invisible once any world is open. Studio wants that exact same logo, in that exact
+     same spot — so rather than duplicate it, lift #top above the panel while Studio is
+     open. #logo already carries opacity:1 permanently after its first load (.in), so
+     nothing needs re-triggering here. */
+  body.studio-open #top{ z-index:23; }
+  #studioWord{ margin-top:2px; font-family:var(--mono); font-size:11px; letter-spacing:.42em;
+    text-transform:uppercase; color:#111; opacity:0; text-align:center; }
+  body.studio-open #studioWord{ opacity:1; }
+
+  /* icons sit around the vertical middle — padding-top does the work rather than
+     centring, so they clear the logo lockup above instead of colliding with it */
+  #wStudio .st-wrap{ min-height:100%; display:flex; flex-direction:column; align-items:center;
+    justify-content:flex-start; padding:48vh 4vw 8vh; position:relative; }
+
+  /* the shelf — tools on a common baseline. A 3-column grid, not a flex row: flex
+     centres the whole group, which pushed READIM right of centre. The middle column
+     holds READIM so it sits dead centre. */
+  #wStudio .st-shelf{ position:relative; display:grid; grid-template-columns:1fr auto 1fr;
+    align-items:flex-end; width:100%; max-width:1060px; }
+  #wStudio .st-left{ display:flex; align-items:flex-end; justify-content:flex-start;
+    gap:clamp(20px,4vw,58px); padding-left:clamp(20px,4vw,58px); }
+  /* the sprite editor stands on the right — GIANT's side, on the home page's own orb row */
+  #wStudio .st-right{ display:flex; align-items:flex-end; justify-content:flex-start;
+    gap:clamp(20px,4vw,58px); padding-left:clamp(20px,4vw,58px); }
+
+  #wStudio .st-app{ appearance:none; background:none; border:0; padding:0; cursor:pointer; text-decoration:none;
+    display:flex; flex-direction:column; align-items:center; gap:14px; color:inherit; font:inherit;
+    transition:transform .22s cubic-bezier(.3,1.3,.5,1), opacity .22s ease; opacity:.82; }
+  #wStudio .st-app:hover, #wStudio .st-app:focus-visible{ opacity:1; transform:translateY(-7px); outline:0; }
+  #wStudio .st-app img{ display:block; width:100%; height:auto; image-rendering:auto;
+    filter:drop-shadow(0 12px 20px rgba(34,29,23,.18)); }
+  #wStudio .st-app .st-name{ font-family:'Heath','Metroway','Anton','Arial Narrow','Impact',sans-serif;
+    font-size:42px; letter-spacing:.06em; text-transform:uppercase; color:#221d17; white-space:nowrap; font-weight:400; }
+  #wStudio .st-app .st-note{ font-family:var(--mono); font-size:9px; letter-spacing:.14em;
+    text-transform:uppercase; color:#a09890; margin-top:-8px; }
+
+  /* READIM — the middle, and the biggest */
+  #wStudio .st-readim{ width:clamp(195px,27.3vw,320px); }
+  #wStudio .st-sprite{ width:clamp(135px,18.2vw,218px); }
+  #wStudio .st-sprite img{ image-rendering:pixelated; }
+  /* the spare slot — small, deliberately blank until it earns a name */
+  #wStudio .st-slot{ width:clamp(45px,6vw,72px); opacity:.42; }
+  #wStudio .st-slot:hover{ opacity:.7; transform:translateY(-4px); }
+  #wStudio .st-slot .st-box{ width:100%; aspect-ratio:1; border:1px dashed rgba(34,29,23,.4); border-radius:5px;
+    display:grid; place-items:center; font-family:var(--mono); font-size:17px; color:rgba(34,29,23,.45); }
+  #soonMsg{ position:fixed; left:50%; bottom:12vh; transform:translateX(-50%); font-family:var(--mono);
+    font-size:12px; letter-spacing:.12em; color:#221d17; opacity:0; transition:opacity .4s ease;
+    white-space:nowrap; pointer-events:none; z-index:10; }
+  #soonMsg.in{ opacity:1; }
+  #soonMsg .cur{ display:inline-block; width:6px; height:13px; background:#221d17; margin-left:1px;
+    animation:blink .7s step-end infinite; vertical-align:text-bottom; }
+
+  @media (max-width:700px){
+    #wStudio .st-shelf{ gap:18px; }
+    #wStudio .st-wrap{ padding-top:42vh; }
+  }
 </style>
 </head>
 <body>
@@ -788,6 +860,9 @@
   <header id="top">
     <img id="logo" alt="ALTER HERO" />
     <div id="logoFallback">Alter<br>Hero.</div>
+    <!-- shown only in AH! Studio (body.studio-open) — sits directly under the SAME logo,
+         inheriting #top's flex-column stacking rather than being positioned by hand -->
+    <div id="studioWord">STUDIO</div>
   </header>
 
   <div id="soil" aria-hidden="true"></div>
@@ -955,10 +1030,12 @@
           font-size:10px; letter-spacing:.2em; color:#fff; text-shadow:0 1px 6px rgba(0,0,0,.9); }
         #arcLayers .arc-art .cat .cat-jp{ display:block; font-family:'Noto Sans JP','Hiragino Sans',sans-serif;
           font-size:17px; color:#fff; text-shadow:0 1px 6px rgba(0,0,0,.9); margin-top:2px; }
-        /* — PHENOMENAH (WalkBoy) page label: 手記 beside FORMAT / HANDWRITTEN — */
-        .hub-cap .fmt-row{ display:inline-flex; align-items:center; gap:14px; }
-        .hub-cap .fmt-jp{ font-family:'Noto Sans JP','Hiragino Sans',sans-serif; font-size:27px; line-height:1; letter-spacing:0; }
-        .hub-cap .fmt-col{ display:inline-flex; flex-direction:column; }
+
+        /* — PHENOMENAH page label: 手記 on the left, all four text lines in a column to its right — */
+        /* two side-by-side note packs, bottom-aligned: 手記 on the left, main notes on the right */
+        .hub-cap .cap-split{ display:inline-flex; align-items:flex-end; gap:14px; }
+        .hub-cap .fmt-jp{ font-family:'Noto Sans JP','Hiragino Sans',sans-serif; font-size:24px; line-height:1.4; letter-spacing:0; }
+        .hub-cap .cap-main{ display:inline-block; }
 
         /* — panel IV: 採集 — 21 origins specimen plate — */
         #arcLayers .arc-art .field-wrap{ display:flex; flex-direction:column; align-items:center; gap:clamp(12px,2.4vh,26px); width:100%; }
@@ -1128,7 +1205,7 @@
       <!-- I · the hero -->
       <div class="layer arc-art arc-hero" data-title="アーカイブ">
         <div class="stage">
-          <div class="frame portrait"><img src="assets/ah!rchives_display/277.png" onerror="this.onerror=null;this.src='thumbs/277.jpg'" alt="" loading="lazy"><span class="tag">#277</span></div>
+          <div class="frame portrait"><img src="assets/display1024/277.jpg" onerror="this.onerror=null;this.src='thumbs/277.jpg'" alt="" loading="lazy"><span class="tag">#277</span></div>
           <div class="banner p1-label1">
             <h2 class="collname p1-title">AH!RCHIVES</h2>
             <div class="jp-sub">アーカイブ</div>
@@ -1140,12 +1217,12 @@
       <div class="layer arc-art arc-three" data-title="Feature 002">
         <div class="stage">
           <div class="main">
-            <div class="frame big"><img src="assets/ah!rchives_display/77.png" onerror="this.onerror=null;this.src='thumbs/77.jpg'" alt="" loading="lazy"><span class="tag">#77</span></div>
+            <div class="frame big"><img src="assets/display1024/77.jpg" onerror="this.onerror=null;this.src='thumbs/77.jpg'" alt="" loading="lazy"><span class="tag">#77</span></div>
             <div class="cap-out p2-label1"><span class="feat">FEATURE 002</span><span class="feat-en">I wasn't searching for traits<br>I was remembering a frequency</span><span class="phon">[ äl̪t̪er]  ヒーロー</span></div>
           </div>
           <div class="side">
-            <div class="frame sm"><img src="assets/ah!rchives_display/159.png" onerror="this.onerror=null;this.src='thumbs/159.jpg'" alt="" loading="lazy"><span class="tag">#159</span></div>
-            <div class="frame sm"><img src="assets/ah!rchives_display/2.png" onerror="this.onerror=null;this.src='thumbs/2.jpg'" alt="" loading="lazy"><span class="tag">#2</span></div>
+            <div class="frame sm"><img src="assets/display1024/159.jpg" onerror="this.onerror=null;this.src='thumbs/159.jpg'" alt="" loading="lazy"><span class="tag">#159</span></div>
+            <div class="frame sm"><img src="assets/display1024/2.jpg" onerror="this.onerror=null;this.src='thumbs/2.jpg'" alt="" loading="lazy"><span class="tag">#2</span></div>
           </div>
         </div>
       </div>
@@ -1154,18 +1231,18 @@
       <div class="layer arc-art arc-field" data-title="図録">
         <div class="stage">
           <div class="cell-a">
-            <div class="frame"><img src="assets/ah!rchives_display/7.png" onerror="this.onerror=null;this.src='assets/OGs/21/7.png'" alt="" loading="lazy"><span class="tag">#7</span></div>
+            <div class="frame"><img src="assets/display1024/7.jpg" onerror="this.onerror=null;this.src='assets/OGs/21/7.png'" alt="" loading="lazy"><span class="tag">#7</span></div>
             <div class="note-under p3-label2">
               <span class="feat">FEATURE 003</span>
               <div class="feat-en">Thousands were generated<br>Hundreds survived<br>Every layer was hand-drawn<br>Every piece was selected by hand</div>
             </div>
           </div>
-          <div class="frame b"><img src="assets/ah!rchives_display/982.png" onerror="this.onerror=null;this.src='thumbs/982.jpg'" alt="" loading="lazy"><span class="tag">#982</span><div class="note-title p3-label1">図録</div></div>
-          <div class="frame c"><img src="assets/ah!rchives_display/292.png" onerror="this.onerror=null;this.src='assets/OGs/21/292.png'" alt="" loading="lazy"><span class="tag">#292</span></div>
-          <div class="frame d"><img src="assets/ah!rchives_display/272.png" onerror="this.onerror=null;this.src='thumbs/272.jpg'" alt="" loading="lazy"><span class="tag">#272</span></div>
-          <div class="frame e"><img src="assets/ah!rchives_display/172.png" onerror="this.onerror=null;this.src='assets/OGs/21/172.png'" alt="" loading="lazy"><span class="tag">#172</span></div>
-          <div class="frame f"><img src="assets/ah!rchives_display/110.png" onerror="this.onerror=null;this.src='thumbs/110.jpg'" alt="" loading="lazy"><span class="tag">#110</span></div>
-          <div class="frame g"><img src="assets/ah!rchives_display/631.png" onerror="this.onerror=null;this.src='thumbs/631.jpg'" alt="" loading="lazy"><span class="tag">#631</span><div class="note-right p3-label3"><div class="feat-ja">偶然が提案した<br>選んだのは私だ</div><div class="feat-en">When one silently judges me…<br>I usually keep it</div></div></div>
+          <div class="frame b"><img src="assets/display1024/982.jpg" onerror="this.onerror=null;this.src='thumbs/982.jpg'" alt="" loading="lazy"><span class="tag">#982</span><div class="note-title p3-label1">図録</div></div>
+          <div class="frame c"><img src="assets/display1024/292.jpg" onerror="this.onerror=null;this.src='assets/OGs/21/292.png'" alt="" loading="lazy"><span class="tag">#292</span></div>
+          <div class="frame d"><img src="assets/display1024/272.jpg" onerror="this.onerror=null;this.src='thumbs/272.jpg'" alt="" loading="lazy"><span class="tag">#272</span></div>
+          <div class="frame e"><img src="assets/display1024/172.jpg" onerror="this.onerror=null;this.src='assets/OGs/21/172.png'" alt="" loading="lazy"><span class="tag">#172</span></div>
+          <div class="frame f"><img src="assets/display1024/110.jpg" onerror="this.onerror=null;this.src='thumbs/110.jpg'" alt="" loading="lazy"><span class="tag">#110</span></div>
+          <div class="frame g"><img src="assets/display1024/631.jpg" onerror="this.onerror=null;this.src='thumbs/631.jpg'" alt="" loading="lazy"><span class="tag">#631</span><div class="note-right p3-label3"><div class="feat-ja">偶然が提案した<br>選んだのは私だ</div><div class="feat-en">When one silently judges me…<br>I usually keep it</div></div></div>
         </div>
       </div>
 
@@ -1221,7 +1298,6 @@
       </header>
       <div class="hub-hero"><img src="assets/originals/PHE/theWB.png" alt="PHENOMENAH — the WalkBoy" loading="lazy"></div>
       <div class="hub-row reveal">
-        <img class="hub-pencil" id="hubPencil" src="assets/pencil.png" alt="" title="click to reveal the launch command">
         <div class="hub-pages" id="hubPages"></div>
       </div>
       <div class="hub-launch reveal" id="hubLaunch">
@@ -1244,6 +1320,43 @@
         <div class="hr-spread" id="hrSpread"></div>
         <button class="hr-nav next" id="hubNext">›</button>
       </div>
+    </div>
+  </section>
+
+  <!-- AH! STUDIO — the workshop that hosts every tool. Opened from the footer link. -->
+  <section class="world" id="wStudio" aria-hidden="true">
+    <div class="topnav">
+      <button class="back" data-close>← AH!</button>
+      <button class="spk-btn" id="spkStudio" data-speaker title="toggle music"><img src="assets/speaker.png" alt=""></button>
+    </div>
+    <div class="st-wrap">
+      <div class="st-shelf">
+        <div class="st-left">
+          <!-- spare slot — stays nameless until we decide what it is -->
+          <button class="st-app st-slot" id="stSlot" title="Reserved for the next tool">
+            <div class="st-box">+</div>
+            <span class="st-name" style="color:#a09890">soon</span>
+            <span class="st-note" style="visibility:hidden">.</span>
+          </button>
+        </div>
+
+        <!-- READIM (was BOOKmaker) — centre stage. Runs in the browser now, so it
+             opens like the sprite editor does: a plain link, no desktop detour. -->
+        <a class="st-app st-readim" href="READIM.html">
+          <img src="assets/Title-Icon.png" alt="">
+          <span class="st-name">REAHDIM</span>
+          <span class="st-note">bookroom</span>
+        </a>
+
+        <div class="st-right">
+          <a class="st-app st-sprite" href="AH-Sprite-Studio.html">
+            <img src="assets/spritestudiologo.png" alt="">
+            <span class="st-name">Sprite Lahb</span>
+            <span class="st-note">pixel workshop</span>
+          </a>
+        </div>
+      </div>
+      <div id="soonMsg"></div>
     </div>
   </section>
 
@@ -1286,6 +1399,24 @@
     </div>
   </section>
 
+<script>
+(function(){
+  var MIN_W=900;
+  var vp=document.querySelector('meta[name="viewport"]');
+  function check(){
+    if(!vp) return;
+    var portrait=window.innerHeight>window.innerWidth, narrow=screen.width<=600;
+    if(portrait && narrow){
+      vp.setAttribute('content','width='+MIN_W+', viewport-fit=cover');
+    } else {
+      vp.setAttribute('content','width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover');
+    }
+  }
+  check();
+  addEventListener('resize',check);
+  addEventListener('orientationchange',function(){ setTimeout(check,200); });
+})();
+</script>
 <script>document.write('<script src="config.js?t='+Date.now()+'"><\/script>');</script>   <!-- ← ARTIST CONTROLS live in config.js: edit numbers there, then refresh. Cache-busted (Date.now()) so edits always show up, no need to disable cache for this file specifically. -->
 <script>
 /* BOOT SCREEN — types AH_PARAMS.boot.lines out one line at a time, then lifts the white
@@ -1297,6 +1428,9 @@
   var RAW=P.lines||[];
   function drop(){ if(el.parentNode) el.parentNode.removeChild(el); }
   if(!RAW.length){ drop(); return; }
+  // arriving back from a tool (index.html#studio) is a return, not an entrance —
+  // the terminal sequence belongs to the front door only
+  if(location.hash==='#studio'){ drop(); return; }
   try{                                                    // optional: only once per browser session
     if(P.showEveryVisit===false && sessionStorage.getItem('ah_booted')){ drop(); return; }
     sessionStorage.setItem('ah_booted','1');
@@ -1304,18 +1438,30 @@
   var TYPE=P.typeSpeed||16, HOLD=P.linePause||220, FADE=P.fadeOut||600, CYCLE=P.cycleSpeed||45;
   /* a line is either a plain string or { text, speed, after } — speed 0 drops it in whole */
   var LINES=RAW.map(function(s){ return (typeof s==='string') ? {text:s} : (s||{text:''}); });
-  var i=0, timer=null, over=false, locked=false, spinTimers=[];
+  var i=0, timer=null, over=false, spinTimers=[];
+
+  /* Pre-position the block ONCE before the first line types — it never moves again.
+     Both axes are fixed pixel values so no reflow or translateX wobble as lines change width. */
+  (function prePosition(){
+    var lineH = 12 * 2.05;                              // font-size × line-height (matches CSS)
+    var totalH = LINES.length * lineH;
+    var topPos = Math.max(20, Math.round((window.innerHeight - totalH) / 2));
+    /* widest line estimate — strip braces, measure char count, assume ~7.5px/char monospace */
+    var maxChars = LINES.reduce(function(m,l){
+      return Math.max(m, (l.text||'').replace(/[{}]/g,'').length);
+    }, 0);
+    var estW = maxChars * 7.5;
+    var leftPos = Math.max(20, Math.round((window.innerWidth - estW) / 2));
+    log.style.top  = topPos  + 'px';
+    log.style.left = leftPos + 'px';
+  })();
+
   function finish(){ if(over) return; over=true; clearTimeout(timer);
-    spinTimers.forEach(clearTimeout); spinTimers.length=0;               // stop any letters still spinning
-    el.classList.add('done'); setTimeout(drop, FADE); }
-  /* Until the lock line, the block is flex-centred, so each new line nudges the whole thing up.
-     On the line flagged `lock:true` we pin the block exactly where it currently sits, so every
-     line after that grows DOWNWARD and nothing already on screen ever moves again. */
-  function lockPosition(){
-    if(locked) return; locked=true;
-    var r=log.getBoundingClientRect();
-    log.style.position='fixed'; log.style.top=Math.round(r.top)+'px'; log.style.left=Math.round(r.left)+'px';
-  }
+    spinTimers.forEach(clearTimeout); spinTimers.length=0;
+    drop(); }  /* instant cut — no fade */
+
+  /* lock:true in config is kept for compatibility but no longer repositions anything */
+  function lockPosition(){}
   /* ---- letter-cycling ("the word is discovered, not typed") ----
      Characters wrapped in {braces} in config land on a RANDOM character first, then step
      forward through their alphabet — X→Y→Z→A→… — until each hits its real letter and locks.
@@ -1877,12 +2023,48 @@
     if(dock.classList.contains('show')){ var mf=orbs.filter(function(x){return x.key==='music';})[0]; if(mf) codeStop(mf); }
   }
   function close(){ if(!openWorld) return; var w=openWorld;
+    // drop #studio on the way out, so a reload from the home page stays on the home page
+    if(location.hash==='#studio'){ try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
     w.classList.remove('show'); w.setAttribute('aria-hidden','true');
     arcLayers.forEach(function(L){ L.classList.remove('active','enter'); }); arcIdx=0;   // reset paged state
-    setTimeout(function(){ document.body.classList.remove('opening','sink-music','vacuum','vacuum-mf'); openWorld=null; revealedOrb=null;
+    setTimeout(function(){ document.body.classList.remove('opening','sink-music','vacuum','vacuum-mf','studio-open'); openWorld=null; revealedOrb=null;
       orbs.forEach(function(x){ x.el.classList.remove('chosen','dim','revealed'); }); }, reduced?0:120);   // restore all icons (+ reset touch reveal)
   }
   [].forEach.call(document.querySelectorAll('[data-close]'), function(b){ b.addEventListener('click', close); });
+
+  /* ---- AH! STUDIO — opened from the footer link ----
+     No teleport sequence: this is a workshop door, not a world you fall into. It still
+     registers as openWorld so ← AH! and Escape close it like everywhere else. */
+  var studioLink=document.getElementById('studioLink'), wStudio=document.getElementById('wStudio');
+  function openStudio(){
+    if(!wStudio) return;
+    if(document.body.classList.contains('opening')) return;
+    openWorld=wStudio;
+    document.body.classList.add('opening','studio-open');   // studio-open lifts #top's logo above the panel
+    showWorld(wStudio, false);
+  }
+  if(studioLink && wStudio){
+    studioLink.addEventListener('click', function(e){ e.preventDefault(); openStudio(); });
+  }
+  /* The tools live on their own pages, so their ← BACK has to land on the shelf it
+     left, not the front door. #studio is that address — opened straight away, with
+     no boot sequence and no orb reveal, so the return reads as stepping back into
+     the room rather than re-entering the site. */
+  if(wStudio && location.hash==='#studio') openStudio();
+  var _soonTyping=false;
+  document.getElementById('stSlot').onclick=function(e){
+    e.preventDefault();
+    var msg=document.getElementById('soonMsg');
+    if(_soonTyping||!msg) return;
+    _soonTyping=true; msg.textContent=''; msg.classList.add('in');
+    var cur=document.createElement('span'); cur.className='cur';
+    msg.appendChild(cur);
+    var txt='Be patient kid. We say soon.', i=0;
+    (function step(){
+      if(i<txt.length){ msg.insertBefore(document.createTextNode(txt[i]),cur); i++; setTimeout(step,48); }
+      else { setTimeout(function(){ msg.classList.remove('in'); setTimeout(function(){ msg.textContent=''; _soonTyping=false; },500); },2800); }
+    })();
+  };
   addEventListener('keydown', function(e){ if(e.key==='Escape') close(); });
   // links inside worlds (archives → index/explorer) navigate normally — they are real <a href>.
 
@@ -1932,7 +2114,7 @@
   var CODE_LINES={
     book:    ['if (world == ∴asleep◆)',  {t:' PHENOMENAH!',bold:true}, ' > Enter?'],
     archives:[{n:999, pre:' ', post:'', ms:1100, bold:true},
-              {segs:[{t:' AH!',bold:true},{t:'RCHIVES'}]},
+              {t:' AHRCHIVES',bold:true},
               ' > Collect?'],
     /* littleMF is a FUNCTION, not a fixed array — it re-reads the player on every hover, so he
        reports what's actually on. Falls back to the idle script if the player hasn't loaded. */
@@ -1944,7 +2126,7 @@
                  ' '+pad(p.index+1)+' / '+pad(p.total),
                  {meter:10, amp:1, pre:' ', post:'  > Open?'} ];
       }
-      return [ {t:'TAH!PE == ∎ready∅', bold:true}, {meter:10, amp:0.35, pre:' ', post:'  > Play?'} ];
+      return [ {t:'TAHPES == ∎ready∅', bold:true}, {meter:10, amp:0.35, pre:' ', post:'  > Play?'} ];
     } };
   /* thumbs/ actually holds 1001 files — 999 is a deliberate choice, not the real total.
      ── GIANT: the typed-code version instead of the count ────────────────────────────
@@ -2247,7 +2429,7 @@
 </script>
 
 <script>
-/* ---- littleMF soundtrack player (BEAH!TS) — faithful port of TAH!PES's real app.html + main.js.
+/* ---- littleMF soundtrack player (BEAH!TS) — faithful port of TAHPES's real app.html + main.js.
        Tracks come from config.js → music.tracks instead of native file dialogs (no local file access on
        the web); everything else — visualizer, OG/MF sprites, marquee, transport, seek, A/B playlist —
        is the same portable web tech the original app already used. ---- */
@@ -2439,11 +2621,12 @@
        the full-res reader. Page order + names come straight from BOOKmaker's manifest.json. ---- */
 (function(){
   var wrap=document.getElementById('wBook'); if(!wrap) return;
+  var _v='?v='+Date.now();
   var PAGES=[                                                        // the 4 pages → 2×2 grid. thumb=full (no separate thumbnails for these)
-    {thumb:'assets/originals/PHE/P1.jpg', full:'assets/originals/PHE/P1.jpg', name:'P1', label:''},
-    {thumb:'assets/originals/PHE/P2.jpg', full:'assets/originals/PHE/P2.jpg', name:'P2', label:''},
-    {thumb:'assets/originals/PHE/P3.jpg', full:'assets/originals/PHE/P3.jpg', name:'P3', label:''},
-    {thumb:'assets/originals/PHE/P4.jpg', full:'assets/originals/PHE/P4.jpg', name:'P4', label:'AH!RCHIVES<br>001<br><br>SOURCE<br>ORIGINAL<br><br><span class="fmt-row"><span class="fmt-jp">手記</span><span class="fmt-col">FORMAT<br><span class="cap-lg">HANDWRITTEN</span></span></span>'},
+    {thumb:'assets/originals/PHE/P1.jpg'+_v, full:'assets/originals/PHE/P1.jpg'+_v, name:'P1', label:''},
+    {thumb:'assets/originals/PHE/P2.jpg'+_v, full:'assets/originals/PHE/P2.jpg'+_v, name:'P2', label:''},
+    {thumb:'assets/originals/PHE/P3.jpg'+_v, full:'assets/originals/PHE/P3.jpg'+_v, name:'P3', label:''},
+    {thumb:'assets/originals/PHE/P4.jpg'+_v, full:'assets/originals/PHE/P4.jpg'+_v, name:'P4', label:'<span class="cap-split"><span class="fmt-jp">手記</span><span class="cap-main">FEATURE 002<br>ORIGINAL IP<br>FORMAT&nbsp;&nbsp;<span class="cap-lg">HANDWRITTEN</span></span></span>'},
   ];
   var grid=document.getElementById('hubPages');
   PAGES.forEach(function(p,i){
@@ -2510,9 +2693,6 @@
       .catch(function(){ copyBtn.textContent='select & ⌘C'; });
   }; }
 
-  // pencil click — reveal/hide the launch command (matches BOOKmaker's own per-chapter pencil icon)
-  var pencil=document.getElementById('hubPencil'), launch=document.getElementById('hubLaunch');
-  if(pencil && launch){ pencil.onclick=function(){ launch.classList.toggle('open'); }; }
 })();
 </script>
 <script>

@@ -1,0 +1,25 @@
+{
+  "chapters": [
+    {
+      "id": "PHE",
+      "pages": [
+        { "file": "P1.jpg", "name": "P1" },
+        { "file": "P2.jpg", "name": "P2" },
+        { "file": "P3.jpg", "name": "P3" },
+        { "file": "P4.jpg", "name": "P4" }
+      ]
+    },
+    {
+      "id": "NO",
+      "pages": []
+    },
+    {
+      "id": "MEN",
+      "pages": []
+    },
+    {
+      "id": "AH",
+      "pages": []
+    }
+  ]
+}

@@ -168,7 +168,7 @@ window.AH_PARAMS = {
     cycleSpeed: 45,    // ms per step for the {scrambled} letters spinning into place (default 45)
     linePause: 400,    // DEFAULT pause after a line, when it doesn't set its own   (default 400)
     endPause: 2000,    // ms the cursor blinks on the last line before the fade     (default 900)
-    fadeOut:   600,    // ms for the white screen to fade away at the end           (default 600)
+    fadeOut:     0,    // no fade — boot screen cuts directly to main page
     showEveryVisit: true,   // false = show only on the first load of each browser session
 
     /* Each line can set its OWN rhythm — that's what gives the sequence its pacing:
@@ -185,17 +185,16 @@ window.AH_PARAMS = {
        the word looks discovered rather than typed. The braces never show on screen.
        Letters cycle A–Z, digits cycle 0–9, and !?#*@&%$ cycle among themselves. */
     lines: [
-      { text: 'searching...',              after:  600 },
-      { text: 'loading alterhero.xyz...',  after:  400 },
-      { text: 'no signal...',              after: 1200, lock: true },   // ← let it hang. position locks here.
+      { text: 'searching...',              after: 1600, lock: true },   // ← cursor blinks, position locks
 
-      /* …then the burst: these come in almost on top of each other, and unscramble as they land */
-      { text: 'searching...',                   after:   60, speed: 4 },
-      { text: 'loading t{ah!}pes...',           after:   60, speed: 4 },
-      { text: 'loading PH{E}N{O}MEN{AH}!...',   after:   60, speed: 4 },
-      { text: 'loading {999} ah!rchives...',    after: 1200, speed: 4 },   // ← second long beat, same as 'no signal...'
+      { text: 'loading tahpes...',              after:  500 },
+      { text: 'loading PH{E}N{O}MEN{AH}!...',   after:  500 },
+      { text: 'loading {999} AHrchives...',     after:  600 },
 
-      { text: 'v0.777 ready',              after:  600 },
+      { text: 'initializing...',           after: 1200, lock: true },   // ← cursor blinks, position locks
+
+      { text: 'v0.7 ready...',             after:  600 },
+      { text: 'loading alterhero...',      after: 1600 },
       { text: 'the walk begins.',          after:  200 },   // ← last line. the cursor then blinks alone
     ],                                                      //   for `endPause` before the site fades in
   },
