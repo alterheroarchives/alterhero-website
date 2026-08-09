@@ -546,7 +546,7 @@
         </div>
         <div class="field" title="frames on timeline"><label>FRAMES</label><input id="samples" type="number" value="0" readonly></div>
         <button id="exportBtn">EXPORT ▸</button>
-        <button id="fpToggle" title="Show / hide the live preview window">⊞ PREVIEW</button>
+        <button id="fpToggle" title="Show / hide the live preview window" style="display:none">⊞ PREVIEW</button>
       </div>
       <div style="display:none"><input id="animName" type="text" value="animation"></div>
     </div>
@@ -1113,8 +1113,14 @@
         dlbl.textContent=t.delay+'×'; dlbl.style.display=t.delay===1?'none':'block';
         markDirty();
       },{passive:false});
-      slot.onclick=function(){ setPlayhead(i); };
-      slot.ondragstart=function(e){                                   // belt-and-braces: never start a reorder
+      (function(idx){
+        var sx=0,sy=0;
+        slot.addEventListener('pointerdown',function(e){ sx=e.clientX; sy=e.clientY; });
+        slot.addEventListener('pointerup',function(e){
+          if(Math.abs(e.clientX-sx)<6 && Math.abs(e.clientY-sy)<6) setPlayhead(idx);
+        });
+      })(i);
+      slot.ondragstart=function(e){
         if(e.target&&e.target!==slot&&/\b(rm|dup)\b/.test(e.target.className)){ e.preventDefault(); return false; }
         e.dataTransfer.setData('text/reorder',i); };
       track.appendChild(slot);
@@ -1940,14 +1946,7 @@
     if(!docs.some(function(d){return d.id===fileId;})) docs.push({id:fileId,name:f.name});
     ST.S.selId=fileId;
     ST.renderFiles();
-    ST.setView('editor');
-    /* setView calls edLoadFrame(currentFrameRef()) which reads the timeline playhead —
-       but the timeline may still point at a different file. Explicitly load this file's
-       first frame if the timeline isn't already on it. */
-    var cur=ST.S.timeline[ST.S.playhead];
-    if((!cur || cur.fileId!==fileId) && f.frames&&f.frames.length){
-      ST.edLoadFrame({fileId:fileId, frame:0});
-    }
+    ST.setView('preview');
     paintTabs();
   }
   function closeDoc(fileId,ev){
@@ -1959,7 +1958,7 @@
   function goScratch(id){
     var d=docById(id); if(!d) return;
     active=id; body.classList.remove('home');
-    ST.setView('editor'); paintTabs();
+    ST.setView('preview'); paintTabs();
   }
   function shortName(n){ return String(n||'untitled').replace(/\.png$/i,'').replace(/ ·edit$/i,'*'); }
 
@@ -2141,7 +2140,7 @@
   document.getElementById('hImport').onclick=function(){ var i=document.getElementById('fileInput'); if(i) i.click(); };
   document.getElementById('hOpen').onclick=function(){
     var f=(ST.S.files||[])[0];
-    f ? goDoc(f.id) : (body.classList.remove('home'), ST.setView('editor'), paintTabs());
+    f ? goDoc(f.id) : (body.classList.remove('home'), ST.setView('preview'), paintTabs());
   };
 
   /* ---- autosave the grid ----
