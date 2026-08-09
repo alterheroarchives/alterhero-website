@@ -1403,11 +1403,14 @@
   var vp=document.querySelector('meta[name="viewport"]');
   function check(){
     if(!vp) return;
-    var portrait=window.innerHeight>window.innerWidth, narrow=screen.width<=600;
-    if(portrait && narrow){
+    var portrait=window.innerHeight>window.innerWidth;
+    var narrow=Math.min(screen.width,screen.height)<=600;
+    if(!narrow){
+      vp.setAttribute('content','width=device-width, initial-scale=1, viewport-fit=cover');
+    } else if(portrait){
       vp.setAttribute('content','width='+MIN_W+', viewport-fit=cover');
     } else {
-      vp.setAttribute('content','width=device-width, initial-scale=1, viewport-fit=cover');
+      vp.setAttribute('content','width='+(MIN_W*2)+', viewport-fit=cover');
     }
   }
   check();

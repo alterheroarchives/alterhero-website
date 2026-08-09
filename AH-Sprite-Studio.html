@@ -816,7 +816,22 @@
      and drawPreview both skip a missing frame) but still COUNT — which is why FRAMES read 44 while only 11
      existed, and why playback showed empty canvases. Drop them whenever the frame list changes.
      Entries with fileId null are left alone: those are waiting on a library file to finish loading. */
-  function pruneAll(){ var n=0; S.files.forEach(function(f){ n+=pruneTimelines(f); }); return n; }
+  function pruneAll(){
+    var n=0; S.files.forEach(function(f){ n+=pruneTimelines(f); });
+    S.slots.forEach(function(sl){
+      var before=(sl.timeline||[]).length;
+      var keep=(sl.timeline||[]).filter(function(t){
+        if(t.fileId==null && t.ref) return true;
+        return t.fileId!=null && fileById(t.fileId);
+      });
+      if(keep.length!==before){
+        n+=before-keep.length;
+        sl.timeline.length=0; keep.forEach(function(t){ sl.timeline.push(t); });
+      }
+    });
+    if(n && S.playhead>=S.timeline.length) S.playhead=Math.max(0,S.timeline.length-1);
+    return n;
+  }
   function pruneTimelines(f){
     if(!f) return 0;
     var n=f.frames.length, dropped=0;
@@ -1216,6 +1231,7 @@
         do { S.playhead=(S.playhead+1)%S.timeline.length; cur=S.timeline[S.playhead]; }
         while(cur&&cur.skip&&--guard>0);
         renderPlayheadUI(); drawPreview(); $('#scrub').value=S.playhead;
+        if(S.view==='editor') edLoadFrame(currentFrameRef());
         step=base*((cur&&cur.delay)||1);
       }
     } else lastT=ts;
@@ -1946,7 +1962,7 @@
     if(!docs.some(function(d){return d.id===fileId;})) docs.push({id:fileId,name:f.name});
     ST.S.selId=fileId;
     ST.renderFiles();
-    ST.setView('preview');
+    ST.setView('editor');
     paintTabs();
   }
   function closeDoc(fileId,ev){
@@ -1958,7 +1974,7 @@
   function goScratch(id){
     var d=docById(id); if(!d) return;
     active=id; body.classList.remove('home');
-    ST.setView('preview'); paintTabs();
+    ST.setView('editor'); paintTabs();
   }
   function shortName(n){ return String(n||'untitled').replace(/\.png$/i,'').replace(/ ·edit$/i,'*'); }
 
@@ -2140,7 +2156,7 @@
   document.getElementById('hImport').onclick=function(){ var i=document.getElementById('fileInput'); if(i) i.click(); };
   document.getElementById('hOpen').onclick=function(){
     var f=(ST.S.files||[])[0];
-    f ? goDoc(f.id) : (body.classList.remove('home'), ST.setView('preview'), paintTabs());
+    f ? goDoc(f.id) : (body.classList.remove('home'), ST.setView('editor'), paintTabs());
   };
 
   /* ---- autosave the grid ----
