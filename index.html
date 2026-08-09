@@ -734,8 +734,7 @@
   #rotatePrompt{ display:none; position:fixed; inset:0; z-index:999; background:#111014;
     flex-direction:column; align-items:center; justify-content:center; gap:26px; color:#fff;
     font-family:var(--mono); text-align:center; padding:24px; }
-  /* portrait phones: scale the whole page to fit instead of blocking */
-  @media (max-width:600px) and (orientation:portrait){ #rotatePrompt{ display:none; } }
+  @media (max-width:600px) and (orientation:portrait){ #rotatePrompt{ display:flex; } }
   .rot-phone{ width:50px; height:86px; border:3px solid #fff; border-radius:10px; position:relative; flex:none;
     animation:rot-turn 1.8s ease-in-out infinite; }
   .rot-phone::after{ content:''; position:absolute; top:7px; left:50%; transform:translateX(-50%);
@@ -1398,25 +1397,6 @@
       </div>
     </div>
   </section>
-
-<script>
-(function(){
-  var MIN_W=900;
-  var vp=document.querySelector('meta[name="viewport"]');
-  function check(){
-    if(!vp) return;
-    var portrait=window.innerHeight>window.innerWidth, narrow=screen.width<=600;
-    if(portrait && narrow){
-      vp.setAttribute('content','width='+MIN_W+', viewport-fit=cover');
-    } else {
-      vp.setAttribute('content','width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover');
-    }
-  }
-  check();
-  addEventListener('resize',check);
-  addEventListener('orientationchange',function(){ setTimeout(check,200); });
-})();
-</script>
 <script>document.write('<script src="config.js?t='+Date.now()+'"><\/script>');</script>   <!-- ← ARTIST CONTROLS live in config.js: edit numbers there, then refresh. Cache-busted (Date.now()) so edits always show up, no need to disable cache for this file specifically. -->
 <script>
 /* BOOT SCREEN — types AH_PARAMS.boot.lines out one line at a time, then lifts the white

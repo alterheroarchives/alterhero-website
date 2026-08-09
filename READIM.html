@@ -130,6 +130,7 @@ button{font-family:inherit;cursor:pointer}
 /* in true full screen the browser paints its own black behind the element — keep the paper */
 .reader:fullscreen{background:var(--paper-deep)}
 .reader:-webkit-full-screen{background:var(--paper-deep)}
+.reader.pseudo-fs{position:fixed;inset:0;z-index:9999}
 .reader-nav{border:none;background:none;color:var(--ink);font-size:40px;padding:20px;transition:color var(--transition-fast)}
 .reader-nav:hover{color:var(--accent)}
 .reader-nav:disabled{color:var(--ink-faint);cursor:default}
@@ -259,7 +260,7 @@ var CHAPTERS = [
   { id:'AH',  label:'AH!', banner:'assets/readim/AH.png'  }
 ];
 
-var THUMB_MAX = 520, THUMB_Q = 0.82, THUMB_BG = '#F3EFE4';
+var THUMB_MAX = 1200, THUMB_Q = 0.88, THUMB_BG = '#F3EFE4';
 
 /* ============================================================================
    STORAGE — IndexedDB stands in for the Electron project folder.
@@ -732,7 +733,8 @@ function openReader(chapterId, index){
   readerEl.classList.remove('hidden');
 }
 function closeReader(){
-  if(fsElement() === readerEl) fsExit();   // never leave the screen owned by a hidden element
+  if(fsElement() === readerEl) fsExit();
+  readerEl.classList.remove('pseudo-fs');
   reader.open = false;
   readerEl.classList.add('hidden');
 }
@@ -854,17 +856,21 @@ wallEl.addEventListener('click', function(e){ if(e.target === wallEl) closeWall(
    click, because the browser can drop out on its own — Escape, a tab switch —
    and the icon has to follow what actually happened.
    ============================================================================ */
-function fsSupported(el){ return !!(el.requestFullscreen || el.webkitRequestFullscreen); }
-function fsElement(){ return document.fullscreenElement || document.webkitFullscreenElement || null; }
+var _nativeFs = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+function fsElement(){
+  if(_nativeFs) return document.fullscreenElement || document.webkitFullscreenElement || null;
+  return readerEl.classList.contains('pseudo-fs') ? readerEl : null;
+}
 function fsEnter(el){
-  var fn = el.requestFullscreen || el.webkitRequestFullscreen;
-  if(fn) try{ return fn.call(el); }catch(e){}
+  if(_nativeFs){ var fn=el.requestFullscreen||el.webkitRequestFullscreen; if(fn) try{return fn.call(el);}catch(e){} }
+  el.classList.add('pseudo-fs'); syncFsBtns();
+  if(window.scrollTo) window.scrollTo(0,0);
 }
 function fsExit(){
-  var fn = document.exitFullscreen || document.webkitExitFullscreen;
-  if(fn) try{ return fn.call(document); }catch(e){}
+  if(_nativeFs){ var fn=document.exitFullscreen||document.webkitExitFullscreen; if(fn) try{return fn.call(document);}catch(e){} }
+  readerEl.classList.remove('pseudo-fs'); syncFsBtns();
 }
-function fsToggle(el){ if(fsElement() === el) fsExit(); else fsEnter(el); }
+function fsToggle(el){ if(fsElement()===el) fsExit(); else fsEnter(el); }
 
 var readerFsToggle = document.getElementById('readerFsToggle');
 function syncFsBtns(){
@@ -873,8 +879,6 @@ function syncFsBtns(){
 readerFsToggle.addEventListener('click', function(e){ e.stopPropagation(); fsToggle(readerEl); });
 document.addEventListener('fullscreenchange', syncFsBtns);
 document.addEventListener('webkitfullscreenchange', syncFsBtns);
-// iPhone Safari has no element full screen at all — offer nothing rather than a dead button
-if(!fsSupported(readerEl)) readerFsToggle.style.display = 'none';
 
 /* ============================================================================
    PDF EXPORT — pdf-lib and sharp are not available in a browser tab, and pulling

@@ -9,10 +9,11 @@
     --rail-w:220px; --tl-h:120px;
   }
   /* ---- resize handle strips ---- */
-  .resizeH{position:absolute;left:0;top:0;bottom:0;width:5px;cursor:col-resize;z-index:22;background:transparent;transition:background .12s}
+  .resizeH{position:absolute;left:0;top:0;bottom:0;width:5px;cursor:col-resize;z-index:22;background:transparent;transition:background .12s;touch-action:none}
   .resizeH:hover,.resizeH.rz-active{background:var(--accent);opacity:0.45}
-  .resizeV{height:4px;cursor:row-resize;width:100%;flex:none;background:transparent;transition:background .12s;display:block}
+  .resizeV{height:4px;cursor:row-resize;width:100%;flex:none;background:transparent;transition:background .12s;display:block;touch-action:none}
   .resizeV:hover,.resizeV.rz-active{background:var(--accent);opacity:0.45}
+  @media (pointer:coarse){.resizeH{width:14px}.resizeV{height:14px}}
   *{box-sizing:border-box}
   html,body{margin:0;height:100%}
   body{background:linear-gradient(140deg,#f1f0ec 0%,#efe8df 30%,#f0ebe2 65%,#ede6da 100%) fixed;
@@ -2081,7 +2082,7 @@
     }
     function setScale(s){
       var ED=ST.ED; if(!ED) return;
-      ED.scale=Math.max(1,Math.min(48, s));
+      ED.scale=Math.max(1,Math.min(48, Math.round(s)));
       ST.edApplyZoom();
       var sidx=ZOOM_STEPS.indexOf(Math.round(ED.scale));
       if(sidx>=0 && sidx!==zoomIdx){ zoomIdx=sidx; var lbl=$('#editZoomLbl'); if(lbl) lbl.textContent=ZOOM_STEPS[zoomIdx]+'×'; }
@@ -2247,17 +2248,33 @@
   /* ---- drag-to-resize panels ---- */
   (function(){
     function makeResizer(handle, onDrag){
-      handle.addEventListener('mousedown',function(e){
-        e.preventDefault(); e.stopPropagation();
-        var sx=e.clientX, sy=e.clientY;
+      function start(sx,sy){
         handle.classList.add('rz-active');
-        function move(e){ onDrag(e.clientX-sx, e.clientY-sy); }
+        function move(e){
+          var cx=e.clientX, cy=e.clientY;
+          if(e.touches){ cx=e.touches[0].clientX; cy=e.touches[0].clientY; }
+          onDrag(cx-sx, cy-sy);
+        }
         function up(){ handle.classList.remove('rz-active');
           document.removeEventListener('mousemove',move);
-          document.removeEventListener('mouseup',up); }
+          document.removeEventListener('mouseup',up);
+          document.removeEventListener('touchmove',move);
+          document.removeEventListener('touchend',up);
+          document.removeEventListener('touchcancel',up); }
         document.addEventListener('mousemove',move);
         document.addEventListener('mouseup',up);
+        document.addEventListener('touchmove',move,{passive:false});
+        document.addEventListener('touchend',up);
+        document.addEventListener('touchcancel',up);
+      }
+      handle.addEventListener('mousedown',function(e){
+        e.preventDefault(); e.stopPropagation();
+        start(e.clientX, e.clientY);
       });
+      handle.addEventListener('touchstart',function(e){
+        e.preventDefault(); e.stopPropagation();
+        start(e.touches[0].clientX, e.touches[0].clientY);
+      },{passive:false});
     }
 
     /* right rail — drag the left edge to widen/narrow */
