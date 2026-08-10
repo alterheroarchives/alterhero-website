@@ -35,15 +35,19 @@ button{font-family:inherit;cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* ---------------- controls — independent positioned elements ---------------- */
-/* LINE 38 */ #saveBtn{position:fixed;top:18px;right:280px;z-index:10}
-/* LINE 39 */ #wallBtn{position:fixed;top:18px;right:200px;z-index:10}
-/* LINE 40 */ #exportBtn{position:fixed;top:18px;right:120px;z-index:10}
-/* LINE 41 */ .backlink{position:fixed;top:18px;right:32px;z-index:10;text-decoration:none}
-/* LINE 42 */ #lastPdf{position:fixed;top:18px;right:360px;z-index:10}
-.btn{border:1px solid var(--line);background:transparent;color:var(--ink-soft);padding:5px 12px;
+/* LINE 38 */ #lastPdf{position:fixed;top:10px;right:270px;z-index:10}
+/* LINE 39 */ #wallBtn{position:fixed;top:10px;right:220px;z-index:10}
+/* LINE 40 */ #saveBtn{position:fixed;top:10px;right:170px;z-index:10}
+/* LINE 41 */ #exportBtn{position:fixed;top:10px;right:120px;z-index:10}
+/* LINE 42 */ .backlink{position:fixed;top:10px;right:16px;z-index:10;text-decoration:none}
+.btn{border:none;background:transparent;color:var(--ink-soft);padding:0;
   font-family:var(--font-mono);font-size:11px;letter-spacing:.5px;border-radius:var(--radius);
-  transition:background var(--transition-fast),color var(--transition-fast),transform var(--transition-fast)}
-.btn:hover{background:var(--paper-deep);color:var(--ink)}
+  transition:background var(--transition-fast),color var(--transition-fast),transform var(--transition-fast);
+  display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
+.btn .ico{font-size:22px;line-height:1;color:var(--ink-soft)}
+.btn .sub{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint)}
+.btn:hover .ico{color:var(--ink)}
+.btn:hover .sub{color:var(--ink-soft)}
 .btn:active{transform:scale(.97)}
 .btn:disabled{opacity:.5;cursor:default;transform:none}
 
@@ -159,7 +163,7 @@ button{font-family:inherit;cursor:pointer}
    recent PDF — its cover is the first page, so it reads as the book itself
    rather than as a file — and clicking it opens that PDF full screen to read. */
 #lastPdf{display:none}
-#lastPdf.on{display:inline-block}
+#lastPdf.on{display:flex}
 #lastPdf img{display:none}
 
 /* ---------------- PDF viewer ----------------
@@ -184,11 +188,11 @@ button{font-family:inherit;cursor:pointer}
 </head>
 <body>
 
-<button id="saveBtn" class="btn">Save</button>
-<button id="wallBtn" class="btn">Wall</button>
-<button id="exportBtn" class="btn">Export</button>
-<a class="backlink btn" href="index.html#studio" title="Back to AH! Studio">BACK</a>
-<button id="lastPdf" class="btn" title="Read the last export"><span id="lastPdfLabel"></span></button>
+<button id="saveBtn" class="btn"><span class="ico">&#8942;</span><span class="sub">data</span></button>
+<button id="wallBtn" class="btn"><span class="ico">&#9638;</span><span class="sub">wall</span></button>
+<button id="exportBtn" class="btn"><span class="ico">&#8682;</span><span class="sub">export</span></button>
+<a class="backlink btn" href="index.html#studio" title="Back to AH! Studio"><span class="ico">&#8592;</span><span class="sub">back</span></a>
+<button id="lastPdf" class="btn" title="Read the last export"><span class="ico">&#9707;</span><span class="sub" id="lastPdfLabel"></span></button>
 
 <main id="shelves" class="shelves"></main>
 
@@ -260,7 +264,7 @@ var CHAPTERS = [
   { id:'AH',  label:'AH!', banner:'assets/readim/AH.png'  }
 ];
 
-var THUMB_MAX = 1200, THUMB_Q = 0.88, THUMB_BG = '#F3EFE4';
+var THUMB_MAX = 2400, THUMB_Q = 0.92, THUMB_BG = '#F3EFE4';
 
 /* ============================================================================
    STORAGE — IndexedDB stands in for the Electron project folder.
@@ -862,12 +866,17 @@ function fsElement(){
   return readerEl.classList.contains('pseudo-fs') ? readerEl : null;
 }
 function fsEnter(el){
-  if(_nativeFs){ var fn=el.requestFullscreen||el.webkitRequestFullscreen; if(fn) try{return fn.call(el);}catch(e){} }
+  if(_nativeFs){
+    var fn=el.requestFullscreen||el.webkitRequestFullscreen;
+    if(fn) try{ var p=fn.call(el); if(p&&p.catch) p.catch(function(){ el.classList.add('pseudo-fs'); syncFsBtns(); }); return; }catch(e){}
+  }
   el.classList.add('pseudo-fs'); syncFsBtns();
   if(window.scrollTo) window.scrollTo(0,0);
 }
 function fsExit(){
-  if(_nativeFs){ var fn=document.exitFullscreen||document.webkitExitFullscreen; if(fn) try{return fn.call(document);}catch(e){} }
+  if(_nativeFs && (document.fullscreenElement||document.webkitFullscreenElement)){
+    var fn=document.exitFullscreen||document.webkitExitFullscreen; if(fn) try{fn.call(document);}catch(e){}
+  }
   readerEl.classList.remove('pseudo-fs'); syncFsBtns();
 }
 function fsToggle(el){ if(fsElement()===el) fsExit(); else fsEnter(el); }
@@ -1056,7 +1065,7 @@ function showLastPdf(rec){
   lastPdf = rec;
   if(lastCoverUrl) URL.revokeObjectURL(lastCoverUrl);
   lastCoverUrl = URL.createObjectURL(rec.cover);
-  lastPdfLabel.textContent = 'Book published';
+  lastPdfLabel.textContent = 'book';
   lastPdfBtn.title = 'Read the export from ' + stamp(rec.at);
   lastPdfBtn.classList.add('on');
 }
@@ -1075,7 +1084,7 @@ function openPdf(){
   pdfOpen.href = lastPdfUrl;
   pdfTitle.textContent = 'PHENOMENAH · ' + lastPdf.pages + ' pages · ' + stamp(lastPdf.at);
   pdfViewEl.classList.add('on');
-  if(fsSupported(pdfFrame)) fsEnter(pdfFrame);
+  if(_nativeFs) fsEnter(pdfFrame);
 }
 
 function closePdf(){
@@ -1085,24 +1094,28 @@ function closePdf(){
   if(lastPdfUrl){ setTimeout(function(){ URL.revokeObjectURL(lastPdfUrl); lastPdfUrl = null; }, 500); }
 }
 
-lastPdfBtn.addEventListener('click', openPdf);
+lastPdfBtn.addEventListener('click', function(){
+  if(!state) return;
+  for(var i=0;i<state.chapters.length;i++){
+    var ids=state.order[state.chapters[i].id]||[];
+    if(ids.length){ openReader(state.chapters[i].id, 0); return; }
+  }
+});
 pdfCloseBtn.addEventListener('click', closePdf);
 pdfFsBtn.addEventListener('click', function(){ fsToggle(pdfFrame); });
-if(!fsSupported(pdfFrame)) pdfFsBtn.style.display = 'none';
+if(!_nativeFs) pdfFsBtn.style.display = 'none';
 
 exportBtn.addEventListener('click', async function(){
-  var original = exportBtn.textContent;
-  exportBtn.textContent = 'Exporting…';
+  var sub = exportBtn.querySelector('.sub');
+  sub.textContent = '...';
   exportBtn.disabled = true;
   try{
     await exportBook();
-    exportBtn.textContent = 'Exported ✓';
   }catch(err){
     console.error(err);
-    exportBtn.textContent = 'Export failed';
     busy('');
   }finally{
-    setTimeout(function(){ exportBtn.textContent = original; exportBtn.disabled = false; }, 1600);
+    setTimeout(function(){ sub.textContent = 'export'; exportBtn.disabled = false; }, 1600);
   }
 });
 

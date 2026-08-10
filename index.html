@@ -436,8 +436,10 @@
   .world .soon{ display:inline-block; margin-top:24px; padding:8px 16px; border:2px dashed currentColor; opacity:.7;
     font-size:12px; letter-spacing:.16em; text-transform:uppercase; }
   .world .card{ border:1.5px solid rgba(0,0,0,.14); padding:22px; margin:14px 0; }
-  .world .back{ position:static; z-index:22; font-family:var(--mono); font-weight:800; font-size:12px;
-    letter-spacing:.1em; text-transform:uppercase; background:none; border:0; cursor:pointer; color:inherit; opacity:.8; }
+  .world .back{ position:static; z-index:22; font-family:var(--mono); background:none; border:0; cursor:pointer; color:inherit; opacity:.8;
+    display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .world .back .ico{ font-size:22px; line-height:1; }
+  .world .back .sub{ font-size:8px; letter-spacing:.12em; text-transform:uppercase; }
   .world .back:hover{ opacity:1; }
 
   /* archives = deep space (dark) */
@@ -785,8 +787,8 @@
      holds READIM so it sits dead centre. */
   #wStudio .st-shelf{ position:relative; display:grid; grid-template-columns:1fr auto 1fr;
     align-items:flex-end; width:100%; max-width:1060px; }
-  #wStudio .st-left{ display:flex; align-items:flex-end; justify-content:flex-start;
-    gap:clamp(20px,4vw,58px); padding-left:clamp(20px,4vw,58px); }
+  #wStudio .st-left{ display:flex; align-items:flex-end; justify-content:flex-end;
+    gap:clamp(20px,4vw,58px); padding-right:clamp(20px,4vw,58px); }
   /* the sprite editor stands on the right — GIANT's side, on the home page's own orb row */
   #wStudio .st-right{ display:flex; align-items:flex-end; justify-content:flex-start;
     gap:clamp(20px,4vw,58px); padding-left:clamp(20px,4vw,58px); }
@@ -795,7 +797,7 @@
     display:flex; flex-direction:column; align-items:center; gap:14px; color:inherit; font:inherit;
     transition:transform .22s cubic-bezier(.3,1.3,.5,1), opacity .22s ease; opacity:.82; }
   #wStudio .st-app:hover, #wStudio .st-app:focus-visible{ opacity:1; transform:translateY(-7px); outline:0; }
-  #wStudio .st-app img{ display:block; width:100%; height:auto; image-rendering:auto;
+  #wStudio .st-app img{ display:block; width:100%; height:auto; image-rendering:pixelated;
     filter:drop-shadow(0 12px 20px rgba(34,29,23,.18)); }
   #wStudio .st-app .st-name{ font-family:'Heath','Metroway','Anton','Arial Narrow','Impact',sans-serif;
     font-size:42px; letter-spacing:.06em; text-transform:uppercase; color:#221d17; white-space:nowrap; font-weight:400; }
@@ -803,14 +805,11 @@
     text-transform:uppercase; color:#a09890; margin-top:-8px; }
 
   /* READIM — the middle, and the biggest */
-  #wStudio .st-readim{ width:clamp(195px,27.3vw,320px); }
+  #wStudio .st-readim{ width:clamp(135px,18.2vw,218px); }
   #wStudio .st-sprite{ width:clamp(135px,18.2vw,218px); }
-  #wStudio .st-sprite img{ image-rendering:pixelated; }
   /* the spare slot — small, deliberately blank until it earns a name */
-  #wStudio .st-slot{ width:clamp(45px,6vw,72px); opacity:.42; }
+  #wStudio .st-slot{ width:clamp(135px,18.2vw,218px); opacity:.42; }
   #wStudio .st-slot:hover{ opacity:.7; transform:translateY(-4px); }
-  #wStudio .st-slot .st-box{ width:100%; aspect-ratio:1; border:1px dashed rgba(34,29,23,.4); border-radius:5px;
-    display:grid; place-items:center; font-family:var(--mono); font-size:17px; color:rgba(34,29,23,.45); }
   #soonMsg{ position:fixed; left:50%; bottom:12vh; transform:translateX(-50%); font-family:var(--mono);
     font-size:12px; letter-spacing:.12em; color:#221d17; opacity:0; transition:opacity .4s ease;
     white-space:nowrap; pointer-events:none; z-index:10; }
@@ -930,7 +929,7 @@
 
   <section class="world" id="wArchives" aria-hidden="true">
     <div class="topnav">
-      <button class="back" data-close>← AH!</button>
+      <button class="back" data-close><span class="ico">←</span><span class="sub">back</span></button>
       <button class="spk-btn" id="spkArchives" data-speaker title="toggle music"><img src="assets/speaker.png" alt=""></button>
     </div>
     <!-- the built pages, waiting as layers; each snaps in as a live, interactive page -->
@@ -1097,17 +1096,15 @@
         #arcLayers .arc-market .fac-val.on{ color:#171016; font-weight:700; }
         #arcLayers .arc-market .res-fac{ margin-top:0; padding-left:1ch; text-indent:-1ch; color:#171016; white-space:pre-line; line-height:1.6; letter-spacing:.04em; }
         #arcLayers .arc-market .res-fac.on{ font-weight:700; }
-        #arcLayers .arc-market .res-door{ position:relative; flex:0 0 auto; align-self:center; display:flex; flex-direction:column; align-items:center; gap:6px; opacity:0; pointer-events:none; cursor:pointer; transition:opacity .6s ease; }   /* opacity-only reveal: a translate here would push the sprites off the grid's bottom line */
-        #arcLayers .arc-market .res-door img{ width:clamp(120px,14vw,180px); height:auto; display:block; }
+        #arcLayers .arc-market .res-door{ position:absolute; left:-28px; top:425px; display:flex; flex-direction:column; align-items:flex-start; gap:4px; opacity:0; pointer-events:none; cursor:pointer; transition:opacity .6s ease; }
+        #arcLayers .arc-market .res-door img{ width:clamp(77px,8.9vw,115px); height:auto; display:block; image-rendering:pixelated; }
         #arcLayers .arc-market .res-door .door-wallet{ font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:#2a2016; text-align:center; display:flex; flex-direction:column; align-items:center; gap:3px; }
         #arcLayers .arc-market .res-door .door-wallet:empty{ display:none; }
         #arcLayers .arc-market .res-door .dw-disc{ font-size:9px; color:#8a8578; cursor:pointer; text-decoration:underline; }
         #arcLayers .arc-market .res-door .dw-disc:hover{ color:#171016; }
-        #arcLayers .arc-market .res-door .door-label{ position:absolute; top:100%; left:50%; transform:translateX(-50%); margin-top:4px; white-space:nowrap; font-family:'RatProp',ui-monospace,'SF Mono',Menlo,monospace; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:#2a2016; opacity:0; transition:opacity .2s ease; }
-        #arcLayers .arc-market .res-door:hover .door-label{ opacity:1; }
-        #arcLayers .arc-market .res-door .door-label::after{ content:''; display:inline-block; width:.5em; height:1em; background:currentColor; margin-left:3px; vertical-align:-1px; animation:codeblink 1s steps(1) infinite; }
-        #arcLayers .arc-market.door-on .res-door{ opacity:.85; pointer-events:auto; }
-        #arcLayers .arc-market .res-door:hover{ opacity:1; }
+        #arcLayers .arc-market.door-on .res-door{ opacity:.85; }
+        #arcLayers .arc-market.door-connect .res-door img{ pointer-events:auto; cursor:pointer; }
+        #arcLayers .arc-market.door-connect .res-door img:hover{ opacity:1; }
         #arcLayers .arc-market .market-mid{ position:relative; flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }
         /* the "chosen ones" (starred) / "collection I own" (wallet) pager — only shown while FREQUENCY MATCHED is active */
         /* always laid out (never display:none) so toggling FREQUENCY MATCHED can't change the column's
@@ -1262,7 +1259,7 @@
         <div class="market-wrap">
           <aside class="market-side">
             <div class="market-side-list" id="marketSide"></div>
-            <div id="resDoor" class="res-door"><div class="door-wallet" id="doorWallet"></div><img src="assets/spritestudiologo.png" alt="" /><span class="door-label">enter the portal</span></div>
+            <div id="resDoor" class="res-door"><div class="door-wallet" id="doorWallet"></div><img id="doorImg" src="assets/ah!rchives_display/wallet.png" alt="" /></div>
           </aside>
           <div class="market-mid">
             <div class="market-dots" id="marketDots"><span class="market-dot on"></span><span class="market-dot"></span></div>
@@ -1284,7 +1281,7 @@
 
   <section class="world" id="wBook" aria-hidden="true">
     <div class="topnav">
-      <button class="back" data-close>← AH!</button>
+      <button class="back" data-close><span class="ico">←</span><span class="sub">back</span></button>
       <button class="spk-btn" id="spkBook" data-speaker title="toggle music"><img src="assets/speaker.png" alt=""></button>
     </div>
     <div class="wrap">
@@ -1325,7 +1322,7 @@
   <!-- AH! STUDIO — the workshop that hosts every tool. Opened from the footer link. -->
   <section class="world" id="wStudio" aria-hidden="true">
     <div class="topnav">
-      <button class="back" data-close>← AH!</button>
+      <button class="back" data-close><span class="ico">←</span><span class="sub">back</span></button>
       <button class="spk-btn" id="spkStudio" data-speaker title="toggle music"><img src="assets/speaker.png" alt=""></button>
     </div>
     <div class="st-wrap">
@@ -1333,24 +1330,21 @@
         <div class="st-left">
           <!-- spare slot — stays nameless until we decide what it is -->
           <button class="st-app st-slot" id="stSlot" title="Reserved for the next tool">
-            <div class="st-box">+</div>
-            <span class="st-name" style="color:#a09890">soon</span>
-            <span class="st-note" style="visibility:hidden">.</span>
+            <img src="assets/readim/Soon.png" alt="">
+            <span class="st-note">coming soon</span>
           </button>
         </div>
 
         <!-- READIM (was BOOKmaker) — centre stage. Runs in the browser now, so it
              opens like the sprite editor does: a plain link, no desktop detour. -->
         <a class="st-app st-readim" href="READIM.html">
-          <img src="assets/Title-Icon.png" alt="">
-          <span class="st-name">REAHDIM</span>
+          <img src="assets/readim/Reahdim.png" alt="">
           <span class="st-note">bookroom</span>
         </a>
 
         <div class="st-right">
           <a class="st-app st-sprite" href="AH-Sprite-Studio.html">
-            <img src="assets/spritestudiologo.png" alt="">
-            <span class="st-name">Sprite Lahb</span>
+            <img src="assets/readim/thelab.png" alt="">
             <span class="st-note">pixel workshop</span>
           </a>
         </div>
@@ -1360,7 +1354,7 @@
   </section>
 
   <section class="world" id="wMusicOLD" style="display:none" aria-hidden="true">
-    <button class="back" data-close>← AH!</button>
+    <button class="back" data-close><span class="ico">←</span><span class="sub">back</span></button>
     <div class="wrap">
       <div class="eyebrow">BEAH!TS</div>
       <div class="mfplayer" id="mfPlayerOLD">
@@ -1508,10 +1502,20 @@
        while the next line starts. That's what keeps the burst a burst instead of queueing. */
     function handOver(){ if(hasSpin) spinTimers.push(setTimeout(settle, CS)); done(); }
     if(!(speed>0)){ paint(text.length); handOver(); return; }
-    var c=0;
+    var c=0, lastSpin=hasSpin?Math.max.apply(null,parsed.marks):-1;
+    var pauseMid=spec.settleFirst && hasSpin && lastSpin<text.length-1;
     (function tick(){
       c++; paint(Math.min(c,text.length));
-      if(c<text.length) timer=setTimeout(tick, speed); else handOver();
+      if(pauseMid && c===lastSpin+1){
+        (function sw(){
+          var mv=false;
+          for(var k in spin){ var sp=spin[k]; if(sp.locked) continue;
+            sp.cur=(sp.cur+1)%sp.pool.length; if(sp.cur===sp.target) sp.locked=true; else mv=true; }
+          paint(c);
+          if(mv) spinTimers.push(setTimeout(sw,CS));
+          else if(c<text.length) timer=setTimeout(tick,speed); else handOver();
+        })();
+      } else if(c<text.length) timer=setTimeout(tick, speed); else handOver();
     })();
   }
   function nextLine(){
@@ -2745,9 +2749,17 @@
     var msg=RES_MSGS[Math.min(n,RES_MSGS.length-1)];
     return '['+sq.join(' ')+'\n'+msg+' ]';   // NBSP keeps the closing bracket welded to the message — it can never wrap onto a line of its own
   }
+  var WALLET_IMGS=['assets/ah!rchives_display/wallet.png','assets/ah!rchives_display/wallet1.png','assets/ah!rchives_display/wallet2.png','assets/ah!rchives_display/wallet3.png'];
+  function updateWalletImg(){
+    var di=document.getElementById('doorImg'); if(!di) return;
+    if(curWallet){ di.src=WALLET_IMGS[3]; return; }
+    di.src=WALLET_IMGS[resSet.size>=3 ? 3 : resSet.size>=2 ? 2 : 1];
+  }
   function refreshResState(){
     if(resRowEl) resRowEl.textContent = resLabel(resSet.size);
-    var mk=document.querySelector('.arc-market'); if(mk) mk.classList.toggle('door-on', resSet.size>=RES_UNLOCK);
+    var mk=document.querySelector('.arc-market');
+    if(mk){ mk.classList.toggle('door-on', resSet.size>=1); mk.classList.toggle('door-connect', resSet.size>=3 && !curWallet); }
+    updateWalletImg();
   }
   var resonanceView='starred';   // 'starred' = the chosen ones, 'wallet' = the collection I own
   function computePool(){
@@ -2850,7 +2862,9 @@
   function disconnectWallet(){ try{ if(window.ethereum&&window.ethereum.request){ window.ethereum.request({method:'wallet_revokePermissions', params:[{eth_accounts:{}}]}).catch(function(){}); } }catch(e){} setWallet(''); }
   function setWallet(a,n){ curWallet=a||'';
     if(!a){ walletIds=[]; if(resonanceOn && resonanceView==='wallet') setResView('starred'); }
-    var dl=document.querySelector('.res-door .door-label'); if(dl) dl.style.display = a ? 'none' : '';
+    var mk=document.querySelector('.arc-market'); if(mk) mk.classList.toggle('door-connect', resSet.size>=3 && !a);
+    var di=document.getElementById('doorImg');
+    if(di){ if(a){ di.src=WALLET_IMGS[3]; } else { di.src=WALLET_IMGS[resSet.size>=3 ? 3 : resSet.size>=2 ? 2 : 1]; } }
     var dw=document.getElementById('doorWallet'); if(!dw) return;
     dw.innerHTML=''; if(!a) return;
     var t='✦ '+shortAddr(a); if(typeof n==='number' && n>0) t+='  ·  '+n+' HELD';
@@ -2895,14 +2909,8 @@
     hookWallet();
     window.ethereum.request({method:'eth_requestAccounts'}).then(function(a){ if(!a||!a[0]) return; var addr=a[0];
       ensureChain().then(function(){ setWallet(addr); readHoldings(addr); }); }).catch(function(){}); }
-  var portalTxt='enter the portal', typeTimer=null;
-  function typePortal(){ if(curWallet) return; var dl=document.querySelector('.res-door .door-label'); if(!dl) return;
-    clearInterval(typeTimer); var i=0; dl.textContent='';
-    typeTimer=setInterval(function(){ i++; dl.textContent=portalTxt.slice(0,i); if(i>=portalTxt.length) clearInterval(typeTimer); }, 55); }
-  function untypePortal(){ var dl=document.querySelector('.res-door .door-label'); if(!dl) return; clearInterval(typeTimer); dl.textContent=portalTxt; }
   var door=document.getElementById('resDoor');
-  if(door){ door.addEventListener('click', function(){ if(!curWallet) connectWallet(); });
-    door.addEventListener('mouseenter', typePortal); door.addEventListener('mouseleave', untypePortal); }
+  if(door){ door.addEventListener('click', function(){ if(!curWallet && resSet.size>=3) connectWallet(); }); }
   refreshResState();
   var market=grid.closest('.arc-market');
   function activeMkt(){ return market && market.classList.contains('active'); }

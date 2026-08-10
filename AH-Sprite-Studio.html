@@ -6,7 +6,7 @@
   :root{
     --bg:#f1f0ec; --panel:#e8e7e3; --panel2:#dfddd8; --line:#c9bfa0; --ink:#201e1a;
     --dim:#6e6753; --accent:#b85c38; --accent2:#d4845a; --danger:#b23a2e; --sel:#b85c3822;
-    --rail-w:220px; --tl-h:120px;
+    --rail-w:220px; --tl-h:250px;
   }
   /* ---- resize handle strips ---- */
   .resizeH{position:absolute;left:0;top:0;bottom:0;width:5px;cursor:col-resize;z-index:22;background:transparent;transition:background .12s;touch-action:none}
@@ -35,8 +35,12 @@
     position:absolute;transform:translateX(-50%);
     display:block;z-index:20;pointer-events:none;image-rendering:pixelated}
   header .hright{justify-self:end}
-  .backlink{color:#201e1a;text-decoration:none;font-size:11px;letter-spacing:1.5px;font-weight:bold}
+  .backlink{color:#201e1a;text-decoration:none;display:flex;align-items:center;gap:5px;
+    margin-left:auto;padding:0 12px;font-size:11px;letter-spacing:.09em}
+  .backlink .ico{font-size:14px;line-height:1}
+  .backlink .sub{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim)}
   .backlink:hover{color:var(--accent)}
+  .backlink:hover .sub{color:var(--accent)}
   header .hint{color:var(--dim);font-size:11px}
   .row{display:grid;grid-template-columns:1.35fr 2.05fr;grid-template-rows:70% 30%;flex:1;min-height:0}   /* left: PREVIEW full height — right: PROJECT+BROWSER on top, TIMELINE full-width below */
   .rightTop{grid-column:2;grid-row:1;display:flex;min-height:0}
@@ -146,6 +150,7 @@
   #exportBtn{flex:none;background:var(--accent2);color:#062;border:0;border-radius:6px;padding:8px 16px;font:inherit;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer}
   #exportBtn:hover{filter:brightness(1.06)}
   /* TIMELINE */
+  #timeline .ptitle{padding:3px 10px}
   #timeline{grid-column:2;grid-row:2;border-top:1px solid var(--line)}   /* right column only — no longer overlaps PREVIEW/ANIMATION in column 1 */
   .tlwrap{flex:1;display:flex;flex-direction:column;min-height:0}
   .ruler{height:22px;position:relative;border-bottom:1px solid var(--line);flex:none;color:var(--dim);font-size:9px}
@@ -215,7 +220,8 @@
      ============================================================================ */
   .docbar-info{ margin-left:auto; padding:0 14px; font-size:10px; letter-spacing:.1em; pointer-events:none; }
   body.home .docbar-info{ display:none; }
-  body.home #docbar{ display:none; }
+  body.home #docbar{ display:flex; }
+  body.home #docbar .dtab{ display:none; }
   #docbar{ display:flex; align-items:stretch; height:30px; background:transparent;
     border-bottom:1px solid var(--line); position:relative; z-index:25;
     overflow-x:auto; overflow-y:hidden; scrollbar-width:none; }
@@ -420,13 +426,13 @@
 </style>
 
 <header>
-  <a class="hright backlink" href="index.html#studio" title="Back to AH! Studio">← BACK</a>
 </header>
 
 <!-- document tabs — Home always first, then one tab per open sprite -->
 <nav id="docbar">
   <button class="dtab on" id="tabHome" data-doc="home" title="Home"><span class="dhome">⌂</span>HOME</button>
   <span id="pvinfo" class="docbar-info muted"></span>
+  <a class="backlink" href="index.html#studio" title="Back to AH! Studio"><span class="ico">←</span><span class="sub">back</span></a>
 </nav>
 
 <!-- handle for the import/slice drawer — hidden on Home, where the rail isn't shown -->

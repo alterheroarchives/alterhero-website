@@ -3,10 +3,50 @@
     {
       "id": "PHE",
       "pages": [
-        { "file": "P1.jpg", "name": "P1" },
-        { "file": "P2.jpg", "name": "P2" },
-        { "file": "P3.jpg", "name": "P3" },
-        { "file": "P4.jpg", "name": "P4" }
+        {
+          "file": "SC1.#1.jpg",
+          "name": ""
+        },
+        {
+          "file": "SC1.#2.jpg",
+          "name": ""
+        },
+        {
+          "file": "SC2.#1.jpg",
+          "name": ""
+        },
+        {
+          "file": "SC2.#2.jpg",
+          "name": ""
+        },
+        {
+          "file": "SC3.#1.jpg",
+          "name": ""
+        },
+        {
+          "file": "SC3.#2.jpg",
+          "name": ""
+        },
+        {
+          "file": "SC3.#3.jpg",
+          "name": ""
+        },
+        {
+          "file": "SC3.#DRAW4.jpg",
+          "name": ""
+        },
+        {
+          "file": "SC4.#1.jpg",
+          "name": ""
+        },
+        {
+          "file": "SC4.#2.jpg",
+          "name": ""
+        },
+        {
+          "file": "SC4.#3.jpg",
+          "name": ""
+        }
       ]
     },
     {
