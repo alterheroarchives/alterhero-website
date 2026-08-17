@@ -187,12 +187,11 @@ window.AH_PARAMS = {
     lines: [
       { text: 'searching...',              after: 1600, lock: true },   // ← cursor blinks, position locks
 
-      { text: 'loading {T}AH{PE}S...',              after:  500 },
+      { text: 'loading T{AH}PES...',              after:  500 },
       { text: 'loading PH{E}N{O}MEN{AH}!...',   after:  500 },
-      { text: 'loading {999} AHrchives...',     after:  600, settleFirst: true },
+      { text: 'loading {999} ahrchives...',     after:  600, settleFirst: true },
 
-      { text: 'initializing alterhero...',      after: 1600 },
-      { text: 'the walk begins.',          after:  200 },   // ← last line. the cursor then blinks alone
+      { text: 'initializing alterhero...',      after: 1600 },   // ← last line. the cursor then blinks alone
     ],                                                      //   for `endPause` before the site fades in
   },
 
