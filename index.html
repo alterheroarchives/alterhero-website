@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>ALTER HERO — AH!rchives</title>
+<title>ALTER HERO</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">   <!-- PHENOMENAH masthead display face (heavy condensed); falls back to a condensed system stack if blocked -->
@@ -2066,7 +2069,15 @@
   }
   bookRevealReset();
 
+  /* The tab is the only label some visitors ever read, and these worlds are
+     sections rather than pages  so nothing moves the title unless we move it.
+     Set on the way in, restored on the way out. */
+  var HOME_TITLE  = 'ALTER HERO';
+  var WORLD_TITLE = { wBook:'Phenomenah!', wArchives:'999 ahrchives', wStudio:'AH! Studio' };
+  function setTitle(t){ document.title = t || HOME_TITLE; }
+
   function showWorld(world, isArc){ world.classList.add('show'); world.setAttribute('aria-hidden','false'); world.scrollTop=0;
+    setTitle(WORLD_TITLE[world.id]);
     if(isArc) arcApply(0,false);
     if(world.id==='wBook'){ var m=world.querySelector('.mast');    // replay the masthead's staged entrance on every visit
       if(m){ m.classList.remove('run'); void m.offsetWidth; m.classList.add('run'); }
@@ -2100,10 +2111,13 @@
   function toggleMfDock(){
     var dock=document.getElementById('mfDock'); if(!dock) return;
     dock.classList.toggle('show');
+    /* littleMF opens a dock, not a world, so it never reaches showWorld/close. */
+    setTitle(dock.classList.contains('show') ? 'Tahpes' : HOME_TITLE);
     // opening the dock while his line is mid-type would leave it stranded behind the panel — clear it
     if(dock.classList.contains('show')){ var mf=orbs.filter(function(x){return x.key==='music';})[0]; if(mf) codeStop(mf); }
   }
   function close(){ if(!openWorld) return; var w=openWorld;
+    setTitle(HOME_TITLE);
     // drop #studio on the way out, so a reload from the home page stays on the home page
     if(location.hash==='#studio'){ try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
     w.classList.remove('show'); w.setAttribute('aria-hidden','true');
