@@ -36,6 +36,7 @@ button{font-family:inherit;cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* ---------------- controls — independent positioned elements ---------------- */
+#loadBtn{position:fixed;top:10px;right:320px;z-index:10}
 #lastPdf{position:fixed;top:10px;right:270px;z-index:10}
 #wallBtn{position:fixed;top:10px;right:220px;z-index:10}
 #saveBtn{position:fixed;top:10px;right:170px;z-index:10}
@@ -189,6 +190,7 @@ button{font-family:inherit;cursor:pointer}
 </head>
 <body>
 
+<button id="loadBtn" class="btn" title="Load a book.json and rebuild the shelves"><i class="ti ti-folder-open ico" aria-hidden="true"></i><span class="sub">load</span></button>
 <button id="saveBtn" class="btn" title="Save book.json"><i class="ti ti-device-floppy ico" aria-hidden="true"></i><span class="sub">data</span></button>
 <button id="wallBtn" class="btn"><span class="ico">&#9638;</span><span class="sub">wall</span></button>
 <button id="exportBtn" class="btn"><span class="ico">&#8682;</span><span class="sub">export</span></button>
@@ -248,6 +250,7 @@ button{font-family:inherit;cursor:pointer}
 </div>
 
 <input type="file" id="fileInput" accept="image/png,image/jpeg" multiple hidden>
+<input type="file" id="bookInput" accept="application/json,.json" hidden>
 <div id="busy"></div>
 
 <script>
@@ -292,6 +295,7 @@ function req(r){ return new Promise(function(res,rej){ r.onsuccess=function(){re
 function dbGetAll(store){ return req(tx(store,'readonly').getAll()); }
 function dbPut(store,val,key){ return req(tx(store,'readwrite').put(val,key)); }
 function dbDel(store,key){ return req(tx(store,'readwrite').delete(key)); }
+function dbClear(store){ return req(tx(store,'readwrite').clear()); }
 function dbGet(store,key){ return req(tx(store,'readonly').get(key)); }
 
 function emptyOrder(){ var o={}; CHAPTERS.forEach(function(c){ o[c.id]=[]; }); return o; }
@@ -608,10 +612,13 @@ async function importFiles(chapterId, fileList){
     try{
       var bmp = await decode(files[i]);
       var thumb = await makeThumb(bmp);
+      /* Read the size before closing: an ImageBitmap reports 0x0 once it is
+         closed, so reading after the close stored every page as 0x0. */
+      var bw = bmp.width, bh = bmp.height;
       if(bmp.close) bmp.close();
       var rec = {
         id: newPageId(), chapter: chapterId, name: '', addedAt: Date.now(),
-        w: bmp.width, h: bmp.height, type: files[i].type || 'image/jpeg',
+        w: bw, h: bh, type: files[i].type || 'image/jpeg',
         filename: files[i].name, orig: files[i], thumb: thumb
       };
       await dbPut('pages', rec);
@@ -1157,44 +1164,333 @@ function downloadManifest(){
 document.getElementById('saveBtn').addEventListener('click', downloadManifest);
 
 
-async function seedFromBookJson(){
-  var recs = await dbGetAll('pages');
-  if(recs.length > 0) return;
+/* Page filenames in this book carry '#' (SC3.#DRAW4.jpg). Left raw, '#' opens a
+   URL fragment and fetch() quietly requests the truncated path instead — so every
+   segment is encoded on the way out. */
+function pageUrl(chapterId, file){
+  return PAGES_ROOT + encodeURIComponent(chapterId) + '/' + encodeURIComponent(file);
+}
+
+/* netlify's `/*  /index.html  200` catch-all means a missing file comes back as
+   the homepage with status 200, not a 404. Without this check every miss looks
+   like a hit and the failure surfaces as a broken image instead of a message. */
+function servedAsHtml(res){
+  return (res.headers.get('content-type') || '').toLowerCase().indexOf('text/html') !== -1;
+}
+
+/* Returns { text, book }. The raw text comes back too because it doubles as the
+   fingerprint used to notice that the manifest changed since last visit. */
+async function fetchBook(path){
   var resp;
-  try{ resp = await fetch(BOOK_PATH); }catch(e){ return; }
-  if(!resp.ok) return;
-  var book;
-  try{ book = await resp.json(); }catch(e){ return; }
-  if(!book.chapters) return;
+  try{ resp = await fetch(path, { cache: 'no-store' }); }
+  catch(e){ throw new Error('could not reach ' + path); }
+  if(!resp.ok) throw new Error(path + ' returned ' + resp.status);
+  if(servedAsHtml(resp)) throw new Error(path + ' is missing (the server returned the homepage)');
+  var text = await resp.text();
+  try{ return { text: text, book: JSON.parse(text) }; }
+  catch(e){ throw new Error(path + ' is not valid JSON'); }
+}
+
+/* Turn a manifest into shelves. Returns what landed and what didn't, so the
+   caller can say so out loud rather than leaving empty shelves unexplained. */
+async function seedFromBook(book, opts){
+  opts = opts || {};
+  if(!book || !Array.isArray(book.chapters)) throw new Error('no "chapters" array in that file');
+
+  var known = {};
+  CHAPTERS.forEach(function(c){ known[c.id] = true; });
+
+  if(opts.replace){
+    var old = await dbGetAll('pages');
+    old.forEach(function(r){ revokeUrls(r.id); });
+    await dbClear('pages');
+  }
 
   var order = emptyOrder();
+  var added = 0, missing = [], skipped = [];
+
   for(var ci = 0; ci < book.chapters.length; ci++){
     var ch = book.chapters[ci];
-    if(!ch.pages) continue;
+    if(!ch || !known[ch.id]){ if(ch && ch.id) skipped.push(ch.id); continue; }
+    if(!Array.isArray(ch.pages)) continue;
+
     for(var pi = 0; pi < ch.pages.length; pi++){
       var pg = ch.pages[pi];
-      var filePath = PAGES_ROOT + ch.id + '/' + pg.file;
+      if(!pg || !pg.file) continue;
+      var filePath = pageUrl(ch.id, pg.file);
+      var label = ch.id + '/' + pg.file;
       try{
-        busy('Loading ' + ch.id + ' / ' + pg.file);
-        var r = await fetch(filePath);
-        if(!r.ok) continue;
+        busy('Loading ' + label + '  (' + (pi + 1) + '/' + ch.pages.length + ')');
+        var r = await fetch(filePath, { cache: 'no-store' });
+        if(!r.ok || servedAsHtml(r)){ missing.push(label); continue; }
         var blob = await r.blob();
+        if(blob.type && blob.type.indexOf('image/') !== 0){ missing.push(label); continue; }
         var bmp = await decode(blob);
         var thumb = await makeThumb(bmp);
+        var bw = bmp.width, bh = bmp.height;   // see the note in importFiles — close() zeroes these
         if(bmp.close) bmp.close();
         var rec = {
           id: newPageId(), chapter: ch.id, name: pg.name || '', addedAt: Date.now(),
-          w: bmp.width, h: bmp.height, type: blob.type || 'image/jpeg',
-          filename: pg.file, orig: blob, thumb: thumb
+          w: bw, h: bh, type: blob.type || 'image/jpeg',
+          filename: pg.file, v: pg.v || 0, orig: blob, thumb: thumb
         };
         await dbPut('pages', rec);
         order[ch.id].push(rec.id);
-      }catch(err){ console.error('seed failed:', filePath, err); }
+        added += 1;
+      }catch(err){
+        console.error('seed failed:', filePath, err);
+        missing.push(label);
+      }
     }
   }
+
   await dbPut('meta', order, 'order');
   busy('');
+  return { added: added, missing: missing, skipped: skipped };
 }
+
+/* One place decides what the strip says, so boot and the load button agree. */
+function reportSeed(result){
+  if(result.skipped.length){
+    console.warn('READIM: unknown chapter ids in the manifest, ignored:', result.skipped.join(', '),
+                 '— valid ids are', CHAPTERS.map(function(c){ return c.id; }).join(', '));
+  }
+  if(result.missing.length){
+    console.warn('READIM: ' + result.missing.length + ' page(s) named in book.json were not found under ' +
+                 PAGES_ROOT + ':\n  ' + result.missing.join('\n  '));
+    busy(result.added + ' page(s) loaded — ' + result.missing.length +
+         ' listed in book.json are missing from ' + PAGES_ROOT + ' (details in the console)');
+    setTimeout(function(){ busy(''); }, 9000);
+  }else if(result.added || result.removed || result.refreshed){
+    var parts = [];
+    if(result.added) parts.push(result.added + ' page(s) loaded');
+    if(result.refreshed) parts.push(result.refreshed + ' page(s) updated');
+    if(result.removed) parts.push(result.removed + ' removed from the book');
+    busy(parts.join(' · '));
+    setTimeout(function(){ busy(''); }, 2500);
+  }else{
+    busy('That manifest listed no pages this reader could find');
+    setTimeout(function(){ busy(''); }, 6000);
+  }
+}
+
+/* Add pages the manifest lists but the shelves do not have yet, leaving
+   everything already here exactly where it is.
+
+   A new page is inserted directly after whichever manifest page precedes it and
+   is already on the shelf, so drawing SC2.#2.5 puts it between SC2.#2 and
+   SC3.#1 rather than at the end — and any hand-dragged order elsewhere in the
+   chapter survives untouched. Pages you deleted stay deleted unless the
+   manifest itself changes. Nothing is ever removed here. */
+/* Filenames the manifest listed, as { chapter: { filename: true } }. */
+function manifestIndex(book){
+  var idx = {};
+  if(!book || !Array.isArray(book.chapters)) return idx;
+  book.chapters.forEach(function(ch){
+    if(!ch || !ch.id || !Array.isArray(ch.pages)) return;
+    idx[ch.id] = idx[ch.id] || {};
+    ch.pages.forEach(function(p){ if(p && p.file) idx[ch.id][p.file] = true; });
+  });
+  return idx;
+}
+
+async function applyManifestDelta(book, prevBook){
+  if(!book || !Array.isArray(book.chapters)) throw new Error('no "chapters" array in that file');
+
+  var known = {};
+  CHAPTERS.forEach(function(c){ known[c.id] = true; });
+
+  var recs = await dbGetAll('pages');
+  var have = {}, byId = {};
+  recs.forEach(function(r){
+    if(!have[r.chapter]) have[r.chapter] = {};
+    have[r.chapter][r.filename] = r.id;
+    byId[r.id] = r;
+  });
+
+  var stored = await dbGet('meta','order');
+  var order = emptyOrder();
+  CHAPTERS.forEach(function(c){ order[c.id] = ((stored && stored[c.id]) || []).slice(); });
+
+  var added = 0, removed = 0, refreshed = 0, missing = [], skipped = [];
+
+  /* Take out pages the manifest used to list and no longer does — a page you
+     deleted or renamed in the source folder. Scoped to the *previous* manifest
+     on purpose: a page hand-imported through the + tile was never in a manifest,
+     so it can never match here and is never touched. */
+  if(prevBook){
+    var was = manifestIndex(prevBook), now = manifestIndex(book);
+    for(var ri = 0; ri < recs.length; ri++){
+      var old = recs[ri];
+      var listedBefore = was[old.chapter] && was[old.chapter][old.filename];
+      var listedNow    = now[old.chapter] && now[old.chapter][old.filename];
+      if(!listedBefore || listedNow) continue;
+      await dbDel('pages', old.id);
+      revokeUrls(old.id);
+      if(order[old.chapter]) order[old.chapter] = order[old.chapter].filter(function(id){ return id !== old.id; });
+      if(have[old.chapter]) delete have[old.chapter][old.filename];
+      removed += 1;
+    }
+  }
+
+  for(var ci = 0; ci < book.chapters.length; ci++){
+    var ch = book.chapters[ci];
+    if(!ch || !known[ch.id]){ if(ch && ch.id) skipped.push(ch.id); continue; }
+    if(!Array.isArray(ch.pages)) continue;
+
+    var prevId = null;                       // last manifest page seen that is on the shelf
+    for(var pi = 0; pi < ch.pages.length; pi++){
+      var pg = ch.pages[pi];
+      if(!pg || !pg.file) continue;
+
+      var existing = have[ch.id] && have[ch.id][pg.file];
+      if(existing){
+        /* Same filename, different drawing: the manifest's stamp moved, so pull
+           the new image and swap it into the record that is already on the
+           shelf. Position and id are kept, so a redraw never reorders the book
+           or loses a caption. A record from before stamps existed has no v and
+           is refreshed once. */
+        var cur = byId[existing];
+        if(cur && (cur.v || 0) !== (pg.v || 0)){
+          try{
+            busy('Updated page  ' + ch.id + '/' + pg.file);
+            var rr = await fetch(pageUrl(ch.id, pg.file), { cache: 'no-store' });
+            if(rr.ok && !servedAsHtml(rr)){
+              var rblob = await rr.blob();
+              if(!rblob.type || rblob.type.indexOf('image/') === 0){
+                var rbmp = await decode(rblob);
+                var rthumb = await makeThumb(rbmp);
+                var rw = rbmp.width, rh = rbmp.height;
+                if(rbmp.close) rbmp.close();
+                cur.orig = rblob; cur.thumb = rthumb;
+                cur.w = rw; cur.h = rh;
+                cur.type = rblob.type || cur.type;
+                cur.v = pg.v || 0;
+                await dbPut('pages', cur);
+                revokeUrls(cur.id);          // drop the object URLs of the old image
+                refreshed += 1;
+              }
+            }
+          }catch(err){ console.error('could not refresh:', ch.id + '/' + pg.file, err); }
+        }
+        prevId = existing;
+        continue;
+      }
+
+      var filePath = pageUrl(ch.id, pg.file);
+      var label = ch.id + '/' + pg.file;
+      try{
+        busy('New page — ' + label);
+        var r = await fetch(filePath, { cache: 'no-store' });
+        if(!r.ok || servedAsHtml(r)){ missing.push(label); continue; }
+        var blob = await r.blob();
+        if(blob.type && blob.type.indexOf('image/') !== 0){ missing.push(label); continue; }
+        var bmp = await decode(blob);
+        var thumb = await makeThumb(bmp);
+        var bw = bmp.width, bh = bmp.height;
+        if(bmp.close) bmp.close();
+        var rec = {
+          id: newPageId(), chapter: ch.id, name: pg.name || '', addedAt: Date.now(),
+          w: bw, h: bh, type: blob.type || 'image/jpeg',
+          filename: pg.file, v: pg.v || 0, orig: blob, thumb: thumb
+        };
+        await dbPut('pages', rec);
+
+        var at = prevId ? order[ch.id].indexOf(prevId) + 1 : 0;
+        if(at < 1) at = prevId ? order[ch.id].length : 0;
+        order[ch.id].splice(at, 0, rec.id);
+        prevId = rec.id;
+        added += 1;
+      }catch(err){
+        console.error('could not add:', filePath, err);
+        missing.push(label);
+      }
+    }
+  }
+
+  await dbPut('meta', order, 'order');
+  busy('');
+  return { added: added, removed: removed, refreshed: refreshed, missing: missing, skipped: skipped };
+}
+
+/* Boot: seed an empty library in full, otherwise pick up whatever the manifest
+   has gained since last visit.
+
+   The fingerprint is just the manifest text. Comparing it means an unchanged
+   book.json costs one small conditional-free fetch and no page work at all,
+   while a rewritten one — which is what `tools/serve.mjs` does when you draw —
+   makes the new pages appear on a plain refresh. Without this the seed was
+   one-shot and new pages never showed up short of clearing site data. */
+async function syncWithManifest(){
+  var got;
+  try{ got = await fetchBook(BOOK_PATH); }
+  catch(err){
+    console.warn('READIM: manifest not read —', err.message, '· use the load button to pick a book.json by hand');
+    return;
+  }
+
+  var recs = await dbGetAll('pages');
+  var seen = null;
+  try{ seen = await dbGet('meta','bookFingerprint'); }catch(e){}
+
+  try{
+    if(recs.length === 0){
+      reportSeed(await seedFromBook(got.book, { replace: false }));
+    }else if(seen !== got.text){
+      var prevBook = null;
+      try{ prevBook = seen ? JSON.parse(seen) : null; }catch(e){ prevBook = null; }
+      var result = await applyManifestDelta(got.book, prevBook);
+      if(result.added || result.removed || result.refreshed || result.missing.length) reportSeed(result);
+    }else{
+      return;                                // nothing changed, nothing to do
+    }
+    await dbPut('meta', got.text, 'bookFingerprint');
+  }catch(err){
+    console.error('READIM: sync failed —', err);
+    busy('Could not read book.json: ' + err.message);
+  }
+}
+
+/* ---------------- LOAD BUTTON — pick a book.json by hand ----------------
+   The boot seed is deliberately one-shot, so once anything is on the shelves
+   there was no way back to a manifest without wiping site data. This is that
+   way back. */
+var bookInput = document.getElementById('bookInput');
+
+document.getElementById('loadBtn').addEventListener('click', function(){
+  bookInput.click();
+});
+
+bookInput.addEventListener('change', async function(){
+  var file = bookInput.files && bookInput.files[0];
+  bookInput.value = '';
+  if(!file) return;
+
+  var text, book;
+  try{ text = await file.text(); book = JSON.parse(text); }
+  catch(e){
+    busy(file.name + ' is not valid JSON');
+    setTimeout(function(){ busy(''); }, 5000);
+    return;
+  }
+
+  var existing = await dbGetAll('pages');
+  if(existing.length && !confirm('Replace the ' + existing.length +
+      ' page(s) on the shelves with the contents of ' + file.name + '?')) return;
+
+  try{
+    var result = await seedFromBook(book, { replace: existing.length > 0 });
+    /* Remember what was loaded by hand, so the next refresh compares the
+       server's manifest against this rather than against a stale fingerprint. */
+    await dbPut('meta', text, 'bookFingerprint');
+    await refresh();
+    reportSeed(result);
+  }catch(err){
+    console.error('READIM: load failed —', err);
+    busy('Could not load ' + file.name + ': ' + err.message);
+    setTimeout(function(){ busy(''); }, 6000);
+  }
+});
 
 /* ============================================================================
    BOOT
@@ -1202,7 +1498,7 @@ async function seedFromBookJson(){
 (async function(){
   try{
     DB = await openDB();
-    await seedFromBookJson();
+    await syncWithManifest();
     await refresh();
     try{ var prev = await dbGet('meta','lastPdf'); if(prev && prev.blob) showLastPdf(prev); }catch(e){}
     if(navigator.storage && navigator.storage.persist) navigator.storage.persisted().then(function(p){ if(!p) navigator.storage.persist(); });

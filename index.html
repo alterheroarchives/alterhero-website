@@ -2719,11 +2719,11 @@
 (function(){
   var wrap=document.getElementById('wBook'); if(!wrap) return;
   var _v='?v='+Date.now();
-  var PAGES=[                                                        // the 4 pages → 2×2 grid. thumb=full (no separate thumbnails for these)
-    {thumb:'assets/originals/PHE/P1.jpg'+_v, full:'assets/originals/PHE/P1.jpg'+_v, name:'P1', label:''},
-    {thumb:'assets/originals/PHE/P2.jpg'+_v, full:'assets/originals/PHE/P2.jpg'+_v, name:'P2', label:''},
-    {thumb:'assets/originals/PHE/P3.jpg'+_v, full:'assets/originals/PHE/P3.jpg'+_v, name:'P3', label:''},
-    {thumb:'assets/originals/PHE/P4.jpg'+_v, full:'assets/originals/PHE/P4.jpg'+_v, name:'P4', label:'<span class="cap-split"><span class="fmt-jp">手記</span><span class="cap-main">FEATURE 002<br>ORIGINAL IP<br>FORMAT&nbsp;&nbsp;<span class="cap-lg">HANDWRITTEN</span></span></span>'},
+  var PAGES=[                                                        // the 4 pages → 2×2 grid. thumb = downscaled tile, full = the real page; both rebuilt by tools/build-book.mjs
+    {thumb:'assets/thumbnails/PHE/P1.jpg'+_v, full:'assets/originals/PHE/P1.jpg'+_v, name:'P1', label:''},
+    {thumb:'assets/thumbnails/PHE/P2.jpg'+_v, full:'assets/originals/PHE/P2.jpg'+_v, name:'P2', label:''},
+    {thumb:'assets/thumbnails/PHE/P3.jpg'+_v, full:'assets/originals/PHE/P3.jpg'+_v, name:'P3', label:''},
+    {thumb:'assets/thumbnails/PHE/P4.jpg'+_v, full:'assets/originals/PHE/P4.jpg'+_v, name:'P4', label:'<span class="cap-split"><span class="fmt-jp">手記</span><span class="cap-main">FEATURE 002<br>ORIGINAL IP<br>FORMAT&nbsp;&nbsp;<span class="cap-lg">HANDWRITTEN</span></span></span>'},
   ];
   var grid=document.getElementById('hubPages');
   PAGES.forEach(function(p,i){
