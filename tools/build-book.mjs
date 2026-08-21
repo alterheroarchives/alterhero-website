@@ -45,6 +45,17 @@ for (const id of Object.keys(SOURCES)) {
 
 const IMAGE = /\.(jpe?g|png)$/i;
 
+/* Netlify refuses to deploy any file whose path contains # or ? — the build
+   fails outright with "Deployed filenames cannot contain # or ? characters".
+   (An already-deployed file with a # in its name still *serves* fine, which is
+   misleading: serving an old file and accepting a new one are different gates.)
+
+   So the '#' stays in your filenames on the Desktop, where it means something,
+   and comes out on the way into the site. The original is kept as the page's
+   caption, so the shelves still read "SC1.#2" even though the file on the server
+   is SC1.2.jpg. */
+const webSafe = f => f.replace(/[#?]/g, '');
+
 /* The PHENOMENAH panel on the homepage shows the opening pages of the book.
    index.html reads a fixed list, P1..P4.jpg, so those filenames are a contract
    meaning "the first four pages of PHE" — not the names of any particular
@@ -86,12 +97,13 @@ function resize(from, to, height) {
 /* Keep the panel images in step with the opening pages. Staleness is judged the
    same way as the page copies — the output carries its source's mtime, so an
    unchanged opening costs nothing and a reordered or redrawn one is rebuilt. */
-function syncPanel(SITE, chapters, dry) {
-  const chapter = chapters.find(c => c.id === PANEL.chapter);
+function syncPanel(SITE, rawFiles, dry) {
   const src = SOURCES[PANEL.chapter];
-  if (!chapter || !src) return { originals: 0, thumbs: 0, tool: null, noResizer: 0 };
+  if (!rawFiles || !rawFiles.length || !src) return { originals: 0, thumbs: 0, tool: null, noResizer: 0 };
 
-  const opening   = chapter.pages.slice(0, PANEL.count);
+  /* These are the ORIGINAL filenames, '#' and all — they name files on the
+     Desktop, not on the server, so they must not be web-sanitised. */
+  const opening   = rawFiles.slice(0, PANEL.count).map(f => ({ file: f }));
   const origDir   = join(SITE, PANEL.originals);
   const thumbDir  = join(SITE, PANEL.thumbnails);
   let originals = 0, thumbs = 0, tool = null, noResizer = 0;
@@ -174,16 +186,28 @@ export function buildBook({ site = '.', dry = false } = {}) {
 
   const chapters = [];
   const summary  = [];
+  const rawByChapter = {};
+  const collisions = [];
   let copied = 0, bytes = 0;
 
   for (const [id, src] of Object.entries(SOURCES)) {
     const dest  = join(PAGES_ROOT, id);
     const files = src ? listImages(src) : [];
+    rawByChapter[id] = files;
+
+    /* Two source names that differ only by a '#' would land on one file in the
+       site. Vanishingly unlikely, but a silent overwrite would lose a page. */
+    const seenSafe = {};
+    files.forEach(f => {
+      const sf = webSafe(f);
+      if (seenSafe[sf]) collisions.push(seenSafe[sf] + ' and ' + f + ' both become ' + sf);
+      seenSafe[sf] = f;
+    });
 
     if (files.length && !dry) mkdirSync(dest, { recursive: true });
 
     for (const f of files) {
-      const from = join(src, f), to = join(dest, f);
+      const from = join(src, f), to = join(dest, webSafe(f));
       let stale = true;
       try {
         const s = statSync(from), d = statSync(to);
@@ -212,6 +236,15 @@ export function buildBook({ site = '.', dry = false } = {}) {
     const oldChapter = previous?.chapters?.find(c => c.id === id);
     (oldChapter?.pages || []).forEach(p => { if (p.name) oldNames[p.file] = p.name; });
 
+    /* The caption falls back to the filename when empty, so once the '#' is
+       stripped out of the file the label has to carry it instead — otherwise the
+       shelves would silently rename SC1.#2 to SC1.2. */
+    const labelFor = f => {
+      const safe = webSafe(f);
+      if (oldNames[safe]) return oldNames[safe];          // hand-typed wins
+      return safe === f ? '' : f.replace(IMAGE, '');
+    };
+
     /* "v" is the page's mtime in whole seconds. Without it the manifest is just
        a list of names, so redrawing a page under the same name produces an
        identical book.json  and the reader, which decides what to do by
@@ -221,7 +254,7 @@ export function buildBook({ site = '.', dry = false } = {}) {
       pages: files.map(f => {
         let v = 0;
         try { v = Math.floor(statSync(join(src, f)).mtimeMs / 1000); } catch {}
-        return { file: f, name: oldNames[f] || '', v };
+        return { file: webSafe(f), name: labelFor(f), v };
       }),
     });
     summary.push({ id, count: files.length, src });
@@ -233,9 +266,9 @@ export function buildBook({ site = '.', dry = false } = {}) {
 
   if (!dry && changed) writeFileSync(BOOK, json);
 
-  const panel = syncPanel(SITE, chapters, dry);
+  const panel = syncPanel(SITE, rawByChapter[PANEL.chapter], dry);
 
-  return { copied, bytes, changed, chapters: summary, book: BOOK, panel };
+  return { copied, bytes, changed, chapters: summary, book: BOOK, panel, collisions };
 }
 
 /* Watch every configured source folder and call onChange after things settle.
@@ -279,6 +312,8 @@ export function describe(result, { dry = false } = {}) {
       lines.push(`  !! ${p.noResizer} thumbnail(s) not made — no sips/magick/convert/ffmpeg on this machine.\n` +
                  `     The grid will fall back to whatever is already in assets/thumbnails/PHE/.`);
   }
+  if (result.collisions?.length)
+    lines.push('  !! filename clash after stripping # :\n     ' + result.collisions.join('\n     '));
   return lines.join('\n');
 }
 
