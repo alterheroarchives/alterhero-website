@@ -1101,35 +1101,75 @@
         #arcLayers .arc-market .fac-val{ font-family:var(--mono); font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:#8a8578; padding:3px 0; cursor:pointer; transition:color .15s; }
         #arcLayers .arc-market .fac-val:hover{ color:#171016; font-weight:700; }
         #arcLayers .arc-market .fac-val.on{ color:#171016; font-weight:700; }
-        #arcLayers .arc-market .res-fac{ margin-top:0; padding-left:1ch; text-indent:-1ch; color:#171016; white-space:pre-line; line-height:1.6; letter-spacing:.04em; }
-        #arcLayers .arc-market .res-fac.on{ font-weight:700; }
-        #arcLayers .arc-market .res-door{ position:absolute; left:-28px; top:425px; display:flex; flex-direction:column; align-items:flex-start; gap:4px; opacity:0; pointer-events:none; cursor:pointer; transition:opacity .6s ease; }
-        #arcLayers .arc-market .res-door img{ width:clamp(77px,8.9vw,115px); height:auto; display:block; image-rendering:pixelated; }
-        #arcLayers .arc-market .res-door .door-wallet{ font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:#2a2016; text-align:center; display:flex; flex-direction:column; align-items:center; gap:3px; }
-        #arcLayers .arc-market .res-door .door-wallet:empty{ display:none; }
-        #arcLayers .arc-market .res-door .dw-disc{ font-size:9px; color:#8a8578; cursor:pointer; text-decoration:underline; }
-        #arcLayers .arc-market .res-door .dw-disc:hover{ color:#171016; }
-        #arcLayers .arc-market.door-on .res-door{ opacity:.85; }
-        #arcLayers .arc-market.door-connect .res-door img{ pointer-events:auto; cursor:pointer; }
-        #arcLayers .arc-market.door-connect .res-door img:hover{ opacity:1; }
+        /*  the trait list ends in two buttons, drawn in the same language as the density switch  */
+        #arcLayers .arc-market .side-tools{ margin-top:14px; padding-top:12px; border-top:1px solid rgba(23,16,22,.16); }
+        #arcLayers .arc-market .side-tools .st-row{ display:flex; gap:6px; }
+        #arcLayers .arc-market .side-tools button{ position:relative; background:transparent; border:1px solid rgba(23,16,22,.18); border-radius:0;
+          padding:5px 6px; line-height:0; cursor:pointer; color:#2a2016; font-family:var(--mono); font-size:11px;
+          transition:border-color .15s, background .15s, color .15s; }
+        /* three states, each a step further in: resting, reached for, chosen */
+        #arcLayers .arc-market .side-tools button:hover:not(:disabled){ border-color:#171016; background:rgba(23,16,22,.07); }
+        #arcLayers .arc-market .side-tools button:active:not(:disabled){ background:rgba(23,16,22,.14); }
+        #arcLayers .arc-market .side-tools button.on:hover{ background:#171016; }
+        #arcLayers .arc-market .side-tools button:disabled:hover{ border-color:rgba(23,16,22,.18); background:transparent; }
+        #arcLayers .arc-market .side-tools button.on{ background:#171016; border-color:#171016; color:#f4f1e9; }
+        #arcLayers .arc-market .side-tools button:disabled{ opacity:.35; cursor:default; }
+        /* the chosen mark is the same circle you press in the zoom — one gesture, two places */
+        #arcLayers .arc-market .side-tools .st-star{ width:25px; height:25px; box-sizing:border-box; border-radius:50%;
+          padding:0; display:inline-flex; align-items:center; justify-content:center; font-size:10px; line-height:1;
+          border-color:rgba(0,0,0,.3); color:#8a8578; }
+        #arcLayers .arc-market .side-tools .st-star:hover:not(:disabled){ border-color:rgba(0,0,0,.6); color:#171016; }
+        #arcLayers .arc-market .side-tools .st-star.on{ background:transparent; border-color:#171016; color:#171016; }
+        #arcLayers .arc-market .side-tools .st-star.on:hover{ background:transparent; }
+        #arcLayers .arc-market .side-tools .st-star .st-cnt{ top:-5px; right:-5px; }
+        #arcLayers .arc-market .side-tools .st-star.on .st-cnt{ background:#171016; color:#f4f1e9; }
+        #arcLayers .arc-market .side-tools svg{ display:block; }
+        #arcLayers .arc-market .side-tools rect{ fill:#2a2016; }
+        #arcLayers .arc-market .side-tools button.on rect{ fill:#f4f1e9; }
+        #arcLayers .arc-market .side-tools rect.neg{ fill:#f4f1e9; }
+        #arcLayers .arc-market .side-tools button.on rect.neg{ fill:#171016; }
+        #arcLayers .arc-market .side-tools .st-cnt{ position:absolute; top:-6px; right:-6px; background:#171016; color:#f4f1e9;
+          font-size:7px; line-height:1; letter-spacing:0; padding:2px 3px; }
+        #arcLayers .arc-market .side-tools button.on .st-cnt{ background:#f4f1e9; color:#171016; }
+        #arcLayers .arc-market .side-tools .st-cnt:empty{ display:none; }
+        #arcLayers .arc-market .side-tools .st-addr{ font-family:var(--mono); font-size:9px; letter-spacing:.06em; color:#8a8578; margin-top:8px; line-height:1.6; }
+        #arcLayers .arc-market .side-tools .st-addr:empty{ display:none; }
+        #arcLayers .arc-market .side-tools .st-disc{ color:#8a8578; cursor:pointer; text-decoration:underline; }
+        #arcLayers .arc-market .side-tools .st-disc:hover{ color:#171016; }
         #arcLayers .arc-market .market-mid{ position:relative; flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }
         /* the "chosen ones" (starred) / "collection I own" (wallet) pager — only shown while FREQUENCY MATCHED is active */
         /* always laid out (never display:none) so toggling FREQUENCY MATCHED can't change the column's
            height — that shift is what used to nudge the grid and the portal sprites out of alignment */
         #arcLayers .arc-market .market-dots{ position:relative; z-index:2; display:flex; justify-content:center; gap:9px; margin-bottom:12px; flex:0 0 auto; visibility:hidden; }
-        #arcLayers .arc-market.resonance .market-dots{ visibility:visible; }
+        /* kept in the flow purely so the column height never changes  the two buttons do its job now */
         #arcLayers .arc-market .market-dots .market-dot{ width:8px; height:8px; border-radius:50%; border:1.5px solid rgba(23,16,22,.35);
           background:transparent; padding:0; cursor:pointer; transition:background .15s ease,border-color .15s ease,transform .15s ease; }
         #arcLayers .arc-market .market-dots .market-dot:hover{ transform:scale(1.2); border-color:rgba(23,16,22,.8); }
         #arcLayers .arc-market .market-dots .market-dot.on{ background:#171016; border-color:#171016; }
-        #arcLayers .arc-market .market-grid{ width:100%; display:grid; grid-template-columns:repeat(7,1fr); gap:clamp(3px,1vw,9px); }
-        #arcLayers .arc-market .market-match{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; flex-wrap:wrap; gap:clamp(3px,1vw,9px); }
-        #arcLayers .arc-market.match-active .market-match{ display:flex; }
-        #arcLayers .arc-market .market-match .mframe{ width:calc((100% - 6*clamp(3px,1vw,9px)) / 7 * 1.2); }
+        #arcLayers .arc-market .market-grid{ width:100%; display:grid; justify-content:center;
+          grid-template-columns:repeat(var(--mk-cols,7),minmax(0,272px)); gap:clamp(3px,1vw,9px); }   /* a frame never passes 272 CSS px = 544 device px on a retina screen, which the 512px set covers */
+        /* the density switch  sits with the panel's own typography, not a chrome widget */
+        /* anchored to the layer, never to the grid  the column re-centres as the density changes,
+           and anything living inside it would jump around and clip the top row of art */
+        #arcLayers .arc-market .mk-dens{ position:absolute; top:50%; right:clamp(52px,4.4vw,72px); transform:translateY(-50%);   /* left of #arcNav, which owns right:20px */
+          z-index:4; display:flex; flex-direction:column; gap:6px; align-items:center; }
+        #arcLayers .arc-market .mk-dens button{ background:transparent; border:1px solid rgba(23,16,22,.18); border-radius:0;
+          padding:5px 6px; line-height:0; cursor:pointer; transition:border-color .15s, background .15s; }
+        #arcLayers .arc-market .mk-dens button:hover{ border-color:rgba(23,16,22,.45); }
+        #arcLayers .arc-market .mk-dens button.on{ background:#171016; border-color:#171016; }
+        #arcLayers .arc-market .mk-dens rect{ fill:#2a2016; }
+        #arcLayers .arc-market .mk-dens button.on rect{ fill:#f4f1e9; }
+        #arcLayers .arc-market .mk-dens rect.neg{ fill:#f4f1e9; }                 /* the doorway  a hole, so it flips with the button */
+        #arcLayers .arc-market .mk-dens button.on rect.neg{ fill:#171016; }
+        /* the market is a mode, not a fourth density  the rule keeps the two groups from reading as one set */
+        #arcLayers .arc-market .mk-dens .mk-rule{ width:15px; height:1px; background:rgba(23,16,22,.22); margin:3px 0; }
+        @media (max-width:760px){ #arcLayers .arc-market .mk-dens{ display:none; } }
         #arcLayers .arc-market .wallet-bar{ font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:#2a2016; text-align:center; margin-bottom:10px; }
         #arcLayers .arc-market .wallet-bar:empty{ margin-bottom:0; }
         #arcLayers .arc-market .market-spacer{ flex:0 0 auto; width:clamp(96px,11vw,140px); }
-        #arcLayers .arc-market .mframe{ cursor:zoom-in; }
+        #arcLayers .arc-market .mframe{ cursor:cell; }        /* the same pointer the other four panels use */
+        /* price presentation is undecided  the market flag and the price data are wired, nothing is drawn on the art */
+        #arcLayers .arc-market .mprice{ display:none; }
         #arcLayers .arc-market .mimg{ aspect-ratio:1; overflow:hidden; background:#e9e4d8; border:1px solid rgba(0,0,0,.12);
           transition:border-color .2s, transform .2s ease, box-shadow .2s ease; }
         #arcLayers .arc-market .mframe{ position:relative; }                              /* so the hovered tile can lift above its neighbours */
@@ -1201,6 +1241,18 @@
         #arcLightbox .lb-traits .lb-star{ margin-top:14px; width:20px; height:20px; border-radius:50%; box-sizing:border-box; background:none; border:1px solid rgba(0,0,0,.3); color:#8a8578; font-size:9px; line-height:1; display:inline-flex; align-items:center; justify-content:center; padding:0; cursor:pointer; transition:border-color .15s,color .15s; }
         #arcLightbox .lb-traits .lb-star:hover{ border-color:rgba(0,0,0,.6); color:#171016; }
         #arcLightbox .lb-traits .lb-star.on{ border-color:#171016; color:#171016; }
+        /*  the market half of the zoom  only drawn when MARKET is on and the piece is listed  */
+        #arcLightbox .lb-market{ display:none; margin-top:16px; padding-top:14px; border-top:1px solid rgba(0,0,0,.12); cursor:default; }
+        #arcLightbox .lb-market.show{ display:block; }
+        #arcLightbox .lb-price{ font-family:var(--mono); font-size:17px; letter-spacing:.06em; color:#171016; margin-bottom:10px; }
+        #arcLightbox .lb-buy{ font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+          background:#171016; color:#f4f1e9; border:1px solid #171016; border-radius:0; padding:9px 22px; cursor:pointer;
+          transition:background .15s, color .15s, opacity .15s; }
+        #arcLightbox .lb-buy:hover:not(:disabled){ background:transparent; color:#171016; }
+        #arcLightbox .lb-buy:disabled{ opacity:.4; cursor:default; }
+        #arcLightbox .lb-msg{ font-family:var(--mono); font-size:10px; letter-spacing:.06em; color:#8a8578; margin-top:9px; line-height:1.5; min-height:1em; }
+        #arcLightbox .lb-msg a{ color:#c05a2a; }
+        #arcLightbox .lb-msg.bad{ color:#c05a2a; }
         #arcUp.arc-chev, #arcDown.arc-chev{ width:32px !important; height:32px !important; min-width:0 !important; padding:0 !important; box-sizing:border-box !important; font-size:11px !important; line-height:1 !important; background:transparent !important; border:none !important; box-shadow:none !important; color:#8a8578 !important; }
         #arcUp.arc-chev:hover, #arcDown.arc-chev:hover{ color:#171016 !important; }
       </style>
@@ -1263,22 +1315,45 @@
 
       <!-- V · the market -->
       <div class="layer arc-art arc-market" data-title="market">
+            <div class="mk-dens" id="mkDens">
+            <button data-cols="4" data-rows="2" title="GRID" aria-label="GRID">
+              <svg width="13" height="13" viewBox="0 0 13 13"><rect x="0" y="0" width="5.5" height="5.5"/><rect x="7.5" y="0" width="5.5" height="5.5"/><rect x="0" y="7.5" width="5.5" height="5.5"/><rect x="7.5" y="7.5" width="5.5" height="5.5"/></svg>
+            </button>
+            <button data-cols="5" data-rows="3" title="COMPACT GRID" aria-label="COMPACT GRID">
+              <svg width="13" height="13" viewBox="0 0 13 13"><rect x="0" y="0" width="3.5" height="3.5"/><rect x="4.75" y="0" width="3.5" height="3.5"/><rect x="9.5" y="0" width="3.5" height="3.5"/><rect x="0" y="4.75" width="3.5" height="3.5"/><rect x="4.75" y="4.75" width="3.5" height="3.5"/><rect x="9.5" y="4.75" width="3.5" height="3.5"/><rect x="0" y="9.5" width="3.5" height="3.5"/><rect x="4.75" y="9.5" width="3.5" height="3.5"/><rect x="9.5" y="9.5" width="3.5" height="3.5"/></svg>
+            </button>
+            <button data-cols="7" data-rows="4" title="WALL" aria-label="WALL">
+              <svg width="13" height="13" viewBox="0 0 13 13"><rect x="0" y="0" width="2.5" height="2.5"/><rect x="3.5" y="0" width="2.5" height="2.5"/><rect x="7" y="0" width="2.5" height="2.5"/><rect x="10.5" y="0" width="2.5" height="2.5"/><rect x="0" y="3.5" width="2.5" height="2.5"/><rect x="3.5" y="3.5" width="2.5" height="2.5"/><rect x="7" y="3.5" width="2.5" height="2.5"/><rect x="10.5" y="3.5" width="2.5" height="2.5"/><rect x="0" y="7" width="2.5" height="2.5"/><rect x="3.5" y="7" width="2.5" height="2.5"/><rect x="7" y="7" width="2.5" height="2.5"/><rect x="10.5" y="7" width="2.5" height="2.5"/><rect x="0" y="10.5" width="2.5" height="2.5"/><rect x="3.5" y="10.5" width="2.5" height="2.5"/><rect x="7" y="10.5" width="2.5" height="2.5"/><rect x="10.5" y="10.5" width="2.5" height="2.5"/></svg>
+            </button>
+            <span class="mk-rule" aria-hidden="true"></span>
+            <button data-mode="market" title="MARKET" aria-label="MARKET" aria-pressed="false">
+              <svg width="13" height="13" viewBox="0 0 13 13"><rect x="0.5" y="1" width="2.75" height="3"/><rect x="3.75" y="1" width="2.75" height="3"/><rect x="7" y="1" width="2.75" height="3"/><rect x="10.25" y="1" width="2.25" height="3"/><rect x="0.5" y="4.75" width="12" height="7.75"/><rect class="neg" x="4.75" y="7.5" width="3.5" height="5"/></svg>
+            </button>
+          </div>
         <div class="market-wrap">
           <aside class="market-side">
             <div class="market-side-list" id="marketSide"></div>
-            <div id="resDoor" class="res-door"><div class="door-wallet" id="doorWallet"></div><img id="doorImg" src="assets/ah!rchives_display/wallet.png" alt="" /></div>
+            <div class="side-tools" id="sideTools">
+              <div class="st-row">
+                <button type="button" id="stStar" class="st-star" title="CHOSEN" aria-label="Chosen" aria-pressed="false"><span id="stGlyph">✧</span><span class="st-cnt" id="stCnt"></span></button>
+                <button type="button" id="stWallet" title="WALLET" aria-label="Wallet" aria-pressed="false">
+                  <svg width="13" height="13" viewBox="0 0 13 13"><rect x="0.5" y="2.5" width="12" height="8.5"/><rect class="neg" x="8" y="5.75" width="3.25" height="2.5"/></svg>
+                </button>
+              </div>
+              <div class="st-addr" id="stAddr"></div>
+            </div>
           </aside>
           <div class="market-mid">
             <div class="market-dots" id="marketDots"><span class="market-dot on"></span><span class="market-dot"></span></div>
             <div class="market-grid" id="marketGrid"></div>
-            <div class="market-match" id="marketMatch"></div>
           </div>
           <div class="market-spacer" aria-hidden="true"></div>
         </div>
       </div>
     </div>
     <div id="arcFade" aria-hidden="true"></div>
-    <div id="arcLightbox" aria-hidden="true"><img alt=""><div class="lb-traits" id="lbTraits"><div id="lbNum" class="lb-num"></div><div id="lbRows"></div><button type="button" id="lbStar" class="lb-star">✧</button></div></div>
+    <div id="arcLightbox" aria-hidden="true"><img alt=""><div class="lb-traits" id="lbTraits"><div id="lbNum" class="lb-num"></div><div id="lbRows"></div><button type="button" id="lbStar" class="lb-star">✧</button>
+      <div class="lb-market" id="lbMarket"><div class="lb-price" id="lbPrice"></div><button type="button" class="lb-buy" id="lbBuy">Buy</button><div class="lb-msg" id="lbMsg"></div></div></div></div>
     <!-- paged navigation (kept above the live page) -->
     <nav id="arcNav" aria-label="Archives pages"></nav>
     <button class="arc-chev up" id="arcUp" aria-label="Previous page" hidden>▲</button>
@@ -2814,7 +2889,10 @@
     var queue=(alts||'').split(',').filter(Boolean);                 // try each backup folder in turn if the first 404s
     lbImg.onerror=function(){ if(!queue.length){ lbImg.onerror=null; return; } lbImg.src=queue.shift(); };
     lbImg.src=src; lb.classList.add('show'); lb.setAttribute('aria-hidden','false'); }
-  function closeLb(){ lb.classList.remove('show'); lb.setAttribute('aria-hidden','true'); lbImg.onerror=null; lbImg.removeAttribute('src'); var tr=document.getElementById('lbRows'); if(tr) tr.innerHTML=''; var nm=document.getElementById('lbNum'); if(nm) nm.textContent=''; var st=document.getElementById('lbStar'); if(st){ if(st._stop) st._stop(); st.textContent='✧'; st.classList.remove('on'); } var tw=document.getElementById('lbTraits'); if(tw) tw.classList.remove('show'); }
+  function closeLb(){ lb.classList.remove('show'); lb.setAttribute('aria-hidden','true'); lbImg.onerror=null; lbImg.removeAttribute('src'); var tr=document.getElementById('lbRows'); if(tr) tr.innerHTML=''; var nm=document.getElementById('lbNum'); if(nm) nm.textContent=''; var st=document.getElementById('lbStar'); if(st){ if(st._stop) st._stop(); st.textContent='✧'; st.classList.remove('on'); } var tw=document.getElementById('lbTraits'); if(tw) tw.classList.remove('show');
+    var mk=document.getElementById('lbMarket'); if(mk) mk.classList.remove('show');
+    var mg=document.getElementById('lbMsg'); if(mg){ mg.textContent=''; mg.classList.remove('bad'); }
+    var bb=document.getElementById('lbBuy'); if(bb){ bb.disabled=false; bb.textContent='Buy'; } }
   if(layers){ layers.addEventListener('click', function(e){
     var fr = e.target.closest && e.target.closest('.arc-art .frame'); if(!fr) return;
     var im = fr.querySelector('img'); if(!im) return;
@@ -2843,30 +2921,35 @@
     });
   });
   var types=PREF.filter(function(t){return byType[t];}).concat(order.filter(function(t){return PREF.indexOf(t)<0;}));
-  var pool=ALL.slice(), offset=0, selected=[], resonanceOn=false, curId=null, resRowEl=null;
+  var pool=ALL.slice(), offset=0, selected=[], resonanceOn=false, curId=null;
   function loadRes(){ try{ return new Set((JSON.parse(localStorage.getItem('ah_resonance')||'[]')||[]).map(String)); }catch(e){ return new Set(); } }
   function saveRes(){ try{ localStorage.setItem('ah_resonance', JSON.stringify(Array.from(resSet))); }catch(e){} }
   var resSet=loadRes();
-  var RES_UNLOCK=2;
-  var RES_MSGS=['NO SIGNAL...','STATIC...','SOMETHING RESONATES...','FREQUENCY ACTIVATED...','OFF THE GLITCH...'];
-  function resLabel(n){
-    var sq=[]; for(var i=0;i<n;i++) sq.push('■');
-    if(n<RES_UNLOCK) sq.push('☐');
-    var msg=RES_MSGS[Math.min(n,RES_MSGS.length-1)];
-    return '['+sq.join(' ')+'\n'+msg+' ]';   // NBSP keeps the closing bracket welded to the message — it can never wrap onto a line of its own
+  var RES_UNLOCK=3;                                   // three chosen before the wallet opens — the unlock stays
+  var stStar=document.getElementById('stStar'), stWallet=document.getElementById('stWallet'), stGlyph=document.getElementById('stGlyph'),
+      stCnt=document.getElementById('stCnt'), stAddr=document.getElementById('stAddr');
+  function paintTools(){
+    var n=resSet.size, unlocked=n>=RES_UNLOCK;
+    if(stCnt) stCnt.textContent = n ? String(n) : '';
+    if(stStar){
+      stStar.disabled = !n;
+      var starOn = resonanceOn && resonanceView==='starred';
+      stStar.classList.toggle('on', starOn);
+      if(stGlyph) stGlyph.textContent = starOn ? '✦' : '✧';
+      stStar.setAttribute('aria-pressed', starOn?'true':'false');
+      stStar.title = 'CHOSEN\nFind what resonates.';
+    }
+    if(stWallet){
+      stWallet.disabled = !unlocked && !curWallet;
+      var wOn = resonanceOn && resonanceView==='wallet';
+      stWallet.classList.toggle('on', wOn);
+      stWallet.setAttribute('aria-pressed', wOn?'true':'false');
+      var LEFT=['Three more await.','Two more to find.','The last one.'];
+      stWallet.title = 'WALLET\n' + (curWallet ? 'Your collection.'
+        : unlocked ? 'Connect.' : LEFT[Math.min(n, LEFT.length-1)]);
+    }
   }
-  var WALLET_IMGS=['assets/ah!rchives_display/wallet.png','assets/ah!rchives_display/wallet1.png','assets/ah!rchives_display/wallet2.png','assets/ah!rchives_display/wallet3.png'];
-  function updateWalletImg(){
-    var di=document.getElementById('doorImg'); if(!di) return;
-    if(curWallet){ di.src=WALLET_IMGS[3]; return; }
-    di.src=WALLET_IMGS[resSet.size>=3 ? 3 : resSet.size>=2 ? 2 : 1];
-  }
-  function refreshResState(){
-    if(resRowEl) resRowEl.textContent = resLabel(resSet.size);
-    var mk=document.querySelector('.arc-market');
-    if(mk){ mk.classList.toggle('door-on', resSet.size>=1); mk.classList.toggle('door-connect', resSet.size>=3 && !curWallet); }
-    updateWalletImg();
-  }
+  function refreshResState(){ paintTools(); }
   var resonanceView='starred';   // 'starred' = the chosen ones, 'wallet' = the collection I own
   function computePool(){
     if(resonanceOn){
@@ -2880,24 +2963,45 @@
       for(var ty in byT){ var ok=false; for(var j=0;j<byT[ty].length;j++){ if(have[ty+' '+byT[ty][j]]){ ok=true; break; } } if(!ok) return false; }
       return true; });
   }
-  var marketDotsEls=[].slice.call(document.querySelectorAll('#marketDots .market-dot'));
-  function setResRow(){ if(resRowEl) resRowEl.classList.toggle('on', resonanceOn);
-    var mk=document.querySelector('.arc-market'); if(mk){ mk.classList.toggle('resonance', resonanceOn);
-      mk.classList.toggle('match-active', resonanceOn && resonanceView==='starred'); }
-    marketDotsEls.forEach(function(d,i){ d.classList.toggle('on', (i===0)===(resonanceView==='starred')); });
+  function setResRow(){
+    var mk=document.querySelector('.arc-market');
+    if(mk){ mk.classList.toggle('resonance', resonanceOn);
+    }
+    paintTools();
   }
   function setResView(v){ resonanceView=v; setResRow(); computePool(); offset=0; render(); }
-  marketDotsEls.forEach(function(d,i){ d.addEventListener('click', function(e){ e.stopPropagation(); setResView(i===0?'starred':'wallet'); }); });
-  var matchEl=document.getElementById('marketMatch');
-  var cells=[];
-  for(var k=0;k<N;k++){
-    var c=document.createElement('div'); c.className='mframe';
-    var im=document.createElement('div'); im.className='mimg';
-    var img=document.createElement('img'); img.alt=''; img.loading='lazy'; im.appendChild(img);
-    c.appendChild(im); grid.appendChild(c);
-    (function(cc){ cc.addEventListener('click', function(){ openPiece(cc.getAttribute('data-id')); }); })(c);
-    cells.push({c:c,img:img});
+  function showView(v){                                // click the lit button again to come back to the whole collection
+    if(resonanceOn && resonanceView===v){ resonanceOn=false; setResRow(); computePool(); offset=0; render(); return; }
+    resonanceOn=true; selected=[]; syncActive(); setResView(v);
   }
+  if(stStar) stStar.addEventListener('click', function(e){ e.stopPropagation(); if(!resSet.size) return; showView('starred'); });
+  if(stWallet) stWallet.addEventListener('click', function(e){ e.stopPropagation();
+    if(!curWallet){ if(resSet.size>=RES_UNLOCK) connectWallet(); return; }
+    showView('wallet'); });
+  var cells=[];
+  var hd=false;                                            // 256px thumbs blur once a frame is bigger than that; the 512px zoom set takes over
+  function srcFor(id){ return (hd?'zoom/':'thumbs/')+id+'.jpg'; }
+  function wantsHd(){
+    var w = cells.length ? cells[0].c.getBoundingClientRect().width : 0;
+    if(!w) return hd;
+    return w*(window.devicePixelRatio||1) > 260;           // anything bigger than a 256px thumb would be an upscale
+  }
+  function buildCells(){                                   // the wall is rebuilt whenever the density changes
+    for(var q=0;q<cells.length;q++){ var old=cells[q].c; if(old.parentNode) old.parentNode.removeChild(old); }
+    cells=[];
+    for(var k=0;k<N;k++){
+      var c=document.createElement('div'); c.className='mframe';
+      var im=document.createElement('div'); im.className='mimg';
+      var img=document.createElement('img'); img.alt=''; img.loading='lazy'; img.decoding='async';
+      img.onerror=function(){ if(this.src.indexOf('/zoom/')>=0) this.src=this.src.replace('/zoom/','/thumbs/'); };
+      im.appendChild(img);
+      var pr=document.createElement('div'); pr.className='mprice'; c.appendChild(pr);
+      c.appendChild(im); grid.appendChild(c);
+      (function(cc){ cc.addEventListener('click', function(){ openPiece(cc.getAttribute('data-id')); }); })(c);
+      cells.push({c:c,img:img,pr:pr});
+    }
+  }
+  buildCells();
   function openPiece(id){
     if(!id||!lb) return; curId=id;
     var l=lb.querySelector('img'); l.onerror=function(){ this.onerror=null; this.src='thumbs/'+id+'.jpg'; };
@@ -2911,7 +3015,7 @@
         rr.appendChild(a); rr.appendChild(b);
         (function(tt,vv){ rr.addEventListener('click', function(){ applyTraitFromZoom(tt,vv); }); })(tv[0],tv[1]);
         rows.appendChild(rr); }); } }
-    if(tw) tw.classList.add('show'); paintStar();
+    if(tw) tw.classList.add('show'); paintStar(); paintMarket(id);
     lb.classList.add('show'); lb.setAttribute('aria-hidden','false');
   }
   var walletIds=[];   // pieces the connected wallet holds — fills the FREQUENCY MATCHED grid once connected (see fetchWalletIds)
@@ -2934,12 +3038,153 @@
       if(resonanceOn){ computePool(); if(offset>maxOff()) offset=maxOff(); render(); } }); }
   var ROWS=Math.ceil(N/COLS);
   function maxOff(){ return Math.max(0, Math.ceil(pool.length/COLS)-ROWS); }
+  var DENS=[{cols:4,rows:2},{cols:5,rows:3},{cols:7,rows:4}];   // grid / compact grid / wall
+  var densEl=document.getElementById('mkDens'), mkEl=document.querySelector('.arc-market');
+  function setDensity(cols,rows,save){
+    var anchor=offset*COLS;                                // keep the piece you were looking at in view
+    COLS=cols; ROWS=rows; N=cols*rows;
+    offset=Math.floor(anchor/COLS);
+    if(mkEl) mkEl.style.setProperty('--mk-cols', cols);
+    buildCells();
+    hd=wantsHd();
+    if(offset>maxOff()) offset=maxOff();
+    if(densEl) [].forEach.call(densEl.querySelectorAll('button[data-cols]'), function(b){
+      b.classList.toggle('on', +b.getAttribute('data-cols')===cols); });
+    render();
+    if(save!==false){ try{ localStorage.setItem('ah_mk_dens', cols+'x'+rows); }catch(e){} }
+  }
+  if(densEl){ [].forEach.call(densEl.querySelectorAll('button[data-cols]'), function(b){
+    b.addEventListener('click', function(e){ e.stopPropagation();
+      setDensity(+b.getAttribute('data-cols'), +b.getAttribute('data-rows')); }); }); }
+
+  /* ---- the market: prices come from a small index, the signed orders stay on the shelf until someone buys ---- */
+  var PRICES=null, SELLER='', priceReq=null, marketOn=false;
+  var mkBtn=densEl && densEl.querySelector('button[data-mode="market"]');
+  function loadPrices(){
+    if(priceReq) return priceReq;
+    priceReq=fetch('assets/market/prices.json').then(function(r){ return r.ok?r.json():null; })
+      .then(function(j){ PRICES=(j&&j.prices)||{}; SELLER=(j&&j.seller)||''; return PRICES; })
+      .catch(function(){ PRICES={}; return PRICES; });
+    return priceReq;
+  }
+  function setMarket(on,save){
+    marketOn=!!on;
+    if(mkEl) mkEl.classList.toggle('market-on', marketOn);
+    if(mkBtn){ mkBtn.classList.toggle('on', marketOn); mkBtn.setAttribute('aria-pressed', marketOn?'true':'false'); }
+    if(save!==false){ try{ localStorage.setItem('ah_mk_market', marketOn?'1':''); }catch(e){} }
+    if(marketOn && !PRICES){ loadPrices().then(render); return; }
+    render();
+  }
+  if(mkBtn) mkBtn.addEventListener('click', function(e){ e.stopPropagation(); setMarket(!marketOn); });
+
+  /* ---- buying: the signed orders are fetched only when someone actually means it ---- */
+  var SEAPORT='0x0000000000000068F116a894984e2DB1123eB395';
+  var ORDERS=null, ordersReq=null, buyId=null;
+  function loadOrders(){
+    if(ordersReq) return ordersReq;
+    ordersReq=fetch('assets/market/listings.json').then(function(r){ return r.ok?r.json():null; })
+      .then(function(j){ ORDERS={}; if(j&&j.listings) j.listings.forEach(function(l){ ORDERS[l.tokenId]=l; }); return ORDERS; })
+      .catch(function(){ ORDERS=null; ordersReq=null; throw new Error('could not load the listings'); });
+    return ordersReq;
+  }
+  // ---- ABI encoding for Seaport fulfillOrder, checked byte-for-byte against ethers ----
+  function w(v){ var h; if(typeof v==='string'&&v.slice(0,2)==='0x') h=v.slice(2).toLowerCase(); else h=BigInt(v).toString(16);
+    if(h.length>64) throw new Error('word overflow'); while(h.length<64) h='0'+h; return h; }
+  function bytesArg(hex){ var d=hex.replace(/^0x/,'').toLowerCase(); var out=w(d.length/2);
+    while(d.length%64) d+='0'; return out+d; }
+  function offerItem(o){ return w(o.itemType)+w(o.token)+w(o.identifierOrCriteria)+w(o.startAmount)+w(o.endAmount); }
+  function considerationItem(c){ return offerItem(c)+w(c.recipient); }
+  function arr(items,enc){ return w(items.length)+items.map(enc).join(''); }
+  function orderParameters(p){
+    var offer=arr(p.offer,offerItem), cons=arr(p.consideration,considerationItem), HEAD=11*32;
+    return w(p.offerer)+w(p.zone)+w(HEAD)+w(HEAD+offer.length/2)+w(p.orderType)+w(p.startTime)+w(p.endTime)+
+           w(p.zoneHash)+w(p.salt)+w(p.conduitKey)+w(p.totalOriginalConsiderationItems)+offer+cons;
+  }
+  function fulfillData(o){
+    var params=orderParameters(o.parameters), sig=bytesArg(o.signature), H=2*32;
+    var ord=w(H)+w(H+params.length/2)+params+sig;
+    return '0xb3a34c4c'+w(H)+w('0x'+Array(65).join('0'))+ord;      // fulfillOrder(order, zero conduit key)
+  }
+  function orderValue(o){                                           // what must be sent — read off the order, never the label
+    return o.parameters.consideration.reduce(function(a,c){ return a+BigInt(c.startAmount); }, 0n);
+  }
+  function msg(t,bad){ var m=document.getElementById('lbMsg'); if(!m) return;
+    m.textContent=t||''; m.classList.toggle('bad', !!bad); }
+  function paintMarket(id){
+    var wrap=document.getElementById('lbMarket'), pe=document.getElementById('lbPrice'), bt=document.getElementById('lbBuy');
+    if(!wrap) return;
+    buyId=String(id); msg('');
+    if(!PRICES){ loadPrices().then(function(){ if(buyId===String(id)) paintMarket(id); }); return; }
+    var price=PRICES && PRICES[buyId];                 // listed is listed  the MARKET button is about the wall, not the zoom
+    wrap.classList.toggle('show', !!price);
+    if(!price) return;
+    pe.textContent=price+' ETH';
+    bt.disabled=false; bt.textContent='Buy';
+    if(curWallet && SELLER && curWallet.toLowerCase()===SELLER.toLowerCase()){
+      bt.disabled=true; bt.textContent='Yours'; msg('this wallet is the seller');
+    }
+  }
+  function buy(){
+    var id=buyId, bt=document.getElementById('lbBuy');
+    if(!id || !PRICES || !PRICES[id]) return;
+    if(!window.ethereum){ msg('no wallet in this browser', true); return; }
+    bt.disabled=true; msg('connecting…');
+    hookWallet();
+    window.ethereum.request({method:'eth_requestAccounts'}).then(function(a){
+      if(!a||!a[0]) throw new Error('no account');
+      var from=a[0];
+      if(SELLER && from.toLowerCase()===SELLER.toLowerCase()) throw new Error('that is the selling wallet');
+      msg('checking the network…');
+      return ensureChain().then(function(okChain){
+        if(!okChain) throw new Error('please switch to Ethereum mainnet');
+        msg('fetching the signed listing…');
+        return loadOrders();
+      }).then(function(map){
+        var l=map[id]; if(!l) throw new Error('no signed listing for #'+id);
+        var data=fulfillData(l.order), value='0x'+orderValue(l.order).toString(16);
+        msg('checking the listing is still good…');
+        return window.ethereum.request({method:'eth_call', params:[{from:from,to:SEAPORT,data:data,value:value},'latest']})
+          .then(function(){                                          // the call passed — nothing has moved yet
+            msg('confirm in your wallet…');
+            return window.ethereum.request({method:'eth_sendTransaction', params:[{from:from,to:SEAPORT,data:data,value:value}]});
+          }, function(err){
+            throw new Error('this listing will not fulfil: '+((err&&(err.message||err.data&&err.data.message))||'reverted'));
+          });
+      }).then(function(tx){
+        var m=document.getElementById('lbMsg'); m.classList.remove('bad');
+        m.innerHTML='sent · <a href="https://etherscan.io/tx/'+tx+'" target="_blank" rel="noopener">watch it settle</a>';
+      });
+    }).catch(function(e){
+      var t=(e&&e.message)||'something went wrong';
+      if(e&&e.code===4001) t='cancelled';
+      msg(t, true); bt.disabled=false; bt.textContent='Buy';
+    });
+  }
+  var buyBtn=document.getElementById('lbBuy');
+  if(buyBtn) buyBtn.addEventListener('click', function(e){ e.stopPropagation(); buy(); });   // the lightbox closes on any click — not this one
+  var mktEl=document.getElementById('lbMarket');
+  if(mktEl) mktEl.addEventListener('click', function(e){ e.stopPropagation(); });
+  var rzT=null;
+  addEventListener('resize', function(){ clearTimeout(rzT); rzT=setTimeout(function(){
+    var want=wantsHd(); if(want!==hd){ hd=want; render(); } }, 180); });
+  function restoreDensity(){
+    var saved=null; try{ saved=localStorage.getItem('ah_mk_dens'); }catch(e){}
+    var m=saved && /^(\d+)x(\d+)$/.exec(saved), d=null;
+    if(m) for(var i=0;i<DENS.length;i++) if(DENS[i].cols===+m[1] && DENS[i].rows===+m[2]) d=DENS[i];
+    setDensity.call(null,(d||DENS[2]).cols,(d||DENS[2]).rows,false);
+    var wasOn=''; try{ wasOn=localStorage.getItem('ah_mk_market')||''; }catch(e){}
+    if(wasOn) setMarket(true,false);
+    loadPrices();                                       // 11kB, so the zoom always knows what is for sale
+  }
   function render(){
-    var useMatch = resonanceOn && resonanceView==='starred';
-    for(var i=0;i<N;i++){ var idx=offset*COLS+i, cell=cells[i], target=grid;
-      if(idx<pool.length){ var id=pool[idx]; cell.c.style.visibility=''; cell.c.setAttribute('data-id',id); cell.img.src='thumbs/'+id+'.jpg'; if(useMatch) target=matchEl; }
+    for(var i=0;i<N;i++){ var idx=offset*COLS+i, cell=cells[i];
+      if(idx<pool.length){ var id=pool[idx]; cell.c.style.visibility=''; cell.c.setAttribute('data-id',id); var ns=srcFor(id); if(cell.img.getAttribute('src')!==ns) cell.img.src=ns;
+        var pe=PRICES&&PRICES[id];
+        if(pe){ cell.c.setAttribute('data-price',pe); cell.pr.textContent=pe+' ETH'; }
+        else { cell.c.removeAttribute('data-price'); cell.pr.textContent=''; }
+      }
       else { cell.c.style.visibility='hidden'; cell.c.removeAttribute('data-id'); }
-      if(target) target.appendChild(cell.c);
+      grid.appendChild(cell.c);
     }
   }
   function isSel(ty,v){ for(var k=0;k<selected.length;k++){ if(selected[k].type===ty&&selected[k].value===v) return k; } return -1; }
@@ -2957,26 +3202,23 @@
       row.addEventListener('click', function(){ wrap.classList.toggle('open'); });
       wrap.appendChild(row); wrap.appendChild(vlist); side.appendChild(wrap);
     });
-    var rw=document.createElement('div'); rw.className='fac-wrap';
-    resRowEl=document.createElement('div'); resRowEl.className='fac res-fac'; resRowEl.textContent=resLabel(resSet.size);
-    resRowEl.addEventListener('click', function(){ resonanceOn=!resonanceOn; if(resonanceOn){ selected=[]; syncActive(); resonanceView='starred'; } setResRow(); computePool(); offset=0; render(); });
-    rw.appendChild(resRowEl); side.appendChild(rw);
   }
-  render();
+  restoreDensity();
   var CONTRACT='0xa179a765c52ced91647c082f02d7e737d7781cae', ETH_CHAIN='0x1', curWallet='';
   function shortAddr(a){ return a.slice(0,6)+'…'+a.slice(-4); }
   function disconnectWallet(){ try{ if(window.ethereum&&window.ethereum.request){ window.ethereum.request({method:'wallet_revokePermissions', params:[{eth_accounts:{}}]}).catch(function(){}); } }catch(e){} setWallet(''); }
   function setWallet(a,n){ curWallet=a||'';
     if(!a){ walletIds=[]; if(resonanceOn && resonanceView==='wallet') setResView('starred'); }
-    var mk=document.querySelector('.arc-market'); if(mk) mk.classList.toggle('door-connect', resSet.size>=3 && !a);
-    var di=document.getElementById('doorImg');
-    if(di){ if(a){ di.src=WALLET_IMGS[3]; } else { di.src=WALLET_IMGS[resSet.size>=3 ? 3 : resSet.size>=2 ? 2 : 1]; } }
-    var dw=document.getElementById('doorWallet'); if(!dw) return;
-    dw.innerHTML=''; if(!a) return;
-    var t='✦ '+shortAddr(a); if(typeof n==='number' && n>0) t+='  ·  '+n+' HELD';
-    var line=document.createElement('div'); line.textContent=t; dw.appendChild(line);
-    var dc=document.createElement('span'); dc.className='dw-disc'; dc.textContent='disconnect';
-    dc.addEventListener('click', function(e){ e.stopPropagation(); disconnectWallet(); }); dw.appendChild(dc); }
+    if(!stAddr) { paintTools(); return; }
+    stAddr.innerHTML='';
+    if(!a){ paintTools(); return; }
+    var line=document.createElement('div');
+    line.textContent=shortAddr(a)+(typeof n==='number'&&n>0 ? '  ·  '+n+' held' : '');
+    stAddr.appendChild(line);
+    var dc=document.createElement('span'); dc.className='st-disc'; dc.textContent='disconnect';
+    dc.addEventListener('click', function(e){ e.stopPropagation(); disconnectWallet(); });
+    stAddr.appendChild(dc);
+    paintTools(); }
   function readHoldings(addr){ if(!window.ethereum||!addr) return;
     var data='0x70a08231000000000000000000000000'+addr.toLowerCase().replace(/^0x/,'');
     window.ethereum.request({method:'eth_call', params:[{to:CONTRACT, data:data}, 'latest']})
@@ -2988,9 +3230,27 @@
       .then(function(hex){ return parseInt(hex,16)||0; });
   }
   function refreshMatchIfWallet(){ if(resonanceOn && resonanceView==='wallet'){ computePool(); if(offset>maxOff()) offset=maxOff(); render(); } }
-  function fetchWalletIds(addr,n){                                     // populates walletIds — FREQUENCY MATCHED shows these once a wallet is connected
+  function tokensOfOwner(addr){                                        // ERC721AQueryable — the whole holding in one call
+    var data='0x8462151c'+padHex(addr.toLowerCase().replace(/^0x/,''),64);
+    return window.ethereum.request({method:'eth_call', params:[{to:CONTRACT, data:data}, 'latest']})
+      .then(function(hex){
+        var h=(hex||'').replace(/^0x/,''); if(h.length<128) return null;
+        var len=parseInt(h.slice(64,128),16); if(!(len>=0)) return null;
+        if(h.length < 128+len*64) return null;
+        var out=[]; for(var i=0;i<len;i++) out.push(parseInt(h.slice(128+i*64,128+(i+1)*64),16));
+        return out;
+      });
+  }
+  function fetchWalletIds(addr,n){                                     // populates walletIds — the owned view reads these
     walletIds=[];
     if(!n) return;
+    tokensOfOwner(addr).then(function(ids){                            // this contract is ERC721A: walking by index reverts for big holders
+      if(!ids || !ids.length) throw new Error('no queryable');
+      walletIds=ids; refreshMatchIfWallet();
+    }).catch(function(){ walkWalletIds(addr,n); });
+  }
+  function walkWalletIds(addr,n){                                      // fallback for plain ERC721Enumerable
+    walletIds=[];
     var i=0, BATCH=8, aborted=false;
     function next(){
       if(aborted || i>=n) return;
@@ -3015,8 +3275,6 @@
     hookWallet();
     window.ethereum.request({method:'eth_requestAccounts'}).then(function(a){ if(!a||!a[0]) return; var addr=a[0];
       ensureChain().then(function(){ setWallet(addr); readHoldings(addr); }); }).catch(function(){}); }
-  var door=document.getElementById('resDoor');
-  if(door){ door.addEventListener('click', function(){ if(!curWallet && resSet.size>=3) connectWallet(); }); }
   refreshResState();
   var market=grid.closest('.arc-market');
   function activeMkt(){ return market && market.classList.contains('active'); }

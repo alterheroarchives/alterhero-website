@@ -45,3 +45,13 @@ assets/jsonfiles_for_ipfs updated/
 # local backups
 *#backup.html
 assets/explorer_backup.html
+
+# local only — never deploy
+# market.html: the standalone market, superseded by panel V
+market.html
+# sign-listings.html: the signing desk — an admin tool, not a page
+tools/sign-listings.html
+# vendor: the 1.17MB seaport bundle the desk uses
+tools/vendor/
+# testnet: the abandoned Sepolia rehearsal
+tools/testnet/
