@@ -1,0 +1,1311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>REAHDIM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+
+<style>
+/* ── tokens ─────────────────────────────────────────────────────────────
+   ground is cool so the cream scans read as paper, not as dirty white.
+   ochre  = the book's only colour (the flower centres on SC3 #4)
+   teal   = the instrument's colour. never from the book. never mixed.
+──────────────────────────────────────────────────────────────────────── */
+:root{
+  --ground:#CBCFCF; --ground-2:#C0C5C6; --panel:#EDEDEA; --panel-2:#E1E2DE;
+  --ink:#16181A; --ink-2:#4A5052; --muted:#767D7E; --hair:#A9AFAF; --hair-2:#BCC1C1;
+  --ochre:#8C6710; --ochre-soft:#C9A44A; --teal:#0F5F68; --teal-soft:#9EC4C8;
+  --paper-shadow:rgba(20,24,26,.28); --veil:#B9BEBE;
+  --blank:#DEDFDB;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#131619; --ground-2:#0D0F12; --panel:#1B1F23; --panel-2:#22262B;
+    --ink:#E9E7E1; --ink-2:#B4B8B9; --muted:#828A8D; --hair:#333A3F; --hair-2:#2A3035;
+    --ochre:#E0AE3A; --ochre-soft:#7A5E1E; --teal:#5CC6D1; --teal-soft:#1E4A50;
+    --paper-shadow:rgba(0,0,0,.6); --veil:#0F1215;
+    --blank:#20242A;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#131619; --ground-2:#0D0F12; --panel:#1B1F23; --panel-2:#22262B;
+  --ink:#E9E7E1; --ink-2:#B4B8B9; --muted:#828A8D; --hair:#333A3F; --hair-2:#2A3035;
+  --ochre:#E0AE3A; --ochre-soft:#7A5E1E; --teal:#5CC6D1; --teal-soft:#1E4A50;
+  --paper-shadow:rgba(0,0,0,.6); --veil:#0F1215;
+  --blank:#20242A;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:Archivo,"Helvetica Neue",Arial,sans-serif;
+  font-size:14px; line-height:1.45; overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--teal); outline-offset:2px}
+.mono{font-family:"DM Mono",ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+.lbl{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+/* ── shell ─────────────────────────────────────────────────────────── */
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+
+.count{font-size:10px;color:var(--muted);line-height:1.6;font-weight:500}
+.txtbtn{
+  display:block;text-align:left;
+  font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;font-weight:600;
+  color:var(--ink-2);border-bottom:1px solid var(--hair);padding-bottom:1px;
+}
+.txtbtn:hover{color:var(--ink);border-color:var(--ink)}
+.backlink{
+  position:absolute;right:18px;top:16px;z-index:4;
+  display:flex;align-items:center;gap:6px;text-decoration:none;
+  font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;font-weight:600;
+  color:var(--ink-2);border-bottom:1px solid var(--hair);padding-bottom:1px;
+}
+.backlink:hover{color:var(--ink);border-color:var(--ink)}
+.backlink .ico{font-size:13px;line-height:1}
+
+/* ── consequence readout ───────────────────────────────────────────── */
+.consequence{
+  display:none;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:8px 16px;background:var(--teal-soft);color:var(--ink);
+  border-bottom:1px solid var(--hair);font-size:12px;
+}
+.consequence.on{display:flex}
+.consequence .dot{width:7px;height:7px;background:var(--teal);border-radius:50%;flex:none}
+.consequence b{font-weight:600}
+.consequence .close{margin-left:auto;font-size:16px;line-height:1;color:var(--ink-2);padding:0 4px}
+
+/* ── stage ─────────────────────────────────────────────────────────── */
+.stage{
+  position:relative;flex:1;min-height:0;
+  display:flex;align-items:center;justify-content:center;
+  padding:16px;overflow:hidden;
+}
+
+/* everything but the book lives in the rail, in the dead space beside it */
+.rail{
+  position:absolute;left:18px;top:16px;bottom:16px;width:92px;z-index:3;
+  display:flex;flex-direction:column;justify-content:space-between;
+}
+.rail-top b{display:block;font-size:13px;font-weight:700;letter-spacing:.14em;color:var(--ink)}
+.rail-top span{
+  display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;margin-top:2px;
+}
+.rail-mid{display:flex;flex-direction:column;gap:5px}
+.rail-bot{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.srcline{
+  font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;line-height:1.5;
+  color:var(--muted);
+}
+.srcline.synced{color:var(--teal)}
+
+/* sync progress */
+.syncing{
+  position:fixed;inset:0;z-index:40;background:var(--ground);
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+}
+.syncing.on{display:flex}
+.syncing .big{font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+.syncing .sub{font-size:12px;color:var(--muted);max-width:44ch;text-align:center;line-height:1.5}
+.syncbar{width:260px;height:3px;background:var(--hair);overflow:hidden}
+.syncbar i{display:block;height:100%;background:var(--teal);width:0}
+.rail .modebtn{
+  padding:9px 0;text-align:center;border:1px solid var(--hair);border-radius:2px;
+  background:var(--panel);color:var(--ink-2);
+  font-size:10px;letter-spacing:.15em;text-transform:uppercase;font-weight:600;
+}
+.rail .modebtn:hover{background:var(--panel-2);color:var(--ink)}
+.rail .modebtn[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.rail .pager{display:flex;gap:5px;margin-top:10px}
+.rail .pager button{
+  flex:1;height:28px;border:1px solid var(--hair);border-radius:2px;background:var(--panel);
+  color:var(--ink-2);display:flex;align-items:center;justify-content:center;font-size:13px;
+}
+.rail .pager button:hover:not(:disabled){background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.rail .pager button:disabled{opacity:.3;cursor:default}
+.rail .status{margin-top:13px}
+.rail .verdict{
+  display:block;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;
+  border:1px solid currentColor;border-radius:2px;padding:7px 5px;text-align:center;line-height:1.4;
+}
+.verdict.hidden-turn{color:var(--teal)}
+.verdict.same-spread{color:var(--ochre)}
+
+/* the book sits dead centre and does not move between spreads */
+.sheets{display:flex;align-items:flex-start;justify-content:center;gap:0}
+.slot{flex:none;display:flex;flex-direction:column;align-items:center}
+.slot.empty > *{visibility:hidden}
+
+/* one page */
+.page{position:relative;width:100%;display:flex;flex-direction:column;align-items:center;gap:6px}
+.page-img{
+  display:block;background:var(--blank);box-shadow:0 2px 14px var(--paper-shadow);
+  max-width:100%;height:auto;
+}
+.page.blank.noimg .page-img{
+  border:1px dashed var(--hair);box-shadow:none;
+  display:flex;align-items:center;justify-content:center;
+}
+/* a blank made from Blank_Page.jpg is real paper, so it keeps the shadow
+   and is told apart by its label, not by a dashed box */
+.page.blank:not(.noimg) .page-img{opacity:.96}
+.blank-mark{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+.page-foot{
+  display:flex;align-items:center;gap:9px;justify-content:center;
+  height:22px;max-width:100%;overflow:hidden;white-space:nowrap;
+}
+.pnum{
+  font-size:10.5px;font-weight:500;color:var(--ink);
+  background:var(--panel);border:1px solid var(--hair);border-radius:2px;padding:1px 6px;
+}
+.pside{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.plabel{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+.pnote{
+  font-size:11.5px;color:var(--muted);text-align:center;max-width:34ch;line-height:1.35;
+  height:32px;overflow:hidden;
+}
+
+/* gutter between verso and recto */
+.gutter{
+  width:18px;flex:none;
+  background:linear-gradient(90deg,transparent,var(--paper-shadow) 42%,var(--paper-shadow) 58%,transparent);
+  opacity:.8;
+}
+
+/* veil for a hidden turn */
+.veiled{position:relative}
+.veil{
+  position:absolute;inset:0;background:var(--veil);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;
+  cursor:pointer;text-align:center;padding:14px;
+  border:1px solid var(--hair);
+}
+.veil .lbl{color:var(--ink-2)}
+.veil strong{font-size:12px;font-weight:600;max-width:24ch;line-height:1.4;color:var(--ink)}
+.veil-cta{
+  font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;
+  color:var(--ink);border:1px solid var(--ink);border-radius:2px;padding:4px 12px;margin-top:4px;
+}
+.veil:hover .veil-cta{background:var(--ink);color:var(--veil)}
+.veiled.open .veil{display:none}
+
+/* insert handles on stage pages */
+.ins{
+  position:absolute;top:0;bottom:0;width:22px;display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity .12s;
+}
+.page:hover .ins,.ins:focus-within{opacity:1}
+.ins.before{left:-24px}
+.ins.after{right:-24px}
+.ins button{
+  width:20px;height:20px;border:1px solid var(--hair);background:var(--panel);
+  border-radius:50%;font-size:13px;line-height:1;color:var(--ink-2);
+  display:flex;align-items:center;justify-content:center;
+}
+.ins button:hover{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+@media (prefers-reduced-motion:reduce){.ins{transition:none}}
+
+/* weight meter — centre of ink mass, computed from the scan */
+.weight{display:flex;align-items:center;gap:7px}
+.wbox{position:relative;width:15px;height:21px;border:1px solid var(--hair);background:var(--panel)}
+.wbox i{position:absolute;width:5px;height:5px;background:var(--ochre);border-radius:50%;transform:translate(-50%,-50%)}
+.wtxt{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+.flag{
+  display:block;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
+  color:var(--ochre);border:1px solid var(--ochre-soft);border-radius:2px;
+  padding:7px 5px;text-align:center;line-height:1.4;margin-top:8px;
+}
+
+/* ── ribbon ────────────────────────────────────────────────────────── */
+.ribbon-wrap{background:var(--panel);border-top:1px solid var(--hair);flex:none}
+.ribbon{display:flex;align-items:flex-end;gap:0;padding:9px 16px 10px;overflow-x:auto;overflow-y:hidden}
+.spreadgrp{display:flex;flex:none;margin-right:16px;position:relative;padding-top:13px}
+.spreadgrp::before{
+  content:attr(data-spread);position:absolute;top:0;left:0;
+  font-family:"DM Mono",monospace;font-size:9px;letter-spacing:.1em;color:var(--muted);
+}
+.spreadgrp.solo{opacity:.9}
+
+.chip{
+  position:relative;flex:none;width:38px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:3px;border:1px solid transparent;background:none;
+}
+.chip:hover{border-color:var(--hair)}
+.chip[aria-current="true"]{border-color:var(--ink);background:var(--panel-2)}
+.chip img{width:100%;height:40px;object-fit:cover;object-position:top center;display:block;box-shadow:0 1px 4px var(--paper-shadow)}
+.chip .blankbox{width:100%;height:40px;border:1px dashed var(--hair);background:var(--blank)}
+.chip .cn{font-family:"DM Mono",monospace;font-size:9.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.chip .cs{font-size:8px;letter-spacing:.1em;color:var(--muted);font-weight:700}
+.chip.flipped{background:var(--teal-soft)}
+.chip.flipped .cs{color:var(--teal)}
+.chip.verso{align-items:flex-end}
+.chip.recto{align-items:flex-start}
+
+.chipdel{
+  position:absolute;top:-4px;right:-4px;width:15px;height:15px;border-radius:50%;
+  background:var(--ink);color:var(--panel);font-size:11px;line-height:1;
+  display:none;align-items:center;justify-content:center;
+}
+.chip.isblank:hover .chipdel{display:flex}
+
+.chipins{
+  flex:none;width:11px;align-self:stretch;display:flex;align-items:center;justify-content:center;
+  color:var(--ink-2);opacity:.4;font-size:12px;padding-top:13px;
+}
+.chipins:hover{color:var(--ink);opacity:1}
+
+/* ── arrangement panel ─────────────────────────────────────────────── */
+.sheetpanel{
+  position:fixed;inset:auto 0 0 0;max-height:70vh;overflow:auto;z-index:20;
+  background:var(--panel);border-top:1px solid var(--hair);padding:16px 18px 22px;
+  box-shadow:0 -10px 34px var(--paper-shadow);display:none;
+}
+.sheetpanel.on{display:block}
+.sheetpanel h2{margin:0 0 4px;font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+.sheetpanel p{margin:0 0 12px;font-size:12px;color:var(--muted);max-width:64ch}
+.sheetpanel pre{
+  margin:0;padding:12px;background:var(--ground);border:1px solid var(--hair);
+  font-family:"DM Mono",monospace;font-size:11.5px;line-height:1.6;
+  white-space:pre;overflow-x:auto;color:var(--ink-2);user-select:all;
+}
+.sheetpanel .close{position:absolute;top:12px;right:16px;font-size:18px;color:var(--ink-2)}
+
+@media (max-width:760px){
+  .sheets{flex-direction:column;align-items:center;gap:14px}
+  .gutter{display:none}
+  .pnote{max-width:40ch}
+}
+
+/* ── chapters ──────────────────────────────────────────────────────
+   Four arcs, one panel. The rail switches between them; each keeps its
+   own pagination, because a blank inserted in PHĒ has nothing to do
+   with NO.
+─────────────────────────────────────────────────────────────────── */
+.chapters{display:flex;flex-direction:column;gap:3px;margin-top:9px}
+.chapbtn{
+  display:flex;align-items:baseline;gap:6px;padding:4px 6px;border-radius:2px;
+  font-size:10px;letter-spacing:.15em;text-transform:uppercase;font-weight:700;
+  color:var(--muted);border:1px solid transparent;text-align:left;
+}
+.chapbtn:hover{color:var(--ink);background:var(--panel)}
+.chapbtn[aria-pressed="true"]{color:var(--ink);background:var(--panel);border-color:var(--hair)}
+.chapbtn .n{
+  margin-left:auto;font-family:"DM Mono",monospace;font-size:9px;font-weight:500;
+  color:var(--muted);letter-spacing:0;
+}
+.chapbtn.empty{opacity:.45}
+.chapbtn.empty:hover{opacity:.75}
+
+/* pages whose filename carries no position — kept, never dropped */
+.loose{
+  font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
+  color:var(--ochre);line-height:1.5;cursor:help;
+}
+
+/* ── reordering ────────────────────────────────────────────────────
+   Drag a chip. The insertion point is a hairline between chips, not a
+   highlight on them, so you are aiming at a gap rather than at a page.
+─────────────────────────────────────────────────────────────────── */
+.chip[draggable="true"]{cursor:grab}
+.chip.dragging{opacity:.3}
+.chip.dropL{box-shadow:inset 2px 0 0 0 var(--teal)}
+.chip.dropR{box-shadow:inset -2px 0 0 0 var(--teal)}
+.ribbon.dragging .chipins{opacity:.12}
+
+/* ── empty state ───────────────────────────────────────────────────
+   Nothing is baked into this file any more, so the first run has an
+   honest nothing to show.
+─────────────────────────────────────────────────────────────────── */
+.nothing{
+  display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;
+  color:var(--muted);max-width:42ch;
+}
+.nothing b{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink)}
+.nothing p{margin:0;font-size:12.5px;line-height:1.55}
+.nothing code{font-family:"DM Mono",monospace;font-size:11.5px;color:var(--ink-2)}
+.nothing .go{
+  font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:var(--ink);
+  border:1px solid var(--ink);border-radius:2px;padding:7px 16px;margin-top:4px;
+}
+.nothing .go:hover{background:var(--ink);color:var(--panel)}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="consequence" id="consequence">
+    <span class="dot"></span>
+    <span id="consequence-text"></span>
+    <button class="close" id="consequence-close" aria-label="Dismiss">&times;</button>
+  </div>
+
+  <main class="stage">
+    <a class="backlink" href="index.html#studio" title="Back to AH! Studio"><span class="ico">&larr;</span><span>back</span></a>
+    <nav class="rail" aria-label="Controls">
+      <div class="rail-top">
+        <b>REAHDIM</b>
+        <span id="chap-full">PHENOMENAH!</span>
+        <div class="chapters" id="chapters"></div>
+      </div>
+      <div class="rail-mid">
+        <button class="modebtn" id="m-single" aria-pressed="false">Single</button>
+        <button class="modebtn" id="m-spread" aria-pressed="true">Spread</button>
+        <button class="modebtn" id="m-turn" aria-pressed="false">Turn</button>
+        <div class="pager">
+          <button id="prev" aria-label="Previous">&larr;</button>
+          <button id="next" aria-label="Next">&rarr;</button>
+        </div>
+        <div class="status" id="status"></div>
+      </div>
+      <div class="rail-bot">
+        <span class="count mono" id="count"></span>
+        <span class="loose" id="loose"></span>
+        <span class="srcline" id="srcline"></span>
+        <button class="txtbtn" id="btn-sync">Sync folder</button>
+        <button class="txtbtn" id="btn-sheet">Arrangement</button>
+        <button class="txtbtn" id="btn-reset">Reset</button>
+        <input type="file" id="folder" webkitdirectory directory multiple hidden>
+      </div>
+    </nav>
+    <div class="sheets" id="sheets"></div>
+  </main>
+
+  <div class="ribbon-wrap">
+    <div class="ribbon" id="ribbon"></div>
+  </div>
+
+</div>
+
+<div class="syncing" id="syncing">
+  <span class="big" id="sync-title">Reading the folder</span>
+  <div class="syncbar"><i id="sync-bar"></i></div>
+  <span class="sub" id="sync-sub"></span>
+</div>
+
+<div class="sheetpanel" id="sheetpanel">
+  <button class="close" id="sheet-close" aria-label="Close">&times;</button>
+  <h2>Arrangement</h2>
+  <p>The current pagination. Select and copy this if you want to hand it back to me.</p>
+  <pre id="sheet-text"></pre>
+</div>
+
+<script>
+/* ===================================================================
+   REAHDIM — an imposition table for the book.
+
+   Not a library and not a reader: this asks what the pages do to each
+   other once they are bound. Recto and verso, which spreads pair up,
+   what a page turn hides, and where the ink sits on the paper.
+
+   It is a local tool. Nothing is baked into this file and nothing is
+   uploaded anywhere — every page comes off your own disk, one
+   deliberate Sync at a time.
+
+   THE FOLDER
+     PHENO.MENAH!/
+       PHE/   CH.Phe.jpg  SC1.#1.jpg  SC1.#2.jpg  …
+       NO/    …
+       MEN/   …
+       AH/    …
+       Blank_Page.jpg          ← the paper a blank is made of
+
+   A subfolder named for a chapter is that chapter. Loose files at the
+   top level fall into PHĒ. Nothing is ever discarded: a filename this
+   file cannot read a position from still lands in the book, at the end
+   of its chapter, and says so in the rail.
+   =================================================================== */
+
+const CHAPTERS = [
+  { id:"PHE", label:"PHĒ", full:"PHENOMENAH!" },
+  { id:"NO",  label:"NO",  full:"NO"          },
+  { id:"MEN", label:"MEN", full:"ME(N)"       },
+  { id:"AH",  label:"AH!", full:"AH!"         }
+];
+const IDS = CHAPTERS.map(c => c.id);
+
+/* Folder names are typed by hand, so accept the spellings you actually use. */
+const CH_ALIAS = {
+  phe:"PHE", "phē":"PHE", pheno:"PHE", phenomenah:"PHE",
+  no:"NO",
+  men:"MEN", "me(n)":"MEN", me:"MEN",
+  ah:"AH", "ah!":"AH"
+};
+
+/* Captions written by hand, kept by filename. They survive a re-sync. */
+const NOTES = {
+  "CH.Phe.jpg": "Chapter page. Outline letters, lower left. The only mixed case in the book.",
+  "SC1.#1.jpg": "[HE] boxed in the right margin. The spray runs to the trim.",
+  "SC1.#2.jpg": "First answer — something answered, far below, unheard.",
+  "SC2.#2.jpg": "Donut Spirit, first appearance. Cloud plate and the AH. signature. Carries —BIRD NOISE—.",
+  "SC3.#1.jpg": "The bird leaves through the broken window and does not come back.",
+  "SC3.#4.jpg": "Flowers and the PHE can. The first and only colour in the book.",
+  "SC4.#3.jpg": "One line on an empty page. Second answer — another scratch.",
+  "SC5.jpg":    "The record. Spiral text, read by turning the page. First AH! moment.",
+  "SCard.WalkBoy.jpg":  "The plate. Untimed — no way to tell past, present or future.",
+  "SCard.WalkBoy2.jpg": "The legend. 'Not a Walkman yet' is moving to the end of PHE."
+};
+
+const IMG_RE   = /\.(jpe?g|png)$/i;
+const SKIP_RE  = /(^|\/)[._]|(^|\/)(back[ _-]?up|backup|archive|old|_to_delete)\//i;
+const BLANK_RE = /^blank([ _-]?page)?$/i;
+const FALLBACK_RATIO = 2000 / 2850;
+
+/* ── state ───────────────────────────────────────────────────────── */
+const KEY = "reahdim.arrangement.v2.";
+let BOOK  = { PHE:[], NO:[], MEN:[], AH:[] };   // pages as read off the folder
+let SEQ   = { PHE:[], NO:[], MEN:[], AH:[] };   // the arrangement, per chapter
+let LOOSE = { PHE:[], NO:[], MEN:[], AH:[] };   // filenames with no readable position
+let BLANK = null;                              // { blob, url, ratio } — the real blank page
+let source = null;                             // { folder, when, count }
+let chapter = "PHE";
+let seq = SEQ.PHE;                             // live alias for the open chapter
+let mode = "spread";
+let cursor = 0;
+let flipped = new Set();
+
+function setSeq(arr){ SEQ[chapter] = arr; seq = arr; }
+function pages(){ return BOOK[chapter]; }
+
+/* ── ordering ─────────────────────────────────────────────────────
+   The old rule matched SC<n> and SC<n>.#<n> and dumped everything else
+   into a bucket that sorted after the cards — so SC3.#DRAW4 and
+   SC2.#2.5 quietly ended up at the back of the book.
+
+   This reads *every* number in the name instead of two fixed ones, and
+   compares them as a tuple. [2,2] sorts before [2,2,5]: a page inserted
+   as SC2.#2.5 lands after SC2.#2 rather than at the end. Letters in the
+   name are no longer fatal — SC3.#DRAW4 is [3,4] and sits beside
+   SC3.#4, broken by name.
+
+   Only a name with no digits at all is "loose", and even that stays in
+   the book — at the end of its chapter, counted out loud in the rail.
+──────────────────────────────────────────────────────────────────── */
+function baseName(n){ return n.replace(/\.[^.]+$/, ""); }
+
+function keyOf(name){
+  const b = baseName(name);
+  const nums = (b.match(/\d+/g) || []).map(Number);
+  let group = 3;
+  /* Card is tested before SC: "SCard.WalkBoy" starts with "SC", so the
+     looser test first would file every card as a scene and interleave the
+     plates through the story. */
+  if(/^CH([._\- ]|$)/i.test(b))          group = 0;   // the chapter plate opens its arc
+  else if(/^S?Card([._\- ]|$)/i.test(b)) group = 2;   // cards and plates, after the scenes
+  else if(/^SC/i.test(b))                group = 1;   // scenes
+  return { group, nums, tag:b.toLowerCase(), loose: group === 3 && nums.length === 0 };
+}
+function cmpKey(a, b){
+  if(a.group !== b.group) return a.group - b.group;
+  const n = Math.max(a.nums.length, b.nums.length);
+  for(let i = 0; i < n; i++){
+    const x = a.nums[i], y = b.nums[i];
+    if(x === undefined) return -1;                // the shorter name is the earlier page
+    if(y === undefined) return 1;
+    if(x !== y) return x - y;
+  }
+  return a.tag < b.tag ? -1 : a.tag > b.tag ? 1 : 0;
+}
+
+function deriveLabel(name){
+  const b = baseName(name);
+  let m;
+  if((m = b.match(/^CH[._\- ]*(.*)$/i))) return "Chapter " + m[1].toUpperCase();
+  if((m = b.match(/^SC[._\- ]*0*(\d+)(?:[._\- ]*#?\s*0*([A-Za-z]*\d*(?:\.\d+)?))?$/i))){
+    const sub = m[2] ? String(m[2]).replace(/^0+(?=\d)/, "") : "";
+    return "Scene " + (+m[1]) + (sub ? " · " + sub : "");
+  }
+  if((m = b.match(/^S?Card[._\- ]*(.*)$/i))){
+    const raw = m[1], pm = raw.match(/^(.*?)[._\- #]*(\d+)$/);
+    const who = (pm ? pm[1] : raw).replace(/[._-]+/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").trim();
+    return "Card · " + who + (pm ? " · " + (+pm[2]) : "");
+  }
+  return b;
+}
+
+/* ── storage ─────────────────────────────────────────────────────── */
+const DB = "reahdim", STORE = "sync";
+function idb(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB, 2);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      if(!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE);
+    };
+    r.onsuccess = () => res(r.result);
+    r.onerror   = () => rej(r.error);
+  });
+}
+async function idbPut(k, v){
+  try{
+    const d = await idb();
+    await new Promise((res, rej) => {
+      const t = d.transaction(STORE, "readwrite");
+      t.objectStore(STORE).put(v, k);
+      t.oncomplete = res; t.onerror = () => rej(t.error);
+    });
+  }catch(e){ console.warn("REAHDIM: could not remember this sync —", e); }
+}
+async function idbGet(k){
+  try{
+    const d = await idb();
+    return await new Promise((res, rej) => {
+      const t = d.transaction(STORE, "readonly");
+      const rq = t.objectStore(STORE).get(k);
+      rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error);
+    });
+  }catch(e){ return undefined; }
+}
+
+/* Pages are kept as blobs, not as base64 strings — a data URL costs a
+   third again in size and has to be parsed on every paint. */
+function mintUrls(){
+  IDS.forEach(id => BOOK[id].forEach(p => { if(!p.url && p.blob) p.url = URL.createObjectURL(p.blob); }));
+  if(BLANK && !BLANK.url && BLANK.blob) BLANK.url = URL.createObjectURL(BLANK.blob);
+}
+function strip(p){ return { file:p.file, label:p.label, note:p.note, grid:p.grid, ratio:p.ratio, blob:p.blob }; }
+async function remember(){
+  await idbPut("book", {
+    chapters: Object.fromEntries(IDS.map(id => [id, BOOK[id].map(strip)])),
+    loose: LOOSE,
+    blank: BLANK ? { blob:BLANK.blob, ratio:BLANK.ratio } : null,
+    source
+  });
+}
+
+/* ── the arrangement ─────────────────────────────────────────────── */
+function blankEntry(){
+  return { blank:true, ratio: BLANK ? BLANK.ratio : FALLBACK_RATIO, url: BLANK ? BLANK.url : null };
+}
+function entryOf(p){ return { ...p, blank:false }; }
+
+/* Rebuild one chapter's arrangement from what was saved. Any page the
+   folder has now that the saved order did not know about is appended
+   rather than dropped — a re-sync can add pages, never lose them. */
+function loadArrangement(id){
+  const list = BOOK[id];
+  try{
+    const raw = localStorage.getItem(KEY + id);
+    if(raw){
+      const arr = JSON.parse(raw);
+      if(Array.isArray(arr) && arr.length){
+        const byFile = new Map(list.map(p => [p.file, p]));
+        const used = new Set(), out = [];
+        for(const x of arr){
+          if(x === null){ out.push(blankEntry()); continue; }
+          const p = byFile.get(x);
+          if(p && !used.has(x)){ out.push(entryOf(p)); used.add(x); }
+        }
+        list.forEach(p => { if(!used.has(p.file)) out.push(entryOf(p)); });
+        if(out.length) return out;
+      }
+    }
+  }catch(e){}
+  return list.map(entryOf);
+}
+function saveArrangement(){
+  try{
+    localStorage.setItem(KEY + chapter,
+      JSON.stringify(seq.map(p => p.blank ? null : p.file)));
+  }catch(e){}
+}
+function loadAll(){
+  IDS.forEach(id => { SEQ[id] = loadArrangement(id); });
+  seq = SEQ[chapter];
+}
+
+/* ── reading the folder ──────────────────────────────────────────── */
+function syncUI(on, title, sub, pct){
+  const el = document.getElementById("syncing");
+  el.classList.toggle("on", on);
+  if(title) document.getElementById("sync-title").textContent = title;
+  if(sub !== undefined) document.getElementById("sync-sub").textContent = sub;
+  if(pct !== undefined) document.getElementById("sync-bar").style.width = pct + "%";
+}
+
+/* Downscale for the screen and measure the ink in one pass. The scan on
+   disk is never modified and never uploaded. */
+async function readPage(file){
+  const url = URL.createObjectURL(file);
+  try{
+    const img = await new Promise((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i); i.onerror = () => rej(new Error("decode"));
+      i.src = url;
+    });
+    const ratio = img.width / img.height;         // the page's own shape, not an assumed one
+    const H = 1500, W = Math.max(1, Math.round(H * ratio));
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const cx = c.getContext("2d");
+    cx.imageSmoothingQuality = "high";
+    cx.drawImage(img, 0, 0, W, H);
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.82));
+
+    const gw = 90, gh = Math.max(1, Math.round(gw / ratio));
+    const gc = document.createElement("canvas"); gc.width = gw; gc.height = gh;
+    const gx = gc.getContext("2d"); gx.drawImage(img, 0, 0, gw, gh);
+    const d = gx.getImageData(0, 0, gw, gh).data;
+    const lum = new Float32Array(gw * gh);
+    for(let p = 0, q = 0; p < d.length; p += 4, q++) lum[q] = .299*d[p] + .587*d[p+1] + .114*d[p+2];
+    const sorted = Array.from(lum).sort((a, b) => a - b);
+    const paper = sorted[Math.floor(sorted.length * 0.9)] || 255;
+    const grid = [];
+    for(let ry = 0; ry < 3; ry++){
+      const row = [];
+      for(let rx = 0; rx < 3; rx++){
+        let tot = 0, n = 0;
+        const y0 = Math.floor(ry*gh/3), y1 = Math.floor((ry+1)*gh/3);
+        const x0 = Math.floor(rx*gw/3), x1 = Math.floor((rx+1)*gw/3);
+        for(let y = y0; y < y1; y++)
+          for(let x = x0; x < x1; x++){ tot += Math.max(0, paper - lum[y*gw + x]); n++; }
+        row.push(Math.round(Math.min(100, (tot/Math.max(1,n))/paper*100*3.2)));
+      }
+      grid.push(row);
+    }
+    return { blob, grid, ratio };
+  } finally { URL.revokeObjectURL(url); }
+}
+
+function chapterFor(relParts){
+  if(relParts.length > 1){
+    const seg = relParts[0].toLowerCase().trim();
+    const hit = CH_ALIAS[seg] || CH_ALIAS[seg.replace(/[^a-z()!]/g, "")];
+    if(hit) return { id:hit, known:true };
+    return { id:"PHE", known:false };            // an unnamed subfolder: kept, flagged
+  }
+  return { id:"PHE", known:true };               // loose at the top level
+}
+
+async function syncFolder(fileList){
+  const all = Array.from(fileList);
+  if(!all.length) return;
+
+  const root = (all[0].webkitRelativePath || "").split("/")[0] || "folder";
+  const buckets = { PHE:[], NO:[], MEN:[], AH:[] };
+  const loose = { PHE:[], NO:[], MEN:[], AH:[] };
+  let blankFile = null;
+
+  for(const f of all){
+    const rel = f.webkitRelativePath || f.name;
+    const parts = rel.split("/").slice(1);       // drop the picked folder's own name
+    if(!parts.length) continue;
+    if(SKIP_RE.test("/" + parts.join("/"))) continue;
+    const name = parts[parts.length - 1];
+    if(!IMG_RE.test(name)) continue;
+    if(BLANK_RE.test(baseName(name))){ if(!blankFile) blankFile = f; continue; }
+    const { id, known } = chapterFor(parts);
+    const k = keyOf(name);
+    buckets[id].push({ f, name, key:k, path:parts.join("/") });
+    if(k.loose || !known) loose[id].push(parts.join("/"));
+  }
+
+  const total = IDS.reduce((n, id) => n + buckets[id].length, 0);
+  if(!total){
+    syncUI(true, "Nothing to read",
+      "No page images under that folder. Pick the folder that holds the scans — the one with PHE, NO, MEN, AH inside it.", 0);
+    setTimeout(() => syncUI(false), 3400);
+    return;
+  }
+
+  IDS.forEach(id => buckets[id].sort((a, b) => cmpKey(a.key, b.key)));
+
+  syncUI(true, "Reading the folder", "", 0);
+  const next = { PHE:[], NO:[], MEN:[], AH:[] };
+  let done = 0;
+
+  for(const id of IDS){
+    for(const item of buckets[id]){
+      syncUI(true, "Reading the folder",
+        id + "  ·  " + item.name + "  ·  " + (done+1) + " of " + total,
+        Math.round(done / total * 100));
+      await new Promise(r => setTimeout(r, 0));
+      try{
+        const { blob, grid, ratio } = await readPage(item.f);
+        next[id].push({ file:item.name, label:deriveLabel(item.name),
+                        note:NOTES[item.name] || "", grid, ratio, blob });
+      }catch(e){ console.warn("REAHDIM: could not read", item.path, e); }
+      done++;
+    }
+  }
+  syncUI(true, "Reading the folder", "", 100);
+
+  if(blankFile){
+    try{
+      const { blob, ratio } = await readPage(blankFile);
+      if(BLANK && BLANK.url) URL.revokeObjectURL(BLANK.url);
+      BLANK = { blob, ratio, url:null };
+    }catch(e){}
+  }
+
+  IDS.forEach(id => BOOK[id].forEach(p => { if(p.url) URL.revokeObjectURL(p.url); }));
+  BOOK = next; LOOSE = loose;
+  source = { folder:root, when:Date.now(), count:total };
+  mintUrls();
+  loadAll();                                     // keeps blanks and any hand order that still fits
+  if(!SEQ[chapter].length) chapter = IDS.find(id => SEQ[id].length) || "PHE";
+  seq = SEQ[chapter];
+  cursor = 0; flipped = new Set();
+  document.getElementById("consequence").classList.remove("on");
+
+  await remember();
+  syncUI(false);
+  render();
+}
+
+document.getElementById("btn-sync").onclick = () => document.getElementById("folder").click();
+document.getElementById("folder").onchange = e => { syncFolder(e.target.files); e.target.value = ""; };
+
+/* ── pagination model ─────────────────────────────────────────────
+   page 1 is a recto. odd = recto (right), even = verso (left).
+   spread n pairs pages 2n and 2n+1. page 1 sits alone.
+──────────────────────────────────────────────────────────────────── */
+const pageNo   = i => i + 1;
+const isRecto  = i => pageNo(i) % 2 === 1;
+const sideOf   = i => isRecto(i) ? "recto" : "verso";
+const spreadNo = i => Math.floor(pageNo(i) / 2);
+const isHiddenTurn = i => isRecto(i);            // a real turn happens when you leave a recto
+
+function snapshotSides(){ return seq.map((p, i) => sideOf(i)); }
+function idOf(p){ return p.blank ? "_blank_" : p.file; }
+function beforeState(){ return { ids: seq.map(idOf), sides: snapshotSides() }; }
+
+function applyChange(before, verb){
+  const after = snapshotSides();
+  flipped = new Set();
+  const afterIds = seq.map(idOf);
+  let changed = 0;
+  afterIds.forEach((id, i) => {
+    if(id === "_blank_") return;                 // blanks have no identity to follow
+    const j = before.ids.indexOf(id);
+    if(j > -1 && before.sides[j] !== after[i]){ flipped.add(i); changed++; }
+  });
+  const spreads = new Set([...flipped].map(spreadNo)).size;
+  showConsequence(changed, spreads, verb);
+}
+function showConsequence(changed, spreads, verb){
+  const el = document.getElementById("consequence");
+  const t  = document.getElementById("consequence-text");
+  t.innerHTML = changed === 0
+    ? `<b>${verb}.</b> Nothing downstream changed side.`
+    : `<b>${verb}.</b> ${changed} page${changed===1?"":"s"} changed side &middot; ${spreads} spread${spreads===1?"":"s"} re-paired. Every relationship after this point is different.`;
+  el.classList.add("on");
+}
+document.getElementById("consequence-close").onclick = () => {
+  document.getElementById("consequence").classList.remove("on");
+  flipped = new Set(); render();
+};
+
+/* ── mutations ───────────────────────────────────────────────────── */
+function insertBlank(at){
+  const b = beforeState();
+  seq.splice(at, 0, blankEntry());
+  if(cursor >= at) cursor++;
+  applyChange(b, "Blank inserted");
+  saveArrangement(); render();
+}
+function removeAt(i){
+  if(!seq[i] || !seq[i].blank) return;
+  const b = beforeState();
+  seq.splice(i, 1);
+  if(cursor > i) cursor--;
+  if(cursor >= seq.length) cursor = seq.length - 1;
+  applyChange(b, "Blank removed");
+  saveArrangement(); render();
+}
+
+/* Move a page to a new slot. `to` is an insertion point measured in the
+   list as it stands *before* the page is lifted out, which is what the
+   drop indicator between two chips means. */
+function moveEntry(from, to){
+  if(from === to || from === to - 1) return;
+  const b = beforeState();
+  const [it] = seq.splice(from, 1);
+  const at = to > from ? to - 1 : to;
+  seq.splice(at, 0, it);
+  cursor = at;
+  applyChange(b, it.blank ? "Blank moved" : "Page moved");
+  saveArrangement(); render();
+}
+
+document.getElementById("btn-reset").onclick = () => {
+  const b = beforeState();
+  setSeq(pages().map(entryOf));
+  cursor = 0;
+  applyChange(b, "Arrangement reset");
+  saveArrangement(); render();
+};
+
+/* ── weight meter ────────────────────────────────────────────────── */
+function mass(p){
+  if(p.blank || !p.grid) return null;
+  let tot = 0, cx = 0, cy = 0;
+  for(let r = 0; r < 3; r++) for(let c = 0; c < 3; c++){
+    const w = p.grid[r][c]; tot += w;
+    cx += w * ((c+0.5)/3); cy += w * ((r+0.5)/3);
+  }
+  if(!tot) return null;
+  return { x:cx/tot, y:cy/tot, total:tot };
+}
+function zone(m){
+  const v = m.y < .38 ? "top" : m.y > .62 ? "bottom" : "middle";
+  const h = m.x < .40 ? "left" : m.x > .60 ? "right" : "centre";
+  return v === "middle" && h === "centre" ? "centred" : `${v} ${h}`;
+}
+function weightEl(p){
+  const m = mass(p);
+  const d = document.createElement("div"); d.className = "weight";
+  const box = document.createElement("div"); box.className = "wbox";
+  if(m){
+    const i = document.createElement("i");
+    i.style.left = (m.x*100)+"%"; i.style.top = (m.y*100)+"%";
+    const s = Math.max(4, Math.min(9, 3 + m.total/45));
+    i.style.width = s+"px"; i.style.height = s+"px";
+    box.appendChild(i);
+  }
+  const t = document.createElement("span"); t.className = "wtxt";
+  t.textContent = m ? zone(m) : "empty";
+  d.append(box, t); d.title = "Centre of ink, measured off the scan";
+  return d;
+}
+
+/* ── rendering ───────────────────────────────────────────────────
+   Every page carries the aspect its own scan had. Nothing is forced
+   into a shared box, so nothing is stretched and nothing is cropped —
+   a page drawn on a different sheet simply is a different shape.
+──────────────────────────────────────────────────────────────────── */
+function ratioOf(p){ return (p && p.ratio) || FALLBACK_RATIO; }
+const slotW = (h, p) => Math.round(h * ratioOf(p));
+
+function slotEl(i, opts = {}){
+  const s = document.createElement("div");
+  s.className = "slot" + (i === null ? " empty" : "");
+  const p = seq[i === null ? 0 : i];
+  s.style.width = slotW(opts.h, p) + "px";
+  s.appendChild(pageEl(i === null ? 0 : i, opts));
+  return s;
+}
+
+function pageEl(i, opts = {}){
+  const p = seq[i];
+  const h = opts.h || 420;
+  const wrap = document.createElement("div");
+  wrap.className = "page" + (p.blank ? " blank" : "") + (p.blank && !p.url ? " noimg" : "");
+
+  if(p.blank && !p.url){
+    const box = document.createElement("div");
+    box.className = "page-img";
+    box.style.width = slotW(h, p) + "px"; box.style.height = h + "px";
+    box.innerHTML = '<span class="blank-mark">Blank</span>';
+    wrap.appendChild(box);
+  }else{
+    const img = document.createElement("img");
+    img.className = "page-img"; img.src = p.url; img.alt = p.blank ? "Blank page" : p.label;
+    img.style.height = h + "px"; img.style.width = slotW(h, p) + "px";
+    wrap.appendChild(img);
+  }
+
+  const foot = document.createElement("div"); foot.className = "page-foot";
+  const n = document.createElement("span"); n.className = "pnum mono"; n.textContent = pageNo(i);
+  const s = document.createElement("span"); s.className = "pside"; s.textContent = sideOf(i);
+  foot.append(n, s);
+  if(p.blank){
+    const l = document.createElement("span"); l.className = "plabel"; l.textContent = "Blank";
+    foot.append(l);
+  }else if(!opts.masked){
+    const l = document.createElement("span"); l.className = "plabel"; l.textContent = p.label;
+    foot.append(l, weightEl(p));
+  }
+  wrap.appendChild(foot);
+
+  if(!p.blank && p.note && opts.note !== false){
+    const nt = document.createElement("div"); nt.className = "pnote"; nt.textContent = p.note;
+    wrap.appendChild(nt);
+  }
+
+  ["before", "after"].forEach(which => {
+    const box = document.createElement("div"); box.className = "ins " + which;
+    const b = document.createElement("button");
+    b.textContent = "+"; b.title = "Insert blank " + which + " page " + pageNo(i);
+    b.setAttribute("aria-label", b.title);
+    b.onclick = e => { e.stopPropagation(); insertBlank(which === "before" ? i : i+1); };
+    box.appendChild(b); wrap.appendChild(box);
+  });
+  return wrap;
+}
+
+function bottomFlag(a, b){
+  if(!a || a.blank || !b || b.blank) return null;
+  const ma = mass(a), mb = mass(b);
+  if(!ma || !mb) return null;
+  if(ma.y > .60 && mb.y > .60){
+    const f = document.createElement("div"); f.className = "flag";
+    f.textContent = "Both pages weight the bottom of the spread";
+    return f;
+  }
+  return null;
+}
+function gutterEl(H){
+  const g = document.createElement("div"); g.className = "gutter";
+  g.style.height = H + "px";
+  return g;
+}
+
+function nothingEl(){
+  const d = document.createElement("div"); d.className = "nothing";
+  const b = document.createElement("b"); b.textContent = "No pages yet";
+  const p = document.createElement("p");
+  p.innerHTML = "Nothing is built into this file. Point it at your drawing folder — " +
+                "the one holding <code>PHE/</code>, <code>NO/</code>, <code>MEN/</code>, <code>AH/</code> " +
+                "and <code>Blank_Page.jpg</code> — and it reads the pages straight off the disk.";
+  const g = document.createElement("button"); g.className = "go"; g.textContent = "Sync folder";
+  g.onclick = () => document.getElementById("folder").click();
+  d.append(b, p, g);
+  return d;
+}
+
+function render(){
+  const sheets = document.getElementById("sheets");
+  const status = document.getElementById("status");
+  sheets.innerHTML = ""; status.innerHTML = "";
+
+  renderChapters();
+  document.getElementById("chap-full").textContent =
+    (CHAPTERS.find(c => c.id === chapter) || CHAPTERS[0]).full;
+
+  if(!seq.length){
+    sheets.appendChild(nothingEl());
+    document.getElementById("prev").disabled = true;
+    document.getElementById("next").disabled = true;
+    renderMeta(); renderRibbon(); renderSheet();
+    return;
+  }
+
+  if(cursor < 0) cursor = 0;
+  if(cursor > seq.length - 1) cursor = seq.length - 1;
+
+  const banner = document.getElementById("consequence").classList.contains("on") ? 37 : 0;
+  const chrome = 108 /*ribbon*/ + 32 /*stage pad*/ + 22 /*foot*/ + 32 /*note*/ + 14 /*gaps*/;
+  const byHeight = window.innerHeight - chrome - banner;
+  const room = window.innerWidth - 2*126;        // never let the book grow under the rail
+
+  /* Height is chosen against the widest page actually on screen, so a
+     landscape page cannot push its neighbour off the stage. */
+  const inView = mode === "single" ? [seq[cursor]]
+    : mode === "spread" ? (() => { const sp = spreadNo(cursor);
+        return sp === 0 ? [seq[0]] : [seq[sp*2-1], seq[sp*2]]; })()
+    : [seq[cursor], seq[cursor+1]];
+  const widest = Math.max(...inView.filter(Boolean).map(ratioOf), 0.3);
+  const byWidth = (mode === "single" ? room : (room - 18) / 2) / widest;
+  const H = Math.max(240, Math.min(mode === "single" ? 980 : 900, byHeight, byWidth));
+
+  if(mode === "single"){
+    sheets.appendChild(slotEl(cursor, { h:H }));
+
+  }else if(mode === "spread"){
+    const sp = spreadNo(cursor);
+    let left = null, right = null;
+    if(sp === 0){ right = 0; } else { left = sp*2 - 1; right = sp*2; }
+    const hasL = left !== null && left < seq.length;
+    const hasR = right !== null && right < seq.length;
+    sheets.appendChild(slotEl(hasL ? left : null, { h:H }));
+    sheets.appendChild(gutterEl(H));
+    sheets.appendChild(slotEl(hasR ? right : null, { h:H }));
+    const fl = bottomFlag(hasL ? seq[left] : null, hasR ? seq[right] : null);
+    if(fl) status.appendChild(fl);
+
+  }else{
+    const i = cursor, j = cursor + 1;
+    const hidden = isHiddenTurn(i);
+    const v = document.createElement("span");
+    v.className = "verdict " + (hidden ? "hidden-turn" : "same-spread");
+    v.textContent = hidden ? "Hidden — a real page turn" : "Simultaneous — same spread";
+    status.appendChild(v);
+
+    sheets.appendChild(slotEl(i, { h:H, note:false }));
+    const g = gutterEl(H);
+    if(hidden) g.style.opacity = ".18";
+    sheets.appendChild(g);
+
+    if(j < seq.length){
+      const slot = slotEl(j, { h:H, note:false, masked:hidden });
+      const el = slot.firstChild;
+      if(hidden){
+        el.classList.add("veiled");
+        const veil = document.createElement("div"); veil.className = "veil";
+        veil.innerHTML = '<span class="lbl">Not yet visible</span>' +
+          '<strong>The reader turns the page to reach this. Whatever is here arrives as a reveal.</strong>' +
+          '<span class="veil-cta">Turn it</span>';
+        veil.onclick = () => el.classList.add("open");
+        el.insertBefore(veil, el.firstChild.nextSibling);
+        el.style.position = "relative";
+        veil.style.height = H + "px"; veil.style.bottom = "auto";
+        veil.style.width = slotW(H, seq[j]) + "px";
+        veil.style.left = "50%"; veil.style.right = "auto";
+        veil.style.transform = "translateX(-50%)";
+      }
+      sheets.appendChild(slot);
+    }else{
+      sheets.appendChild(slotEl(null, { h:H, note:false }));
+    }
+  }
+
+  document.getElementById("prev").disabled = cursor <= 0;
+  document.getElementById("next").disabled = cursor >= seq.length - 1;
+
+  renderMeta(); renderRibbon(); renderSheet();
+}
+
+function renderChapters(){
+  const box = document.getElementById("chapters");
+  box.innerHTML = "";
+  CHAPTERS.forEach(c => {
+    const n = SEQ[c.id].length;
+    const b = document.createElement("button");
+    b.className = "chapbtn" + (n ? "" : " empty");
+    b.setAttribute("aria-pressed", String(c.id === chapter));
+    b.innerHTML = `<span>${c.label}</span><span class="n">${n || "—"}</span>`;
+    b.title = n ? `${c.label} — ${n} pages` : `${c.label} — no pages in the folder yet`;
+    b.onclick = () => setChapter(c.id);
+    box.appendChild(b);
+  });
+}
+
+function renderMeta(){
+  const blanks = seq.filter(p => p.blank).length;
+  const spreads = Math.floor(seq.length / 2);
+  document.getElementById("count").innerHTML =
+    `${seq.length} pages<br>${spreads} spreads` + (blanks ? `<br>${blanks} blank` : "");
+
+  const lo = LOOSE[chapter] || [];
+  const el = document.getElementById("loose");
+  if(lo.length){
+    el.textContent = lo.length + " loose";
+    el.title = "Kept, at the end of the chapter — I could not read a position from these names:\n  " +
+               lo.join("\n  ");
+  }else{ el.textContent = ""; el.title = ""; }
+
+  const sl = document.getElementById("srcline");
+  sl.classList.toggle("synced", !!source);
+  if(source){
+    const t = new Date(source.when);
+    sl.innerHTML = "Synced<br>" + source.folder + "<br>" +
+      String(t.getHours()).padStart(2,"0") + ":" + String(t.getMinutes()).padStart(2,"0");
+    sl.title = "Read from the folder. Click Sync folder again after you draw.";
+  }else{
+    sl.textContent = "Not synced";
+    sl.title = "No folder read yet.";
+  }
+}
+
+/* ── ribbon ──────────────────────────────────────────────────────── */
+let dragFrom = null, dropAt = null;
+
+function renderRibbon(){
+  const rib = document.getElementById("ribbon");
+  rib.innerHTML = ""; rib.classList.remove("dragging");
+  let i = 0;
+  while(i < seq.length){
+    const sp = spreadNo(i);
+    const grp = document.createElement("div");
+    grp.className = "spreadgrp" + (sp === 0 ? " solo" : "");
+    grp.dataset.spread = sp === 0 ? "OPEN" : String(sp).padStart(2, "0");
+
+    const members = [];
+    if(sp === 0){ members.push(i); i++; }
+    else { members.push(i); if(seq[i+1] && spreadNo(i+1) === sp) members.push(i+1); i += members.length; }
+
+    members.forEach((k, idx) => {
+      if(idx === 0){
+        const pre = document.createElement("button");
+        pre.className = "chipins"; pre.textContent = "+";
+        pre.title = "Insert blank before page " + pageNo(k);
+        pre.setAttribute("aria-label", pre.title);
+        pre.onclick = () => insertBlank(k);
+        grp.appendChild(pre);
+      }
+      grp.appendChild(chipEl(k));
+      const post = document.createElement("button");
+      post.className = "chipins"; post.textContent = "+";
+      post.title = "Insert blank after page " + pageNo(k);
+      post.setAttribute("aria-label", post.title);
+      post.onclick = () => insertBlank(k+1);
+      grp.appendChild(post);
+    });
+    rib.appendChild(grp);
+  }
+  const cur = rib.querySelector('[aria-current="true"]');
+  if(cur) cur.scrollIntoView({ block:"nearest", inline:"nearest" });
+}
+
+function clearDrop(){
+  document.querySelectorAll(".chip.dropL,.chip.dropR")
+    .forEach(c => c.classList.remove("dropL", "dropR"));
+}
+
+function chipEl(i){
+  const p = seq[i];
+  const c = document.createElement("button");
+  c.className = "chip " + sideOf(i) + (p.blank ? " isblank" : "") + (flipped.has(i) ? " flipped" : "");
+  c.setAttribute("aria-current", String(i === cursor));
+  c.title = (p.blank ? "Blank" : p.label) + " — page " + pageNo(i) + ", " + sideOf(i) + "  ·  drag to move";
+
+  if(p.blank && !p.url){
+    const b = document.createElement("div"); b.className = "blankbox"; c.appendChild(b);
+  }else{
+    const im = document.createElement("img"); im.src = p.url; im.alt = ""; im.draggable = false;
+    c.appendChild(im);
+  }
+  const n = document.createElement("span"); n.className = "cn"; n.textContent = pageNo(i);
+  const s = document.createElement("span"); s.className = "cs"; s.textContent = isRecto(i) ? "R" : "L";
+  c.append(n, s);
+  c.onclick = () => { cursor = i; render(); };
+
+  if(p.blank){
+    const d = document.createElement("span"); d.className = "chipdel"; d.textContent = "×";
+    d.title = "Remove blank";
+    d.onclick = e => { e.stopPropagation(); removeAt(i); };
+    c.appendChild(d);
+  }
+
+  /* Drag to reorder. The drop indicator sits on the edge of a chip, so
+     you are aiming at the gap between two pages, not at a page. */
+  c.draggable = true;
+  c.addEventListener("dragstart", e => {
+    dragFrom = i; dropAt = null;
+    c.classList.add("dragging");
+    document.getElementById("ribbon").classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move";
+    try{ e.dataTransfer.setData("text/plain", String(i)); }catch(err){}
+  });
+  c.addEventListener("dragend", () => {
+    c.classList.remove("dragging");
+    document.getElementById("ribbon").classList.remove("dragging");
+    clearDrop(); dragFrom = null; dropAt = null;
+  });
+  c.addEventListener("dragover", e => {
+    if(dragFrom === null) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = "move";
+    const r = c.getBoundingClientRect();
+    const after = e.clientX > r.left + r.width/2;
+    clearDrop();
+    c.classList.add(after ? "dropR" : "dropL");
+    dropAt = after ? i + 1 : i;
+  });
+  c.addEventListener("drop", e => {
+    e.preventDefault(); e.stopPropagation();
+    if(dragFrom !== null && dropAt !== null) moveEntry(dragFrom, dropAt);
+    clearDrop(); dragFrom = null; dropAt = null;
+  });
+  return c;
+}
+
+/* ── arrangement sheet ───────────────────────────────────────────── */
+function cell(i){
+  const p = seq[i];
+  return `${String(pageNo(i)).padStart(2, " ")} ${p.blank ? "— blank —" : p.file}`;
+}
+function pad(s){ return s + " ".repeat(Math.max(0, 26 - s.length)); }
+
+function renderSheet(){
+  const lines = [`${chapter}  ·  ${seq.length} pages`, ""];
+  let i = 0;
+  while(i < seq.length){
+    const sp = spreadNo(i);
+    if(sp === 0){ lines.push(`OPEN            .  |  ${cell(0)}`); i++; }
+    else{
+      const l = seq[i] ? cell(i) : "";
+      const r = seq[i+1] && spreadNo(i+1) === sp ? cell(i+1) : "";
+      lines.push(`SPREAD ${String(sp).padStart(2,"0")}   ${pad(l)}  |  ${r}`);
+      i += r ? 2 : 1;
+    }
+  }
+  const lo = LOOSE[chapter] || [];
+  if(lo.length) lines.push("", "no position read from: " + lo.join(", "));
+  document.getElementById("sheet-text").textContent = lines.join("\n");
+}
+
+/* ── controls ────────────────────────────────────────────────────── */
+function setChapter(id){
+  if(!IDS.includes(id) || id === chapter) return;
+  chapter = id; seq = SEQ[id];
+  cursor = 0; flipped = new Set();
+  document.getElementById("consequence").classList.remove("on");
+  render();
+}
+function setMode(m){
+  mode = m;
+  ["single","spread","turn"].forEach(x =>
+    document.getElementById("m-" + x).setAttribute("aria-pressed", String(x === m)));
+  render();
+}
+document.getElementById("m-single").onclick = () => setMode("single");
+document.getElementById("m-spread").onclick = () => setMode("spread");
+document.getElementById("m-turn").onclick   = () => setMode("turn");
+
+function step(d){
+  if(!seq.length) return;
+  if(mode === "spread"){
+    const sp = spreadNo(cursor) + d;
+    if(sp <= 0) cursor = 0;
+    else cursor = Math.min(seq.length - 1, sp*2);
+  }else{
+    cursor = Math.max(0, Math.min(seq.length - 1, cursor + d));
+  }
+  render();
+}
+document.getElementById("prev").onclick = () => step(-1);
+document.getElementById("next").onclick = () => step(1);
+
+document.addEventListener("keydown", e => {
+  if(e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  const k = e.key;
+  if(k === "ArrowRight" || k === "ArrowLeft"){
+    const d = k === "ArrowRight" ? 1 : -1;
+    /* shift + arrow carries the current page with you */
+    if(e.shiftKey && seq.length){ moveEntry(cursor, d > 0 ? cursor + 2 : cursor - 1); }
+    else step(d);
+    e.preventDefault();
+  }
+  else if(k === "1") setMode("single");
+  else if(k === "2") setMode("spread");
+  else if(k === "3") setMode("turn");
+  else if(k.toLowerCase() === "b") insertBlank(cursor + 1);
+  else if(k >= "5" && k <= "8"){ const c = CHAPTERS[+k - 5]; if(c) setChapter(c.id); }
+});
+
+const panel = document.getElementById("sheetpanel");
+document.getElementById("btn-sheet").onclick = () => panel.classList.toggle("on");
+document.getElementById("sheet-close").onclick = () => panel.classList.remove("on");
+
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(render, 120); });
+
+/* A previous sync survives a reload. On file:// some browsers refuse
+   IndexedDB outright — in that case this simply finds nothing and the
+   empty state asks for the folder again. */
+(async () => {
+  const saved = await idbGet("book");
+  if(saved && saved.chapters){
+    IDS.forEach(id => { BOOK[id] = (saved.chapters[id] || []).map(p => ({ ...p, url:null })); });
+    LOOSE = saved.loose || LOOSE;
+    BLANK = saved.blank ? { ...saved.blank, url:null } : null;
+    source = saved.source || null;
+    mintUrls();
+  }
+  loadAll();
+  if(!SEQ[chapter].length){ const f = IDS.find(id => SEQ[id].length); if(f) chapter = f; seq = SEQ[chapter]; }
+  setMode("spread");
+})();
+</script>
+
+</body>
+</html>

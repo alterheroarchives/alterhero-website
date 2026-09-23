@@ -167,7 +167,7 @@ window.AH_PARAMS = {
     typeSpeed:  16,    // DEFAULT ms per letter — LOWER types faster                (default 16)
     cycleSpeed: 45,    // ms per step for the {scrambled} letters spinning into place (default 45)
     linePause: 400,    // DEFAULT pause after a line, when it doesn't set its own   (default 400)
-    endPause: 2000,    // ms the cursor blinks on the last line before the fade     (default 900)
+    endPause:  700,    // ms the cursor blinks on the last line before the fade     (default 900)
     fadeOut:     0,    // no fade — boot screen cuts directly to main page
     showEveryVisit: true,   // false = show only on the first load of each browser session
 
@@ -185,13 +185,13 @@ window.AH_PARAMS = {
        the word looks discovered rather than typed. The braces never show on screen.
        Letters cycle A–Z, digits cycle 0–9, and !?#*@&%$ cycle among themselves. */
     lines: [
-      { text: 'searching...',              after: 1600, lock: true },   // ← cursor blinks, position locks
+      { text: '/searching',                after:  600, lock: true },   // ← cursor blinks, position locks
 
-      { text: 'loading T{AH}PES...',              after:  500 },
-      { text: 'loading PH{E}N{O}MEN{AH}!...',   after:  500 },
-      { text: 'loading {999} ahrchives...',     after:  600, settleFirst: true },
+      { text: '/loading T{AH}PES',                after:  500 },
+      { text: '/loading PH{E}N{O}MEN{AH}!',     after:  500 },
+      { text: '/loading {999} ahrchives',       after:  600, settleFirst: true },
 
-      { text: 'initializing alterhero...',      after: 1600 },   // ← last line. the cursor then blinks alone
+      { text: '/initializing alterhero',        after:  500 },   // ← last line. the cursor then blinks alone
     ],                                                      //   for `endPause` before the site fades in
   },
 
