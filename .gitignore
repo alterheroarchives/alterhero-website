@@ -55,3 +55,12 @@ tools/sign-listings.html
 tools/vendor/
 # testnet: the abandoned Sepolia rehearsal
 tools/testnet/
+
+# local only — never deploy
+# REAHDIM.html: the imposition table (spreads, recto/verso, page turns). A studio
+# tool that reads the drawing folder off disk; nothing about it belongs on the site.
+REAHDIM.html
+
+# local only — never deploy
+# the REAHDIM Electron app (imposition table). Studio tool, plus its node_modules.
+tools/reahdim-app/

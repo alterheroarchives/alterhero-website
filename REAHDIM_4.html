@@ -100,6 +100,26 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 }
 .rail-mid{display:flex;flex-direction:column;gap:5px}
 .rail-bot{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+
+/* The mirror rail. Reading controls live on the left; the two that
+   change what the book contains live on the right, away from them —
+   adding and removing a page is not the same kind of act as looking. */
+.rail-right{
+  position:absolute;right:18px;bottom:16px;width:104px;z-index:3;
+  display:flex;flex-direction:column;gap:8px;align-items:flex-end;text-align:right;
+}
+.rail-right .txtbtn{text-align:right}
+.rail-right .txtbtn:disabled{opacity:.3;cursor:default;border-color:var(--hair)}
+.rail-right .txtbtn:disabled:hover{color:var(--ink-2);border-color:var(--hair)}
+.selline{
+  font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
+  color:var(--muted);line-height:1.5;
+}
+.outline-restore{
+  font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
+  color:var(--ochre);cursor:pointer;line-height:1.5;
+}
+.outline-restore:hover{color:var(--ink)}
 .srcline{
   font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;line-height:1.5;
   color:var(--muted);
@@ -135,11 +155,38 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   display:block;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;
   border:1px solid currentColor;border-radius:2px;padding:7px 5px;text-align:center;line-height:1.4;
 }
-.verdict.hidden-turn{color:var(--teal)}
-.verdict.same-spread{color:var(--ochre)}
 
 /* the book sits dead centre and does not move between spreads */
 .sheets{display:flex;align-items:flex-start;justify-content:center;gap:0}
+
+/* ── the wall ──────────────────────────────────────────────────────
+   Every spread in the chapter at once, at about half the size of the
+   stage. Spreads stay paired here, with their gutter, so the wall is
+   the book seen from above rather than a pile of loose pages.
+─────────────────────────────────────────────────────────────────── */
+.stage.wallmode{align-items:stretch}
+.sheets.wall{
+  display:flex;flex-wrap:wrap;align-content:flex-start;justify-content:center;
+  gap:22px 26px;width:100%;height:100%;overflow-y:auto;
+  padding:2px 116px 14px;
+}
+.wallgrp{display:flex;align-items:flex-start;position:relative;padding-top:14px}
+.wallgrp::before{
+  content:attr(data-spread);position:absolute;top:0;left:0;
+  font-family:"DM Mono",monospace;font-size:9px;letter-spacing:.1em;color:var(--muted);
+}
+.wallpage{flex:none;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+.wallpage img,.wallpage .blanktile{display:block;box-shadow:0 2px 10px var(--paper-shadow)}
+.wallpage .blanktile{border:1px dashed var(--hair);background:var(--blank)}
+.wallpage .cap{
+  display:flex;gap:6px;align-items:baseline;font-size:9px;letter-spacing:.08em;color:var(--muted);
+  font-family:"DM Mono",monospace;
+}
+.wallpage.here img,.wallpage.here .blanktile{outline:2px solid var(--ink);outline-offset:2px}
+.wallpage.here .cap{color:var(--ink)}
+.wallpage:hover .cap{color:var(--ink-2)}
+.wallgut{flex:none;width:10px;align-self:stretch;
+  background:linear-gradient(90deg,transparent,var(--paper-shadow) 45%,var(--paper-shadow) 55%,transparent);opacity:.65}
 .slot{flex:none;display:flex;flex-direction:column;align-items:center}
 .slot.empty > *{visibility:hidden}
 
@@ -179,23 +226,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   background:linear-gradient(90deg,transparent,var(--paper-shadow) 42%,var(--paper-shadow) 58%,transparent);
   opacity:.8;
 }
-
-/* veil for a hidden turn */
-.veiled{position:relative}
-.veil{
-  position:absolute;inset:0;background:var(--veil);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;
-  cursor:pointer;text-align:center;padding:14px;
-  border:1px solid var(--hair);
-}
-.veil .lbl{color:var(--ink-2)}
-.veil strong{font-size:12px;font-weight:600;max-width:24ch;line-height:1.4;color:var(--ink)}
-.veil-cta{
-  font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;
-  color:var(--ink);border:1px solid var(--ink);border-radius:2px;padding:4px 12px;margin-top:4px;
-}
-.veil:hover .veil-cta{background:var(--ink);color:var(--veil)}
-.veiled.open .veil{display:none}
 
 /* insert handles on stage pages */
 .ins{
@@ -258,11 +288,26 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 }
 .chip.isblank:hover .chipdel{display:flex}
 
-.chipins{
-  flex:none;width:11px;align-self:stretch;display:flex;align-items:center;justify-content:center;
-  color:var(--ink-2);opacity:.4;font-size:12px;padding-top:13px;
+
+/* ── the exported book, read in place ─────────────────────────────
+   An export you have to leave the page to look at is not finished, so
+   the PDF opens here in the browser's own viewer.
+─────────────────────────────────────────────────────────────────── */
+.pdfwrap{position:fixed;inset:0;z-index:50;background:var(--ground);display:none;flex-direction:column}
+.pdfwrap.on{display:flex}
+.pdfbar{
+  flex:none;display:flex;align-items:center;gap:14px;padding:9px 16px;
+  background:var(--panel);border-bottom:1px solid var(--hair);
 }
-.chipins:hover{color:var(--ink);opacity:1}
+.pdftitle{font-size:11px;letter-spacing:.08em;color:var(--ink-2)}
+.pdfnote{font-size:10px;color:var(--muted);margin-right:auto;letter-spacing:.04em}
+.pdfbar button{
+  font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:700;
+  color:var(--ink-2);border-bottom:1px solid var(--hair);padding-bottom:1px;
+  background:none;border-top:0;border-left:0;border-right:0;cursor:pointer;
+}
+.pdfbar button:hover{color:var(--ink);border-color:var(--ink)}
+#pdf-frame{flex:1;width:100%;border:0;background:var(--ground-2)}
 
 /* ── arrangement panel ─────────────────────────────────────────────── */
 .sheetpanel{
@@ -320,7 +365,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .chip.dragging{opacity:.3}
 .chip.dropL{box-shadow:inset 2px 0 0 0 var(--teal)}
 .chip.dropR{box-shadow:inset -2px 0 0 0 var(--teal)}
-.ribbon.dragging .chipins{opacity:.12}
 
 /* ── empty state ───────────────────────────────────────────────────
    Nothing is baked into this file any more, so the first run has an
@@ -361,7 +405,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
       <div class="rail-mid">
         <button class="modebtn" id="m-single" aria-pressed="false">Single</button>
         <button class="modebtn" id="m-spread" aria-pressed="true">Spread</button>
-        <button class="modebtn" id="m-turn" aria-pressed="false">Turn</button>
+        <button class="modebtn" id="m-wall" aria-pressed="false">Wall</button>
         <div class="pager">
           <button id="prev" aria-label="Previous">&larr;</button>
           <button id="next" aria-label="Next">&rarr;</button>
@@ -374,9 +418,15 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
         <span class="srcline" id="srcline"></span>
         <button class="txtbtn" id="btn-sync">Sync folder</button>
         <button class="txtbtn" id="btn-sheet">Arrangement</button>
-        <button class="txtbtn" id="btn-reset">Reset</button>
+        <button class="txtbtn" id="btn-export">Export PDF</button>
         <input type="file" id="folder" webkitdirectory directory multiple hidden>
       </div>
+    </nav>
+    <nav class="rail-right" aria-label="Edit the book">
+      <span class="selline" id="selline"></span>
+      <span class="outline-restore" id="restore" hidden></span>
+      <button class="txtbtn" id="btn-blank">Add blank</button>
+      <button class="txtbtn" id="btn-remove">Remove page</button>
     </nav>
     <div class="sheets" id="sheets"></div>
   </main>
@@ -391,6 +441,16 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   <span class="big" id="sync-title">Reading the folder</span>
   <div class="syncbar"><i id="sync-bar"></i></div>
   <span class="sub" id="sync-sub"></span>
+</div>
+
+<div class="pdfwrap" id="pdfwrap">
+  <div class="pdfbar">
+    <span class="pdftitle mono" id="pdf-title"></span>
+    <span class="pdfnote" id="pdf-note"></span>
+    <button id="pdf-save">Download</button>
+    <button id="pdf-close" aria-label="Close">Close &times;</button>
+  </div>
+  <iframe id="pdf-frame" title="The exported book"></iframe>
 </div>
 
 <div class="sheetpanel" id="sheetpanel">
@@ -466,6 +526,7 @@ const KEY = "reahdim.arrangement.v2.";
 let BOOK  = { PHE:[], NO:[], MEN:[], AH:[] };   // pages as read off the folder
 let SEQ   = { PHE:[], NO:[], MEN:[], AH:[] };   // the arrangement, per chapter
 let LOOSE = { PHE:[], NO:[], MEN:[], AH:[] };   // filenames with no readable position
+let OUT   = { PHE:[], NO:[], MEN:[], AH:[] };   // pages taken out of the book by hand
 let BLANK = null;                              // { blob, url, ratio } — the real blank page
 let source = null;                             // { folder, when, count }
 let chapter = "PHE";
@@ -597,7 +658,13 @@ function loadArrangement(id){
   try{
     const raw = localStorage.getItem(KEY + id);
     if(raw){
-      const arr = JSON.parse(raw);
+      const saved = JSON.parse(raw);
+      /* Older saves were a bare array. A save now also carries the pages
+         taken out by hand, because otherwise the rule that a re-sync
+         never loses a page would quietly put every one of them back. */
+      const arr = Array.isArray(saved) ? saved : (saved && saved.order) || null;
+      OUT[id] = (!Array.isArray(saved) && saved && Array.isArray(saved.out)) ? saved.out : [];
+      const out_ = new Set(OUT[id]);
       if(Array.isArray(arr) && arr.length){
         const byFile = new Map(list.map(p => [p.file, p]));
         const used = new Set(), out = [];
@@ -606,7 +673,7 @@ function loadArrangement(id){
           const p = byFile.get(x);
           if(p && !used.has(x)){ out.push(entryOf(p)); used.add(x); }
         }
-        list.forEach(p => { if(!used.has(p.file)) out.push(entryOf(p)); });
+        list.forEach(p => { if(!used.has(p.file) && !out_.has(p.file)) out.push(entryOf(p)); });
         if(out.length) return out;
       }
     }
@@ -615,8 +682,10 @@ function loadArrangement(id){
 }
 function saveArrangement(){
   try{
-    localStorage.setItem(KEY + chapter,
-      JSON.stringify(seq.map(p => p.blank ? null : p.file)));
+    localStorage.setItem(KEY + chapter, JSON.stringify({
+      order: seq.map(p => p.blank ? null : p.file),
+      out:   OUT[chapter] || []
+    }));
   }catch(e){}
 }
 function loadAll(){
@@ -773,7 +842,6 @@ const pageNo   = i => i + 1;
 const isRecto  = i => pageNo(i) % 2 === 1;
 const sideOf   = i => isRecto(i) ? "recto" : "verso";
 const spreadNo = i => Math.floor(pageNo(i) / 2);
-const isHiddenTurn = i => isRecto(i);            // a real turn happens when you leave a recto
 
 function snapshotSides(){ return seq.map((p, i) => sideOf(i)); }
 function idOf(p){ return p.blank ? "_blank_" : p.file; }
@@ -813,13 +881,33 @@ function insertBlank(at){
   applyChange(b, "Blank inserted");
   saveArrangement(); render();
 }
+/* Taking a page out of the book is not deleting it. The file stays in
+   the folder, untouched; it is this arrangement that no longer uses it,
+   and the rail says so and offers it back. */
 function removeAt(i){
-  if(!seq[i] || !seq[i].blank) return;
+  const p = seq[i];
+  if(!p) return;
   const b = beforeState();
   seq.splice(i, 1);
+  if(!p.blank && p.file){
+    OUT[chapter] = OUT[chapter] || [];
+    if(!OUT[chapter].includes(p.file)) OUT[chapter].push(p.file);
+  }
   if(cursor > i) cursor--;
   if(cursor >= seq.length) cursor = seq.length - 1;
-  applyChange(b, "Blank removed");
+  if(cursor < 0) cursor = 0;
+  applyChange(b, p.blank ? "Blank removed" : "Page taken out");
+  saveArrangement(); render();
+}
+
+function restoreOut(){
+  const names = OUT[chapter] || [];
+  if(!names.length) return;
+  const b = beforeState();
+  const byFile = new Map(pages().map(x => [x.file, x]));
+  names.forEach(n => { const x = byFile.get(n); if(x) seq.push(entryOf(x)); });
+  OUT[chapter] = [];
+  applyChange(b, names.length + " page(s) put back");
   saveArrangement(); render();
 }
 
@@ -837,13 +925,16 @@ function moveEntry(from, to){
   saveArrangement(); render();
 }
 
-document.getElementById("btn-reset").onclick = () => {
-  const b = beforeState();
-  setSeq(pages().map(entryOf));
-  cursor = 0;
-  applyChange(b, "Arrangement reset");
-  saveArrangement(); render();
+document.getElementById("btn-blank").onclick = () => {
+  if(!seq.length) return;
+  insertBlank(cursor + 1);
+  cursor = Math.min(seq.length - 1, cursor + 1);   // land on it, ready to drag
+  render();
 };
+document.getElementById("btn-remove").onclick = () => {
+  if(seq.length) removeAt(cursor);
+};
+document.getElementById("restore").onclick = () => restoreOut();
 
 /* ── weight meter ────────────────────────────────────────────────── */
 function mass(p){
@@ -1001,12 +1092,14 @@ function render(){
   /* Height is chosen against the widest page actually on screen, so a
      landscape page cannot push its neighbour off the stage. */
   const inView = mode === "single" ? [seq[cursor]]
-    : mode === "spread" ? (() => { const sp = spreadNo(cursor);
-        return sp === 0 ? [seq[0]] : [seq[sp*2-1], seq[sp*2]]; })()
-    : [seq[cursor], seq[cursor+1]];
+    : (() => { const sp = spreadNo(cursor);
+        return sp === 0 ? [seq[0]] : [seq[sp*2-1], seq[sp*2]]; })();
   const widest = Math.max(...inView.filter(Boolean).map(ratioOf), 0.3);
   const byWidth = (mode === "single" ? room : (room - 18) / 2) / widest;
   const H = Math.max(240, Math.min(mode === "single" ? 980 : 900, byHeight, byWidth));
+
+  sheets.className = "sheets" + (mode === "wall" ? " wall" : "");
+  document.querySelector(".stage").classList.toggle("wallmode", mode === "wall");
 
   if(mode === "single"){
     sheets.appendChild(slotEl(cursor, { h:H }));
@@ -1024,45 +1117,73 @@ function render(){
     if(fl) status.appendChild(fl);
 
   }else{
-    const i = cursor, j = cursor + 1;
-    const hidden = isHiddenTurn(i);
-    const v = document.createElement("span");
-    v.className = "verdict " + (hidden ? "hidden-turn" : "same-spread");
-    v.textContent = hidden ? "Hidden — a real page turn" : "Simultaneous — same spread";
-    status.appendChild(v);
-
-    sheets.appendChild(slotEl(i, { h:H, note:false }));
-    const g = gutterEl(H);
-    if(hidden) g.style.opacity = ".18";
-    sheets.appendChild(g);
-
-    if(j < seq.length){
-      const slot = slotEl(j, { h:H, note:false, masked:hidden });
-      const el = slot.firstChild;
-      if(hidden){
-        el.classList.add("veiled");
-        const veil = document.createElement("div"); veil.className = "veil";
-        veil.innerHTML = '<span class="lbl">Not yet visible</span>' +
-          '<strong>The reader turns the page to reach this. Whatever is here arrives as a reveal.</strong>' +
-          '<span class="veil-cta">Turn it</span>';
-        veil.onclick = () => el.classList.add("open");
-        el.insertBefore(veil, el.firstChild.nextSibling);
-        el.style.position = "relative";
-        veil.style.height = H + "px"; veil.style.bottom = "auto";
-        veil.style.width = slotW(H, seq[j]) + "px";
-        veil.style.left = "50%"; veil.style.right = "auto";
-        veil.style.transform = "translateX(-50%)";
-      }
-      sheets.appendChild(slot);
-    }else{
-      sheets.appendChild(slotEl(null, { h:H, note:false }));
-    }
+    renderWall(sheets, H);
   }
 
   document.getElementById("prev").disabled = cursor <= 0;
   document.getElementById("next").disabled = cursor >= seq.length - 1;
 
   renderMeta(); renderRibbon(); renderSheet();
+}
+
+/* ── the wall ──────────────────────────────────────────────────────
+   Every spread in the chapter at once, about half stage size. Spreads
+   keep their pairing and their gutter, so this is the book seen from
+   above rather than a pile of loose pages — which is the only version
+   worth having when the question is how a whole chapter paces.
+─────────────────────────────────────────────────────────────────── */
+function wallPage(i, h){
+  const p = seq[i];
+  const d = document.createElement("div");
+  d.className = "wallpage" + (i === cursor ? " here" : "");
+  d.title = (p.blank ? "Blank" : (p.label || p.file)) + " — page " + pageNo(i) + ", " + sideOf(i);
+
+  const w = slotW(h, p);
+  if(p.blank && !p.url){
+    const b = document.createElement("div"); b.className = "blanktile";
+    b.style.width = w + "px"; b.style.height = h + "px";
+    d.appendChild(b);
+  }else{
+    const im = document.createElement("img");
+    im.src = p.url; im.alt = p.blank ? "Blank page" : (p.label || "");
+    im.style.width = w + "px"; im.style.height = h + "px";
+    im.draggable = false;
+    d.appendChild(im);
+  }
+  const cap = document.createElement("div"); cap.className = "cap";
+  const n = document.createElement("span"); n.textContent = pageNo(i);
+  const sd = document.createElement("span"); sd.textContent = isRecto(i) ? "R" : "L";
+  cap.append(n, sd);
+  d.appendChild(cap);
+
+  /* Click puts the cursor here; clicking the one already selected opens
+     its spread on the stage — so the wall is a way in, not a dead end. */
+  d.onclick = () => {
+    if(i === cursor) setMode("spread");
+    else { cursor = i; render(); }
+  };
+  return d;
+}
+
+function renderWall(sheets, H){
+  const h = Math.max(140, Math.min(320, Math.round(H / 2)));
+  let i = 0;
+  while(i < seq.length){
+    const sp = spreadNo(i);
+    const grp = document.createElement("div");
+    grp.className = "wallgrp";
+    grp.dataset.spread = sp === 0 ? "OPEN" : String(sp).padStart(2, "0");
+    if(sp === 0){
+      grp.appendChild(wallPage(i, h)); i++;
+    }else{
+      grp.appendChild(wallPage(i, h));
+      const gut = document.createElement("div"); gut.className = "wallgut";
+      grp.appendChild(gut);
+      if(seq[i+1] && spreadNo(i+1) === sp){ grp.appendChild(wallPage(i+1, h)); i += 2; }
+      else i += 1;
+    }
+    sheets.appendChild(grp);
+  }
 }
 
 function renderChapters(){
@@ -1094,6 +1215,22 @@ function renderMeta(){
                lo.join("\n  ");
   }else{ el.textContent = ""; el.title = ""; }
 
+  const cur = seq[cursor];
+  const sel = document.getElementById("selline");
+  sel.innerHTML = cur
+    ? "Selected<br>" + (cur.blank ? "blank" : (cur.label || cur.file)) + "<br>page " + pageNo(cursor)
+    : "";
+  document.getElementById("btn-remove").disabled = !cur;
+  document.getElementById("btn-blank").disabled  = !seq.length;
+
+  const out = OUT[chapter] || [];
+  const rs = document.getElementById("restore");
+  rs.hidden = !out.length;
+  if(out.length){
+    rs.textContent = out.length + " out · put back";
+    rs.title = "Taken out of the book (the files are untouched):\n  " + out.join("\n  ");
+  }
+
   const sl = document.getElementById("srcline");
   sl.classList.toggle("synced", !!source);
   if(source){
@@ -1124,23 +1261,7 @@ function renderRibbon(){
     if(sp === 0){ members.push(i); i++; }
     else { members.push(i); if(seq[i+1] && spreadNo(i+1) === sp) members.push(i+1); i += members.length; }
 
-    members.forEach((k, idx) => {
-      if(idx === 0){
-        const pre = document.createElement("button");
-        pre.className = "chipins"; pre.textContent = "+";
-        pre.title = "Insert blank before page " + pageNo(k);
-        pre.setAttribute("aria-label", pre.title);
-        pre.onclick = () => insertBlank(k);
-        grp.appendChild(pre);
-      }
-      grp.appendChild(chipEl(k));
-      const post = document.createElement("button");
-      post.className = "chipins"; post.textContent = "+";
-      post.title = "Insert blank after page " + pageNo(k);
-      post.setAttribute("aria-label", post.title);
-      post.onclick = () => insertBlank(k+1);
-      grp.appendChild(post);
-    });
+    members.forEach(k => grp.appendChild(chipEl(k)));
     rib.appendChild(grp);
   }
   const cur = rib.querySelector('[aria-current="true"]');
@@ -1234,6 +1355,173 @@ function renderSheet(){
   document.getElementById("sheet-text").textContent = lines.join("\n");
 }
 
+/* ── export ────────────────────────────────────────────────────────
+   A reading PDF of the open chapter: one page per page, blanks
+   included, in the order the arrangement says.
+
+   The pages here are the ones the sync downscaled to 1500px for the
+   screen — the browser let go of the files the moment it finished
+   reading them and cannot reopen the originals. Good for reading and
+   sending; the desktop app is the one that exports at print size, and
+   the bar says so rather than letting you find out later.
+
+   The writer is hand-rolled: a JPEG goes in byte-for-byte as DCTDecode
+   rather than through a canvas, so nothing is compressed twice.
+─────────────────────────────────────────────────────────────────── */
+const PDF_H = 792;                              // page height in points
+
+function jpegInfo(bytes){
+  if(bytes[0] !== 0xFF || bytes[1] !== 0xD8) return null;
+  let i = 2;
+  while(i < bytes.length - 1){
+    if(bytes[i] !== 0xFF){ i++; continue; }
+    const marker = bytes[i+1];
+    if(marker === 0xFF){ i++; continue; }
+    if(marker === 0x01 || (marker >= 0xD0 && marker <= 0xD9)){ i += 2; continue; }
+    const len = (bytes[i+2] << 8) | bytes[i+3];
+    const isSOF = marker >= 0xC0 && marker <= 0xCF && marker !== 0xC4 && marker !== 0xC8 && marker !== 0xCC;
+    if(isSOF){
+      const progressive = (marker === 0xC2 || marker === 0xC6 || marker === 0xCA || marker === 0xCE);
+      return { h:(bytes[i+5] << 8) | bytes[i+6], w:(bytes[i+7] << 8) | bytes[i+8],
+               nc:bytes[i+9], progressive };
+    }
+    if(marker === 0xDA) break;                   // start of scan, no frame header before it
+    i += 2 + len;
+  }
+  return null;
+}
+
+/* A PNG, or a progressive JPEG the PDF filter will not take, goes
+   through a canvas once. 4000px is the canvas ceiling, not a choice. */
+async function toBaselineJpeg(blob){
+  const url = URL.createObjectURL(blob);
+  try{
+    const img = await new Promise((res, rej) => {
+      const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("decode")); i.src = url;
+    });
+    const CAP = 4000, sc = Math.min(CAP/img.width, CAP/img.height, 1);
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(img.width*sc)); c.height = Math.max(1, Math.round(img.height*sc));
+    const x = c.getContext("2d");
+    x.fillStyle = "#ffffff"; x.fillRect(0, 0, c.width, c.height);
+    x.drawImage(img, 0, 0, c.width, c.height);
+    const out = await new Promise(r => c.toBlob(r, "image/jpeg", 0.92));
+    return new Uint8Array(await out.arrayBuffer());
+  } finally { URL.revokeObjectURL(url); }
+}
+
+async function pdfImage(blob){
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const info = jpegInfo(bytes);
+  if(info && !info.progressive && (info.nc === 1 || info.nc === 3))
+    return { bytes, w:info.w, h:info.h, nc:info.nc };
+  const re = await toBaselineJpeg(blob);
+  const ri = jpegInfo(re);
+  if(!ri) throw new Error("could not encode a page");
+  return { bytes:re, w:ri.w, h:ri.h, nc:ri.nc };
+}
+
+/* A blank with no Blank_Page.jpg behind it still has to be a real sheet
+   in the file, or the pagination this whole tool is about collapses on
+   export. */
+async function whiteSheet(ratio){
+  const c = document.createElement("canvas");
+  c.width = Math.round(1200 * ratio); c.height = 1200;
+  const x = c.getContext("2d"); x.fillStyle = "#ffffff"; x.fillRect(0, 0, c.width, c.height);
+  return await new Promise(r => c.toBlob(r, "image/jpeg", 0.9));
+}
+
+function buildPdf(items){
+  const chunks = []; let len = 0; const off = {};
+  const enc = t => { const a = new Uint8Array(t.length); for(let i=0;i<t.length;i++) a[i] = t.charCodeAt(i) & 255; return a; };
+  const put = x => { const b = (typeof x === "string") ? enc(x) : x; chunks.push(b); len += b.length; };
+  const startObj = n => { off[n] = len; put(n + " 0 obj\n"); };
+  const endObj = () => put("\nendobj\n");
+  const f = n => (Math.round(n*1000)/1000).toString();
+
+  put("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+  const total = 2 + items.length*3;
+  const kids = items.map((_, i) => (3 + 3*i) + " 0 R").join(" ");
+
+  startObj(1); put("<< /Type /Catalog /Pages 2 0 R >>"); endObj();
+  startObj(2); put("<< /Type /Pages /Count " + items.length + " /Kids [" + kids + "] >>"); endObj();
+
+  items.forEach((it, i) => {
+    const pN = 3 + 3*i, cN = 4 + 3*i, iN = 5 + 3*i;
+    startObj(pN);
+    put("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + f(it.pw) + " " + f(it.ph) + "]" +
+        " /Resources << /XObject << /Im0 " + iN + " 0 R >> >> /Contents " + cN + " 0 R >>");
+    endObj();
+    const cs = "q " + f(it.pw) + " 0 0 " + f(it.ph) + " 0 0 cm /Im0 Do Q";
+    startObj(cN); put("<< /Length " + cs.length + " >>\nstream\n" + cs + "\nendstream"); endObj();
+    startObj(iN);
+    put("<< /Type /XObject /Subtype /Image /Width " + it.w + " /Height " + it.h +
+        " /ColorSpace " + (it.nc === 1 ? "/DeviceGray" : "/DeviceRGB") +
+        " /BitsPerComponent 8 /Filter /DCTDecode /Length " + it.bytes.length + " >>\nstream\n");
+    put(it.bytes); put("\nendstream"); endObj();
+  });
+
+  const xrefAt = len;
+  let x = "xref\n0 " + (total+1) + "\n0000000000 65535 f \n";
+  for(let n = 1; n <= total; n++) x += String(off[n]).padStart(10, "0") + " 00000 n \n";
+  put(x);
+  put("trailer\n<< /Size " + (total+1) + " /Root 1 0 R >>\nstartxref\n" + xrefAt + "\n%%EOF\n");
+
+  const out = new Uint8Array(len); let q = 0;
+  chunks.forEach(b => { out.set(b, q); q += b.length; });
+  return out;
+}
+
+let lastPdf = null;                              // { url, name }
+
+async function exportPdf(){
+  if(!seq.length) return;
+  const items = [];
+  for(let i = 0; i < seq.length; i++){
+    const p = seq[i];
+    syncUI(true, "Writing the PDF",
+      (p.blank ? "blank" : p.file) + "  ·  " + (i+1) + " of " + seq.length,
+      Math.round(i/seq.length*100));
+    await new Promise(r => setTimeout(r, 0));
+    try{
+      const blob = p.blank ? (BLANK && BLANK.blob ? BLANK.blob : await whiteSheet(ratioOf(p)))
+                           : p.blob;
+      if(!blob) continue;
+      const im = await pdfImage(blob);
+      items.push({ ...im, pw: PDF_H * (im.w / im.h), ph: PDF_H });
+    }catch(e){ console.warn("REAHDIM: page left out of the PDF —", p.file, e); }
+  }
+  if(!items.length){ syncUI(false); return; }
+
+  syncUI(true, "Writing the PDF", "", 100);
+  const bytes = buildPdf(items);
+  if(lastPdf && lastPdf.url) URL.revokeObjectURL(lastPdf.url);
+  const url = URL.createObjectURL(new Blob([bytes], { type:"application/pdf" }));
+  const name = "REAHDIM — " + chapter + " — " +
+    new Date().toISOString().slice(0,10);
+  lastPdf = { url, name };
+  syncUI(false);
+
+  document.getElementById("pdf-frame").src = url;
+  document.getElementById("pdf-title").textContent = name + "  ·  " + items.length + " pages";
+  document.getElementById("pdf-note").textContent =
+    "screen resolution — the browser cannot reopen your originals";
+  document.getElementById("pdfwrap").classList.add("on");
+}
+
+function closePdf(){
+  document.getElementById("pdfwrap").classList.remove("on");
+  document.getElementById("pdf-frame").src = "about:blank";
+}
+document.getElementById("btn-export").onclick = () => exportPdf();
+document.getElementById("pdf-close").onclick  = closePdf;
+document.getElementById("pdf-save").onclick   = () => {
+  if(!lastPdf) return;
+  const a = document.createElement("a");
+  a.href = lastPdf.url; a.download = lastPdf.name + ".pdf";
+  document.body.appendChild(a); a.click(); a.remove();
+};
+
 /* ── controls ────────────────────────────────────────────────────── */
 function setChapter(id){
   if(!IDS.includes(id) || id === chapter) return;
@@ -1244,13 +1532,13 @@ function setChapter(id){
 }
 function setMode(m){
   mode = m;
-  ["single","spread","turn"].forEach(x =>
+  ["single","spread","wall"].forEach(x =>
     document.getElementById("m-" + x).setAttribute("aria-pressed", String(x === m)));
   render();
 }
 document.getElementById("m-single").onclick = () => setMode("single");
 document.getElementById("m-spread").onclick = () => setMode("spread");
-document.getElementById("m-turn").onclick   = () => setMode("turn");
+document.getElementById("m-wall").onclick   = () => setMode("wall");
 
 function step(d){
   if(!seq.length) return;
@@ -1278,7 +1566,7 @@ document.addEventListener("keydown", e => {
   }
   else if(k === "1") setMode("single");
   else if(k === "2") setMode("spread");
-  else if(k === "3") setMode("turn");
+  else if(k === "3") setMode("wall");
   else if(k.toLowerCase() === "b") insertBlank(cursor + 1);
   else if(k >= "5" && k <= "8"){ const c = CHAPTERS[+k - 5]; if(c) setChapter(c.id); }
 });
